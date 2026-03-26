@@ -1,0 +1,13 @@
+---
+linux_freeipa_enroll_enabled: true
+linux_ipa_servers: []
+linux_ipaadmin_principal: "{{ freeipa_admin_principal }}"
+linux_ipaadmin_password: "{{ freeipa_admin_password }}"
+linux_ipaclient_mkhomedir: true
+linux_ipaclient_force_join: false
+linux_ipaclient_no_dns_lookup: true
+linux_ipaclient_no_sudo: false
+linux_ipasssd_permit: false
+linux_ipaclient_configure_dns_resolver: false
+linux_ipaclient_dns_servers: []
+linux_ipaclient_install_packages: true

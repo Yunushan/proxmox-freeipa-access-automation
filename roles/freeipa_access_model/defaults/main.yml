@@ -1,0 +1,8 @@
+---
+freeipa_access_model_enabled: true
+freeipa_admin_principal: admin
+freeipa_admin_password: ""
+freeipa_api_context: server
+freeipa_user_groups: []
+freeipa_hostgroups: []
+freeipa_hbac_rules: []

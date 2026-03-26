@@ -1,0 +1,19 @@
+---
+all:
+  vars:
+    ansible_user: root
+  children:
+    ipa_servers:
+      hosts:
+        ipa01.example.com:
+          ansible_host: 192.0.2.21
+    proxmox_primary:
+      hosts:
+        pve01.example.com:
+          ansible_host: 192.0.2.11
+    linux_ipa_clients:
+      hosts:
+        rocky-app-01.example.com:
+          ansible_host: 192.0.2.101
+        ubuntu-jump-01.example.com:
+          ansible_host: 192.0.2.102

@@ -1,0 +1,10 @@
+---
+- name: Configure Proxmox LDAP realm and recurring sync only
+  hosts: proxmox_primary
+  become: true
+  gather_facts: false
+  serial: 1
+  roles:
+    - role: proxmox_ldap_realm
+    - role: proxmox_realm_sync_timer
+    - role: proxmox_rbac

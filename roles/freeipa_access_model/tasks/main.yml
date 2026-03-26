@@ -1,0 +1,63 @@
+---
+- name: Validate FreeIPA access model inputs
+  ansible.builtin.assert:
+    that:
+      - freeipa_admin_principal | length > 0
+      - freeipa_admin_password | length > 0
+    fail_msg: freeipa_admin_principal and freeipa_admin_password must be set.
+
+- name: Ensure FreeIPA user groups are present
+  freeipa.ansible_freeipa.ipagroup:
+    ipaadmin_principal: "{{ freeipa_admin_principal }}"
+    ipaadmin_password: "{{ freeipa_admin_password }}"
+    ipaapi_context: "{{ freeipa_api_context }}"
+    name: "{{ item.name }}"
+    description: "{{ item.description | default(omit) }}"
+    gidnumber: "{{ item.gidnumber | default(omit) }}"
+    user: "{{ item.user | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
+    external: "{{ item.external | default(omit) }}"
+    nonposix: "{{ item.nonposix | default(omit) }}"
+    state: "{{ item.state | default('present') }}"
+  loop: "{{ freeipa_user_groups }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+
+- name: Ensure FreeIPA hostgroups are present
+  freeipa.ansible_freeipa.ipahostgroup:
+    ipaadmin_principal: "{{ freeipa_admin_principal }}"
+    ipaadmin_password: "{{ freeipa_admin_password }}"
+    ipaapi_context: "{{ freeipa_api_context }}"
+    name: "{{ item.name }}"
+    description: "{{ item.description | default(omit) }}"
+    host: "{{ ((item.host | default([])) + ((item.inventory_groups | default([])) | map('extract', groups) | list | flatten)) | unique | list | default(omit) }}"
+    hostgroup: "{{ item.hostgroup | default(omit) }}"
+    state: "{{ item.state | default('present') }}"
+  loop: "{{ freeipa_hostgroups }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+
+- name: Ensure FreeIPA HBAC rules are present
+  freeipa.ansible_freeipa.ipahbacrule:
+    ipaadmin_principal: "{{ freeipa_admin_principal }}"
+    ipaadmin_password: "{{ freeipa_admin_password }}"
+    ipaapi_context: "{{ freeipa_api_context }}"
+    name: "{{ item.name }}"
+    description: "{{ item.description | default(omit) }}"
+    usercategory: "{{ item.usercategory | default(omit) }}"
+    hostcategory: "{{ item.hostcategory | default(omit) }}"
+    servicecategory: "{{ item.servicecategory | default(omit) }}"
+    host: "{{ item.host | default(omit) }}"
+    hostgroup: "{{ item.hostgroup | default(omit) }}"
+    hbacsvc: "{{ item.hbacsvc | default(omit) }}"
+    hbacsvcgroup: "{{ item.hbacsvcgroup | default(omit) }}"
+    user: "{{ item.user | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
+    action: "{{ item.action | default('hbacrule') }}"
+    state: "{{ item.state | default('enabled') }}"
+  loop: "{{ freeipa_hbac_rules }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true

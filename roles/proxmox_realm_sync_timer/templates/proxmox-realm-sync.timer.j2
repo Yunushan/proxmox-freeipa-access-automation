@@ -1,0 +1,10 @@
+[Unit]
+Description=Schedule Proxmox LDAP realm sync
+
+[Timer]
+OnCalendar={{ proxmox_realm_sync_on_calendar }}
+Persistent={{ proxmox_realm_sync_persistent | bool | ternary('true', 'false') }}
+Unit={{ proxmox_realm_sync_service_name }}.service
+
+[Install]
+WantedBy=timers.target

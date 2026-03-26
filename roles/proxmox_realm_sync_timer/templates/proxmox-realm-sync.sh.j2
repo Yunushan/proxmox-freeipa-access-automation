@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+/usr/sbin/pveum realm sync {{ proxmox_ldap_realm_id | quote }}   --scope {{ proxmox_realm_sync_scope | quote }}   --enable-new {{ (proxmox_realm_sync_enable_new | bool) | ternary('1', '0') | quote }}   --remove-vanished {{ proxmox_realm_sync_remove_vanished | quote }}

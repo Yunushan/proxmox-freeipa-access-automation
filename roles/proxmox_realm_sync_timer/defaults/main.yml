@@ -1,0 +1,8 @@
+---
+proxmox_realm_sync_timer_enabled: true
+proxmox_realm_sync_service_name: proxmox-realm-sync
+proxmox_realm_sync_on_calendar: "*:0/15"
+proxmox_realm_sync_persistent: true
+proxmox_realm_sync_scope: both
+proxmox_realm_sync_enable_new: true
+proxmox_realm_sync_remove_vanished: none

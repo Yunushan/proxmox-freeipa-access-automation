@@ -1,0 +1,8 @@
+---
+- name: Build FreeIPA access model only
+  hosts: ipa_servers
+  become: true
+  gather_facts: false
+  serial: 1
+  roles:
+    - role: freeipa_access_model

@@ -1,0 +1,30 @@
+---
+- name: Validate Linux IPA enrollment inputs
+  ansible.builtin.assert:
+    that:
+      - ipaclient_domain | length > 0
+      - ipaclient_realm | length > 0
+      - linux_ipaadmin_principal | length > 0
+      - linux_ipaadmin_password | length > 0
+      - (linux_ipa_servers | length > 0) or not (linux_ipaclient_no_dns_lookup | bool)
+    fail_msg: Required Linux FreeIPA enrollment variables are missing.
+
+- name: Join Linux host to FreeIPA
+  ansible.builtin.include_role:
+    name: freeipa.ansible_freeipa.ipaclient
+  vars:
+    state: present
+    ipaadmin_principal: "{{ linux_ipaadmin_principal }}"
+    ipaadmin_password: "{{ linux_ipaadmin_password }}"
+    ipaclient_domain: "{{ ipaclient_domain }}"
+    ipaclient_realm: "{{ ipaclient_realm }}"
+    ipaclient_servers: "{{ linux_ipa_servers | default(omit) }}"
+    ipaclient_mkhomedir: "{{ linux_ipaclient_mkhomedir }}"
+    ipaclient_force_join: "{{ linux_ipaclient_force_join }}"
+    ipaclient_no_dns_lookup: "{{ linux_ipaclient_no_dns_lookup }}"
+    ipaclient_no_sudo: "{{ linux_ipaclient_no_sudo }}"
+    ipasssd_permit: "{{ linux_ipasssd_permit }}"
+    ipaclient_install_packages: "{{ linux_ipaclient_install_packages }}"
+    ipaclient_configure_dns_resolver: "{{ linux_ipaclient_configure_dns_resolver }}"
+    ipaclient_dns_servers: "{{ linux_ipaclient_dns_servers if (linux_ipaclient_dns_servers | length > 0) else omit }}"
+  no_log: true

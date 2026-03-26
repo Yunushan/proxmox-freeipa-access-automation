@@ -1,0 +1,46 @@
+---
+- name: Validate inventory and variables locally
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check required variable presence
+      ansible.builtin.assert:
+        that:
+          - freeipa_admin_password | length > 0
+          - proxmox_ldap_bind_password | length > 0
+          - proxmox_ldap_realm_id | length > 0
+          - ipaclient_domain | length > 0
+          - ipaclient_realm | length > 0
+        fail_msg: One or more required variables are empty.
+
+- name: Validate Proxmox node prerequisites
+  hosts: proxmox_primary
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Confirm pveum is installed
+      ansible.builtin.command: which pveum
+      changed_when: false
+
+    - name: Confirm pvesh is installed
+      ansible.builtin.command: which pvesh
+      changed_when: false
+
+- name: Validate IPA server prerequisites
+  hosts: ipa_servers
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Confirm ipa CLI is installed
+      ansible.builtin.command: which ipa
+      changed_when: false
+
+- name: Validate Linux IPA client prerequisites
+  hosts: linux_ipa_clients
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Confirm package manager exists
+      ansible.builtin.shell: command -v dnf || command -v apt-get || command -v yum
+      changed_when: false

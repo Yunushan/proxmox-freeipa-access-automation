@@ -1,0 +1,10 @@
+[Unit]
+Description=Proxmox LDAP realm sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/{{ proxmox_realm_sync_service_name }}.sh
+User=root
+Group=root

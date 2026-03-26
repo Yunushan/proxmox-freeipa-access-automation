@@ -1,0 +1,96 @@
+---
+- name: Read current Proxmox roles
+  ansible.builtin.command:
+    argv:
+      - pveum
+      - role
+      - list
+      - --output-format
+      - json
+  register: proxmox_roles_raw
+  changed_when: false
+
+- name: Read current Proxmox groups
+  ansible.builtin.command:
+    argv:
+      - pveum
+      - group
+      - list
+      - --output-format
+      - json
+  register: proxmox_groups_raw
+  changed_when: false
+
+- name: Read current Proxmox ACLs
+  ansible.builtin.command:
+    argv:
+      - pveum
+      - acl
+      - list
+      - --output-format
+      - json
+  register: proxmox_acls_raw
+  changed_when: false
+
+- name: Parse Proxmox RBAC state
+  ansible.builtin.set_fact:
+    proxmox_current_roles: "{{ proxmox_roles_raw.stdout | from_json }}"
+    proxmox_current_groups: "{{ proxmox_groups_raw.stdout | from_json }}"
+    proxmox_current_acls: "{{ proxmox_acls_raw.stdout | from_json }}"
+
+- name: Ensure referenced synced groups exist before binding ACLs
+  ansible.builtin.assert:
+    that:
+      - item.group in (proxmox_current_groups | map(attribute='groupid') | list)
+    fail_msg: >-
+      The Proxmox group {{ item.group }} does not exist yet.
+      Make sure the matching FreeIPA group exists and that the Proxmox realm sync has already imported it.
+  loop: "{{ proxmox_acl_bindings }}"
+  loop_control:
+    label: "{{ item.group }} -> {{ item.path }}"
+
+- name: Ensure custom Proxmox roles exist
+  ansible.builtin.command:
+    argv:
+      - pveum
+      - role
+      - "{{ ((proxmox_current_roles | selectattr('roleid', 'equalto', item.name) | list | length) > 0) | ternary('modify', 'add') }}"
+      - "{{ item.name }}"
+      - --privs
+      - "{{ item.privs }}"
+  loop: "{{ proxmox_custom_roles }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: >-
+    ((proxmox_current_roles | selectattr('roleid', 'equalto', item.name) | list | length) == 0)
+    or
+    (((proxmox_current_roles | selectattr('roleid', 'equalto', item.name) | list | first).privs | default('')) != item.privs)
+  changed_when: true
+
+- name: Ensure Proxmox ACL bindings exist
+  ansible.builtin.command:
+    argv:
+      - pveum
+      - acl
+      - modify
+      - "{{ item.path }}"
+      - --groups
+      - "{{ item.group }}"
+      - --roles
+      - "{{ item.role }}"
+      - --propagate
+      - "{{ (item.propagate | default(true) | bool) | ternary('1', '0') }}"
+  loop: "{{ proxmox_acl_bindings }}"
+  loop_control:
+    label: "{{ item.group }} -> {{ item.role }} @ {{ item.path }}"
+  when: >-
+    (
+      proxmox_current_acls
+      | selectattr('path', 'equalto', item.path)
+      | selectattr('roleid', 'equalto', item.role)
+      | selectattr('ugid', 'equalto', '@' ~ item.group)
+      | selectattr('propagate', 'equalto', (item.propagate | default(true) | bool))
+      | list
+      | length
+    ) == 0
+  changed_when: true

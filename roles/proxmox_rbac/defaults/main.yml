@@ -1,0 +1,4 @@
+---
+proxmox_rbac_enabled: true
+proxmox_custom_roles: []
+proxmox_acl_bindings: []

@@ -1,0 +1,30 @@
+---
+- name: Build FreeIPA access model
+  hosts: ipa_servers
+  become: true
+  gather_facts: false
+  serial: 1
+  roles:
+    - role: freeipa_access_model
+      when: freeipa_access_model_enabled | bool
+
+- name: Configure Proxmox LDAP realm and RBAC
+  hosts: proxmox_primary
+  become: true
+  gather_facts: false
+  serial: 1
+  roles:
+    - role: proxmox_ldap_realm
+      when: proxmox_ldap_enabled | bool
+    - role: proxmox_realm_sync_timer
+      when: proxmox_ldap_enabled | bool and proxmox_realm_sync_timer_enabled | bool
+    - role: proxmox_rbac
+      when: proxmox_ldap_enabled | bool and proxmox_rbac_enabled | bool
+
+- name: Enroll Linux guests into FreeIPA
+  hosts: linux_ipa_clients
+  become: true
+  gather_facts: true
+  roles:
+    - role: linux_freeipa_enroll
+      when: linux_freeipa_enroll_enabled | bool
