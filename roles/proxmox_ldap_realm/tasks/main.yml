@@ -22,9 +22,9 @@
       {{
         (
           proxmox_version_raw.stdout
-          | regex_findall('pve-manager/(\\d+)')
-          | first
-          | default('')
+          | regex_search('pve-manager/[0-9]+')
+          | default('0', true)
+          | regex_replace('^pve-manager/', '')
         ) | int
       }}
 
