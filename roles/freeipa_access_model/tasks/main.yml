@@ -56,8 +56,30 @@
     user: "{{ item.user | default(omit) }}"
     group: "{{ item.group | default(omit) }}"
     action: "{{ item.action | default('hbacrule') }}"
+    state: >-
+      {{
+        (
+          item.action | default('hbacrule') == 'hbacrule'
+          and item.state | default('enabled') in ['enabled', 'disabled']
+        ) | ternary('present', item.state | default('present'))
+      }}
+  loop: "{{ freeipa_hbac_rules }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+
+- name: Ensure FreeIPA HBAC rules are enabled or disabled as requested
+  freeipa.ansible_freeipa.ipahbacrule:
+    ipaadmin_principal: "{{ freeipa_admin_principal }}"
+    ipaadmin_password: "{{ freeipa_admin_password }}"
+    ipaapi_context: "{{ freeipa_api_context }}"
+    name: "{{ item.name }}"
+    action: "{{ item.action | default('hbacrule') }}"
     state: "{{ item.state | default('enabled') }}"
   loop: "{{ freeipa_hbac_rules }}"
   loop_control:
     label: "{{ item.name }}"
+  when:
+    - item.action | default('hbacrule') == 'hbacrule'
+    - item.state | default('enabled') in ['enabled', 'disabled']
   no_log: true
