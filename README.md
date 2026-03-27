@@ -202,6 +202,8 @@ ansible-playbook playbooks/site.yml --check --diff --ask-vault-pass
 > Treat check mode as a partial preview, not a full simulation. This repository uses direct CLI commands for part of the Proxmox configuration and the upstream FreeIPA client role for Linux enrollment, so `--check` is useful but not authoritative.
 >
 > For FreeIPA HBAC rules, check mode validates the rule-definition step but skips the follow-up enable or disable action. That avoids false failures where FreeIPA reports the rule as missing because it was not actually created during the dry run.
+>
+> The Proxmox realm sync timer role also skips the final `systemd` enable or start step in check mode, because unit files are diffed but not actually written during the dry run.
 
 ### 7. Apply the full configuration
 
