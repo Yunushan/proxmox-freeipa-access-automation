@@ -91,6 +91,7 @@ For the longer design explanation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.
 - Proxmox VE 7.x, 8.x, or 9.x on the host in `proxmox_primary`
 - FreeIPA reachable from Proxmox and Linux clients
 - sane DNS and time synchronization
+- for `proxmox_primary`, either connect as `root` or use an SSH user that can run `sudo` for `pveversion`, `pvesh`, and `pveum`
 
 ## Compatibility
 
@@ -121,6 +122,21 @@ Copy-Item inventories\production\group_vars\all\vault.yml.example inventories\pr
 - `inventories/production/hosts.yml`
 - `inventories/production/group_vars/all/main.yml`
 - `inventories/production/group_vars/all/vault.yml`
+
+If you want to SSH to Proxmox with a regular sudo-capable user instead of `root`, set that under `proxmox_primary` in `hosts.yml` and keep the sudo password in `vault.yml`:
+
+```yaml
+proxmox_primary:
+  vars:
+    ansible_user: automation-user
+    ansible_become_method: sudo
+    ansible_become_password: "{{ vault_proxmox_become_password }}"
+  hosts:
+    pve01.example.com:
+      ansible_host: 192.0.2.11
+```
+
+In that setup, `vault_proxmox_become_password` is the password you would normally type for `sudo` on the Proxmox host.
 
 ### 3. Encrypt the vault file
 
@@ -228,6 +244,7 @@ Key variable families:
 | Proxmox LDAP realm | `proxmox_ldap_realm_id`, `proxmox_ldap_server1`, `proxmox_ldap_base_dn`, `proxmox_ldap_group_dn`, `proxmox_ldap_bind_dn`, `proxmox_ldap_bind_password`, `proxmox_ldap_sync_attributes`, `proxmox_ldap_sync_defaults` |
 | Proxmox RBAC | `proxmox_custom_roles`, `proxmox_acl_bindings` |
 | Linux IPA enrollment | `ipaclient_domain`, `ipaclient_realm`, `linux_ipa_servers`, `linux_ipaclient_mkhomedir`, `linux_ipasssd_permit` |
+| Ansible connection secrets | `vault_proxmox_become_password` when `proxmox_primary` uses a sudo-capable non-root SSH user |
 
 ## Example Group Strategy
 
@@ -268,6 +285,8 @@ Known caveats:
 - Proxmox CLI output can vary slightly across releases
 - FreeIPA directory layouts are flexible, so LDAP filters may need tuning for your tree
 - existing hand-managed PVE ACLs and roles should be compared before applying automation over them
+- the Proxmox plays run with privilege escalation, so a non-root SSH user must have working `sudo` and you must supply a become password with `-K` unless that user has passwordless sudo
+- if you store `ansible_become_password` in `vault.yml`, you can skip `-K` because Ansible will read the sudo password from the encrypted variable instead
 
 ## Verification
 

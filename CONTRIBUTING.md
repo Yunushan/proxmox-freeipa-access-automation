@@ -86,6 +86,7 @@ Do not commit:
 - `inventories/production/hosts.yml`
 - `inventories/production/group_vars/all/vault.yml`
 - generated files under `collections/`
+- compiled cache artifacts such as `__pycache__/` and `*.pyc`
 
 Use the example files as templates:
 
@@ -93,6 +94,7 @@ Use the example files as templates:
 - `inventories/production/group_vars/all/vault.yml.example`
 
 Store secrets only in the vault file, not in plaintext inventory or group vars.
+Keep public examples generic. Do not replace documentation placeholders with real company domains, internal hostnames, personal usernames, or private email addresses.
 
 ## Proxmox Compatibility
 
