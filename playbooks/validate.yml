@@ -48,14 +48,14 @@
       ansible.builtin.assert:
         that:
           - proxmox_pve_major_version > 0
-          - proxmox_pve_major_version in (proxmox_supported_major_versions | default([7, 8, 9]))
+          - proxmox_pve_major_version in (proxmox_supported_major_versions | default([6, 7, 8, 9, 10]))
         fail_msg: >-
           Proxmox VE major version {{ proxmox_pve_major_version | default('unknown') }} is not supported by this repository.
-          Supported major versions: {{ proxmox_supported_major_versions | default([7, 8, 9]) | join(', ') }}.
+          Supported major versions: {{ proxmox_supported_major_versions | default([6, 7, 8, 9, 10]) | join(', ') }}.
           Detected version string: {{ proxmox_version_raw.stdout }}.
         success_msg: >-
           Proxmox VE {{ proxmox_pve_major_version }} is within the supported major version set:
-          {{ proxmox_supported_major_versions | default([7, 8, 9]) | join(', ') }}.
+          {{ proxmox_supported_major_versions | default([6, 7, 8, 9, 10]) | join(', ') }}.
 
 - name: Validate IPA server prerequisites
   hosts: ipa_servers

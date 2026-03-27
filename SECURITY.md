@@ -71,7 +71,7 @@ If you are validating a suspected issue:
 - prefer a lab or disposable environment
 - limit tests to a narrow host set
 - avoid running changes broadly until impact is understood
-- document whether the issue affects Proxmox VE `7`, `8`, or `9`
+- document whether the issue affects Proxmox VE `6`, `7`, `8`, `9`, or provisional `10`
 
 ## Fix Expectations
 

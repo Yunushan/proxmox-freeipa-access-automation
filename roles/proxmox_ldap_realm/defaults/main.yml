@@ -1,9 +1,11 @@
 ---
 proxmox_ldap_enabled: true
 proxmox_supported_major_versions:
+  - 6
   - 7
   - 8
   - 9
+  - 10
 proxmox_ldap_realm_id: ipa
 proxmox_ldap_type: ldap
 proxmox_ldap_server1: ""

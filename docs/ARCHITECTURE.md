@@ -38,8 +38,10 @@ The Proxmox automation in this repository is built around the `pveum` and `pvesh
 - role management,
 - ACL binding.
 
-The project is intended to support Proxmox VE major versions `7`, `8`, and `9`.
+The project is intended to support Proxmox VE major versions `6`, `7`, `8`, `9`, and provisionally `10`.
 That support is enforced by validation using `pveversion`, and the supported set is configurable through `proxmox_supported_major_versions`.
+The `10` entry is a future-release compatibility gate, not a claim that the full workflow has already been validated against a released Proxmox VE 10 series.
+Legacy majors `1` through `5` can be allowed locally by changing that variable, but that should be treated as an environment-specific override rather than a tested public support claim.
 
 This does not mean every Proxmox release behaves identically.
 Small CLI or API output differences can still exist across minor releases, so changes should still be tested in a lab before production rollout.

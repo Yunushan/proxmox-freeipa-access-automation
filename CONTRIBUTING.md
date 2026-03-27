@@ -100,15 +100,19 @@ Keep public examples generic. Do not replace documentation placeholders with rea
 
 The repository currently targets Proxmox VE major versions:
 
+- `6`
 - `7`
 - `8`
 - `9`
+- `10` (provisional future-release gate)
 
 If you change Proxmox-facing behavior:
 
 - review the `pveum` and `pvesh` flags being used
 - update validation if the compatibility envelope changes
 - update both `README.md` and `docs/ARCHITECTURE.md`
+- keep future-major entries clearly labeled as provisional until they are verified against a released Proxmox version
+- do not claim legacy `1.x` to `5.x` support in public documentation unless the full workflow has been validated against those releases
 
 ## Documentation Expectations
 
