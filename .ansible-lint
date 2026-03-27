@@ -3,3 +3,5 @@ exclude_paths:
   - collections/
 skip_list:
   - yaml[line-length]
+warn_list:
+  - var-naming[no-role-prefix]
