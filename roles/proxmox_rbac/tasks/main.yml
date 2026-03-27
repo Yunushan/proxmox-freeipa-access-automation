@@ -8,6 +8,7 @@
       - --output-format
       - json
   register: proxmox_roles_raw
+  check_mode: false
   changed_when: false
 
 - name: Read current Proxmox groups
@@ -19,6 +20,7 @@
       - --output-format
       - json
   register: proxmox_groups_raw
+  check_mode: false
   changed_when: false
 
 - name: Read current Proxmox ACLs
@@ -30,6 +32,7 @@
       - --output-format
       - json
   register: proxmox_acls_raw
+  check_mode: false
   changed_when: false
 
 - name: Parse Proxmox RBAC state
@@ -48,6 +51,7 @@
   loop: "{{ proxmox_acl_bindings }}"
   loop_control:
     label: "{{ item.group }} -> {{ item.path }}"
+  when: not ansible_check_mode
 
 - name: Ensure custom Proxmox roles exist
   ansible.builtin.command:

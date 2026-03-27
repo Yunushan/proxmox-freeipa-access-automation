@@ -21,15 +21,18 @@
   tasks:
     - name: Confirm pveum is installed
       ansible.builtin.command: which pveum
+      check_mode: false
       changed_when: false
 
     - name: Confirm pvesh is installed
       ansible.builtin.command: which pvesh
+      check_mode: false
       changed_when: false
 
     - name: Read Proxmox VE version
       ansible.builtin.command: pveversion
       register: proxmox_version_raw
+      check_mode: false
       changed_when: false
 
     - name: Extract Proxmox VE major version
@@ -64,6 +67,7 @@
   tasks:
     - name: Confirm ipa CLI is installed
       ansible.builtin.command: which ipa
+      check_mode: false
       changed_when: false
 
 - name: Validate Linux IPA client prerequisites
@@ -73,4 +77,5 @@
   tasks:
     - name: Confirm package manager exists
       ansible.builtin.shell: command -v dnf || command -v apt-get || command -v yum
+      check_mode: false
       changed_when: false
