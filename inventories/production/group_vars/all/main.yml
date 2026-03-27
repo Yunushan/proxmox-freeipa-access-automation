@@ -60,6 +60,10 @@ freeipa_hbac_rules:
 # -----------------------------
 # Proxmox LDAP realm
 # -----------------------------
+proxmox_supported_major_versions:
+  - 7
+  - 8
+  - 9
 proxmox_ldap_realm_id: ipa
 proxmox_ldap_type: ldap
 proxmox_ldap_server1: ipa01.example.com

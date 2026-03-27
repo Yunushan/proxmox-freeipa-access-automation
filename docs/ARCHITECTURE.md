@@ -29,6 +29,21 @@ For virtualization and Linux guest access, FreeIPA gives you:
 Proxmox can authenticate against LDAP-based realms and sync users/groups into PVE.
 That makes Proxmox a consumer of directory state instead of another manual identity island.
 
+## Proxmox compatibility envelope
+
+The Proxmox automation in this repository is built around the `pveum` and `pvesh` interfaces used for:
+
+- authentication realm definition,
+- directory sync,
+- role management,
+- ACL binding.
+
+The project is intended to support Proxmox VE major versions `7`, `8`, and `9`.
+That support is enforced by validation using `pveversion`, and the supported set is configurable through `proxmox_supported_major_versions`.
+
+This does not mean every Proxmox release behaves identically.
+Small CLI or API output differences can still exist across minor releases, so changes should still be tested in a lab before production rollout.
+
 ## Why scheduled sync on a single node
 
 Only one Proxmox node should own the recurring sync job in a cluster to avoid duplicated work and accidental overlap.

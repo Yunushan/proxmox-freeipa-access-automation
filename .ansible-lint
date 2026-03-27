@@ -1,0 +1,5 @@
+exclude_paths:
+  - .git/
+  - collections/
+skip_list:
+  - yaml[line-length]

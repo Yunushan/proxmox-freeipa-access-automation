@@ -27,6 +27,36 @@
       ansible.builtin.command: which pvesh
       changed_when: false
 
+    - name: Read Proxmox VE version
+      ansible.builtin.command: pveversion
+      register: proxmox_version_raw
+      changed_when: false
+
+    - name: Extract Proxmox VE major version
+      ansible.builtin.set_fact:
+        proxmox_pve_major_version: >-
+          {{
+            (
+              proxmox_version_raw.stdout
+              | regex_findall('pve-manager/(\\d+)')
+              | first
+              | default('')
+            ) | int
+          }}
+
+    - name: Assert Proxmox VE major version is supported
+      ansible.builtin.assert:
+        that:
+          - proxmox_pve_major_version > 0
+          - proxmox_pve_major_version in (proxmox_supported_major_versions | default([7, 8, 9]))
+        fail_msg: >-
+          Proxmox VE major version {{ proxmox_pve_major_version | default('unknown') }} is not supported by this repository.
+          Supported major versions: {{ proxmox_supported_major_versions | default([7, 8, 9]) | join(', ') }}.
+          Detected version string: {{ proxmox_version_raw.stdout }}.
+        success_msg: >-
+          Proxmox VE {{ proxmox_pve_major_version }} is within the supported major version set:
+          {{ proxmox_supported_major_versions | default([7, 8, 9]) | join(', ') }}.
+
 - name: Validate IPA server prerequisites
   hosts: ipa_servers
   become: true

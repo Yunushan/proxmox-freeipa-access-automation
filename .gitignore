@@ -1,0 +1,9 @@
+inventories/production/hosts.yml
+inventories/production/group_vars/all/vault.yml
+collections/
+.ansible/
+*.retry
+__pycache__/
+*.pyc
+.vscode/
+.idea/

@@ -1,0 +1,46 @@
+---
+name: CI
+
+'on':
+  push:
+  pull_request:
+
+jobs:
+  lint-and-syntax:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install "ansible-core>=2.14,<2.24" ansible-lint yamllint
+
+      - name: Prepare example inventory and vars for CI
+        run: |
+          cp inventories/production/hosts.yml.example inventories/production/hosts.yml
+          cp inventories/production/group_vars/all/vault.yml.example inventories/production/group_vars/all/vault.yml
+
+      - name: Install required Ansible collection
+        run: ansible-galaxy collection install -r requirements.yml
+
+      - name: Run ansible-lint
+        run: ansible-lint
+
+      - name: Run yamllint
+        run: yamllint .
+
+      - name: Syntax-check playbooks
+        run: |
+          ansible-playbook --syntax-check playbooks/freeipa.yml
+          ansible-playbook --syntax-check playbooks/proxmox.yml
+          ansible-playbook --syntax-check playbooks/linux-clients.yml
+          ansible-playbook --syntax-check playbooks/site.yml
+          ansible-playbook --syntax-check playbooks/validate.yml

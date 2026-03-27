@@ -11,6 +11,33 @@
       - proxmox_ldap_user_attr | length > 0
     fail_msg: Required Proxmox LDAP realm variables are missing.
 
+- name: Read Proxmox VE version
+  ansible.builtin.command: pveversion
+  register: proxmox_version_raw
+  changed_when: false
+
+- name: Extract Proxmox VE major version
+  ansible.builtin.set_fact:
+    proxmox_pve_major_version: >-
+      {{
+        (
+          proxmox_version_raw.stdout
+          | regex_findall('pve-manager/(\\d+)')
+          | first
+          | default('')
+        ) | int
+      }}
+
+- name: Assert Proxmox VE major version is supported
+  ansible.builtin.assert:
+    that:
+      - proxmox_pve_major_version > 0
+      - proxmox_pve_major_version in proxmox_supported_major_versions
+    fail_msg: >-
+      Proxmox VE major version {{ proxmox_pve_major_version | default('unknown') }} is not supported by this role.
+      Supported major versions: {{ proxmox_supported_major_versions | join(', ') }}.
+      Detected version string: {{ proxmox_version_raw.stdout }}.
+
 - name: Read current Proxmox authentication realms
   ansible.builtin.command:
     argv:
