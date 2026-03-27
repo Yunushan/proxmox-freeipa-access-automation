@@ -80,6 +80,7 @@
   loop_control:
     label: "{{ item.name }}"
   when:
+    - not ansible_check_mode
     - item.action | default('hbacrule') == 'hbacrule'
     - item.state | default('enabled') in ['enabled', 'disabled']
   no_log: true
