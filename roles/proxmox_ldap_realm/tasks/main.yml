@@ -62,9 +62,7 @@
 - name: Build LDAP sync attributes string
   ansible.builtin.set_fact:
     proxmox_ldap_sync_attributes_str: >-
-      {% for item in proxmox_ldap_sync_attributes | dict2items -%}
-      {{ item.key }}={{ item.value }}{% if not loop.last %},{% endif %}
-      {%- endfor %}
+      {{ proxmox_ldap_sync_attributes | dictsort | map('join', '=') | join(',') }}
 
 - name: Build LDAP sync defaults string
   ansible.builtin.set_fact:
