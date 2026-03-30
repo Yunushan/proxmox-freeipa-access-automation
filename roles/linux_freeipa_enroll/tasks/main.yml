@@ -80,7 +80,9 @@
   changed_when: false
   failed_when: false
   check_mode: false
-  when: linux_freeipa_enroll_effective_servers_normalized | length > 0
+  when:
+    - linux_freeipa_enroll_effective_servers_normalized | length > 0
+    - not (linux_freeipa_enroll_effective_configure_dns_resolver | bool)
 
 - name: Assert configured IPA servers resolve from the Linux guest
   ansible.builtin.assert:
@@ -94,6 +96,7 @@
   loop: "{{ linux_freeipa_enroll_server_resolution.results | default([]) }}"
   loop_control:
     label: "{{ item.item }}"
+  when: not (linux_freeipa_enroll_effective_configure_dns_resolver | bool)
 
 - name: Read current Linux guest FQDN before IPA enrollment
   ansible.builtin.command: hostname -f
