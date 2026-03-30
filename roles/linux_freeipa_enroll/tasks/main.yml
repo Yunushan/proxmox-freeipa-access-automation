@@ -27,6 +27,74 @@
   changed_when: false
   no_log: true
 
+- name: Normalize Linux IPA enrollment server inputs
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_effective_domain_normalized: >-
+      {{
+        linux_freeipa_enroll_effective_domain
+        | default('', true)
+        | string
+        | trim
+        | lower
+      }}
+    linux_freeipa_enroll_effective_servers_normalized: >-
+      {{
+        (
+          linux_freeipa_enroll_effective_servers
+          if (linux_freeipa_enroll_effective_servers is sequence and linux_freeipa_enroll_effective_servers is not string)
+          else (
+            linux_freeipa_enroll_effective_servers
+            | default('', true)
+            | string
+            | split(',')
+          )
+        )
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | map('lower')
+        | list
+      }}
+  changed_when: false
+  no_log: true
+
+- name: Assert Linux IPA domain is not configured as an IPA server hostname
+  ansible.builtin.assert:
+    that:
+      - linux_freeipa_enroll_effective_domain_normalized not in linux_freeipa_enroll_effective_servers_normalized
+    fail_msg: >-
+      ipaclient_domain must be the shared IPA DNS domain, not an IPA server hostname.
+      For example, use example.com for ipaclient_domain and ipa01.example.com under linux_ipa_servers.
+      Current values are ipaclient_domain={{ linux_freeipa_enroll_effective_domain_normalized }} and
+      linux_ipa_servers={{ linux_freeipa_enroll_effective_servers_normalized | join(', ') }}.
+  when: linux_freeipa_enroll_effective_servers_normalized | length > 0
+
+- name: Resolve configured IPA servers from the Linux guest
+  ansible.builtin.command:
+    argv:
+      - getent
+      - hosts
+      - "{{ item }}"
+  register: linux_freeipa_enroll_server_resolution
+  loop: "{{ linux_freeipa_enroll_effective_servers_normalized }}"
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: linux_freeipa_enroll_effective_servers_normalized | length > 0
+
+- name: Assert configured IPA servers resolve from the Linux guest
+  ansible.builtin.assert:
+    that:
+      - item.rc == 0
+      - item.stdout | default('') | trim | length > 0
+    fail_msg: >-
+      Linux guest {{ inventory_hostname }} cannot resolve the configured IPA server {{ item.item }}.
+      Verify DNS or /etc/hosts on the guest, and verify ipaclient_domain is the shared IPA DNS domain
+      rather than a server hostname.
+  loop: "{{ linux_freeipa_enroll_server_resolution.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+
 - name: Read current Linux guest FQDN before IPA enrollment
   ansible.builtin.command: hostname -f
   register: linux_freeipa_enroll_current_fqdn
@@ -132,7 +200,7 @@
     ipaclient_hostname: "{{ linux_freeipa_enroll_target_hostname if (linux_freeipa_enroll_target_hostname | length > 0) else omit }}"
     ipaclient_domain: "{{ linux_freeipa_enroll_effective_domain }}"
     ipaclient_realm: "{{ linux_freeipa_enroll_effective_realm }}"
-    ipaclient_servers: "{{ linux_freeipa_enroll_effective_servers if (linux_freeipa_enroll_effective_servers | length > 0) else omit }}"
+    ipaclient_servers: "{{ linux_freeipa_enroll_effective_servers_normalized if (linux_freeipa_enroll_effective_servers_normalized | length > 0) else omit }}"
     ipaclient_mkhomedir: "{{ linux_freeipa_enroll_effective_mkhomedir }}"
     ipaclient_force_join: "{{ linux_freeipa_enroll_effective_force_join }}"
     ipaclient_no_dns_lookup: "{{ linux_freeipa_enroll_effective_no_dns_lookup }}"

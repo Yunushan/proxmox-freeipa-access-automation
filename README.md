@@ -158,6 +158,11 @@ Choose one Linux guest source mode in addition to the IPA and Proxmox settings:
 - `linux_ipa_client_hosts` entries in `group_vars/all/30-linux-clients.yml`
 - Proxmox VM discovery with `linux_ipa_proxmox_discovery_enabled: true`
 
+For Linux IPA enrollment, keep the domain and server values distinct:
+
+- `ipaclient_domain` is the shared IPA DNS domain, such as `example.com`
+- `linux_ipa_servers` contains IPA server hostnames, such as `ipa01.example.com`
+
 If you want to SSH to Proxmox with a regular sudo-capable user instead of `root`, set that under `proxmox_primary` in `hosts.yml` and keep the sudo password in `vault-proxmox.yml`:
 
 ```yaml

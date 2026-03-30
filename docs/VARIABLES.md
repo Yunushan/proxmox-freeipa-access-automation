@@ -54,3 +54,10 @@ Relevant Linux enrollment hostname controls:
 
 - `linux_ipa_identity_hostname_suffix`: optional suffix used to turn short hostnames such as `app-server-01` into FQDNs such as `app-server-01.example.net`
 - `linux_freeipa_enroll_manage_hostname`: when `true`, the Linux enrollment role updates the guest system hostname to the resolved FQDN before IPA enrollment
+
+Linux enrollment naming rules:
+
+- `ipaclient_domain` is the shared IPA DNS domain, for example `example.com`
+- `linux_ipa_servers` contains IPA server hostnames, for example `ipa01.example.com`
+- do not set `ipaclient_domain` to one of the IPA server hostnames
+- use YAML list syntax for `linux_ipa_servers` when possible, even though the role also normalizes comma-separated strings

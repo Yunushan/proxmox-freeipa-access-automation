@@ -21,4 +21,6 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 ## Notes
 
 - This role expects the target hosts to be reachable and to resolve to their final IPA hostname.
+- `ipaclient_domain` must be the shared IPA DNS domain such as `example.com`, not an IPA server hostname such as `ipa01.example.com`.
+- `linux_ipa_servers` should preferably be a YAML list of IPA server FQDNs. Comma-separated strings are normalized, but list syntax is the preferred form.
 - The upstream collection must be installed from `requirements.yml` before execution.
