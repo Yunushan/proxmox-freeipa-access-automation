@@ -10,21 +10,35 @@
     fail_msg: Required Linux FreeIPA enrollment variables are missing.
 
 - name: Join Linux host to FreeIPA
+  vars:
+    linux_freeipa_enroll_effective_ipaadmin_principal: "{{ linux_ipaadmin_principal }}"
+    linux_freeipa_enroll_effective_ipaadmin_password: "{{ linux_ipaadmin_password }}"
+    linux_freeipa_enroll_effective_domain: "{{ ipaclient_domain }}"
+    linux_freeipa_enroll_effective_realm: "{{ ipaclient_realm }}"
+    linux_freeipa_enroll_effective_servers: "{{ linux_ipa_servers }}"
+    linux_freeipa_enroll_effective_mkhomedir: "{{ linux_ipaclient_mkhomedir }}"
+    linux_freeipa_enroll_effective_force_join: "{{ linux_ipaclient_force_join }}"
+    linux_freeipa_enroll_effective_no_dns_lookup: "{{ linux_ipaclient_no_dns_lookup }}"
+    linux_freeipa_enroll_effective_no_sudo: "{{ linux_ipaclient_no_sudo }}"
+    linux_freeipa_enroll_effective_permit: "{{ linux_ipasssd_permit }}"
+    linux_freeipa_enroll_effective_install_packages: "{{ linux_ipaclient_install_packages }}"
+    linux_freeipa_enroll_effective_configure_dns_resolver: "{{ linux_ipaclient_configure_dns_resolver }}"
+    linux_freeipa_enroll_effective_dns_servers: "{{ linux_ipaclient_dns_servers }}"
   ansible.builtin.include_role:
     name: freeipa.ansible_freeipa.ipaclient
   vars:
     state: present
-    ipaadmin_principal: "{{ linux_ipaadmin_principal }}"
-    ipaadmin_password: "{{ linux_ipaadmin_password }}"
-    ipaclient_domain: "{{ ipaclient_domain }}"
-    ipaclient_realm: "{{ ipaclient_realm }}"
-    ipaclient_servers: "{{ linux_ipa_servers | default(omit) }}"
-    ipaclient_mkhomedir: "{{ linux_ipaclient_mkhomedir }}"
-    ipaclient_force_join: "{{ linux_ipaclient_force_join }}"
-    ipaclient_no_dns_lookup: "{{ linux_ipaclient_no_dns_lookup }}"
-    ipaclient_no_sudo: "{{ linux_ipaclient_no_sudo }}"
-    ipasssd_permit: "{{ linux_ipasssd_permit }}"
-    ipaclient_install_packages: "{{ linux_ipaclient_install_packages }}"
-    ipaclient_configure_dns_resolver: "{{ linux_ipaclient_configure_dns_resolver }}"
-    ipaclient_dns_servers: "{{ linux_ipaclient_dns_servers if (linux_ipaclient_dns_servers | length > 0) else omit }}"
+    ipaadmin_principal: "{{ linux_freeipa_enroll_effective_ipaadmin_principal }}"
+    ipaadmin_password: "{{ linux_freeipa_enroll_effective_ipaadmin_password }}"
+    ipaclient_domain: "{{ linux_freeipa_enroll_effective_domain }}"
+    ipaclient_realm: "{{ linux_freeipa_enroll_effective_realm }}"
+    ipaclient_servers: "{{ linux_freeipa_enroll_effective_servers if (linux_freeipa_enroll_effective_servers | length > 0) else omit }}"
+    ipaclient_mkhomedir: "{{ linux_freeipa_enroll_effective_mkhomedir }}"
+    ipaclient_force_join: "{{ linux_freeipa_enroll_effective_force_join }}"
+    ipaclient_no_dns_lookup: "{{ linux_freeipa_enroll_effective_no_dns_lookup }}"
+    ipaclient_no_sudo: "{{ linux_freeipa_enroll_effective_no_sudo }}"
+    ipasssd_permit: "{{ linux_freeipa_enroll_effective_permit }}"
+    ipaclient_install_packages: "{{ linux_freeipa_enroll_effective_install_packages }}"
+    ipaclient_configure_dns_resolver: "{{ linux_freeipa_enroll_effective_configure_dns_resolver }}"
+    ipaclient_dns_servers: "{{ linux_freeipa_enroll_effective_dns_servers if (linux_freeipa_enroll_effective_dns_servers | length > 0) else omit }}"
   no_log: true
