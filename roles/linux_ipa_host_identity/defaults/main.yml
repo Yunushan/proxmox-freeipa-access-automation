@@ -1,2 +1,3 @@
 ---
 linux_ipa_identity_allow_domain_completion: true
+linux_ipa_identity_hostname_suffix: ""

@@ -25,11 +25,21 @@
       {% if requested | length > 0 %}
       {%   set _ = candidates.append(requested) %}
       {% endif %}
+      {% if requested | length > 0
+            and '.' not in requested
+            and linux_ipa_identity_hostname_suffix | default('') | trim | length > 0 %}
+      {%   set _ = candidates.append(requested ~ '.' ~ (linux_ipa_identity_hostname_suffix | trim | lower)) %}
+      {% endif %}
       {% if current_fqdn | length > 0 %}
       {%   set _ = candidates.append(current_fqdn) %}
       {% endif %}
       {% if inventory_name | length > 0 %}
       {%   set _ = candidates.append(inventory_name) %}
+      {% endif %}
+      {% if current_short | length > 0
+            and '.' not in current_short
+            and linux_ipa_identity_hostname_suffix | default('') | trim | length > 0 %}
+      {%   set _ = candidates.append(current_short ~ '.' ~ (linux_ipa_identity_hostname_suffix | trim | lower)) %}
       {% endif %}
       {% if linux_ipa_identity_allow_domain_completion | bool
             and current_short | length > 0

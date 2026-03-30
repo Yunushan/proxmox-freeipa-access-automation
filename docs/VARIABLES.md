@@ -44,7 +44,13 @@ The runtime flow resolves hostnames in this order:
 
 1. `freeipa_hostgroup_hostname` when already set
 2. `ipa_hostname` when explicitly declared
-3. the inventory hostname when it is already an FQDN
-4. `hostname -f` on the guest during the combined `site` or `linux-clients` flows
+3. `ipa_hostname` or the guest short hostname with `linux_ipa_identity_hostname_suffix` when that suffix is set
+4. the inventory hostname when it is already an FQDN
+5. `hostname -f` on the guest during the combined `site` or `linux-clients` flows
 
 For `freeipa.yml`, rely on declarative values such as FQDN inventory names or `ipa_hostname`.
+
+Relevant Linux enrollment hostname controls:
+
+- `linux_ipa_identity_hostname_suffix`: optional suffix used to turn short hostnames such as `app-server-01` into FQDNs such as `app-server-01.example.net`
+- `linux_freeipa_enroll_manage_hostname`: when `true`, the Linux enrollment role updates the guest system hostname to the resolved FQDN before IPA enrollment

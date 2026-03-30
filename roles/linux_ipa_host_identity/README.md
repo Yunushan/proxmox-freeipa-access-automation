@@ -6,6 +6,7 @@ Resolves the effective FreeIPA hostname for a Linux guest and publishes it for l
 
 - read the guest FQDN and short hostname
 - prefer an explicit `ipa_hostname` when provided
+- optionally append a configured suffix to short hostnames
 - optionally complete a short hostname with the IPA domain
 - assert that the final value is a usable FQDN
 
@@ -13,6 +14,7 @@ Resolves the effective FreeIPA hostname for a Linux guest and publishes it for l
 
 - `ipa_hostname`
 - `ipaclient_domain`
+- `linux_ipa_identity_hostname_suffix`
 - `linux_ipa_identity_allow_domain_completion`
 
 ## Notes

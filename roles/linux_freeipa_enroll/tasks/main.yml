@@ -27,6 +27,93 @@
   changed_when: false
   no_log: true
 
+- name: Read current Linux guest FQDN before IPA enrollment
+  ansible.builtin.command: hostname -f
+  register: linux_freeipa_enroll_current_fqdn
+  check_mode: false
+  changed_when: false
+  failed_when: false
+
+- name: Read current Linux guest short hostname before IPA enrollment
+  ansible.builtin.command: hostname -s
+  register: linux_freeipa_enroll_current_short_hostname
+  check_mode: false
+  changed_when: false
+  failed_when: false
+
+- name: Prepare Linux guest hostname candidates for IPA enrollment
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_target_hostname: >-
+      {{
+        freeipa_hostgroup_hostname
+        | default(linux_ipa_effective_hostname, true)
+        | default('', true)
+        | string
+        | trim
+        | lower
+      }}
+    linux_freeipa_enroll_current_fqdn_normalized: >-
+      {{
+        linux_freeipa_enroll_current_fqdn.stdout
+        | default('', true)
+        | string
+        | trim
+        | lower
+      }}
+  changed_when: false
+
+- name: Update Linux guest system hostname from the resolved IPA hostname
+  ansible.builtin.command:
+    argv:
+      - hostnamectl
+      - set-hostname
+      - "{{ linux_freeipa_enroll_target_hostname }}"
+  when:
+    - linux_freeipa_enroll_manage_hostname | bool
+    - not ansible_check_mode
+    - linux_freeipa_enroll_target_hostname is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$')
+    - not (linux_freeipa_enroll_target_hostname is match('^[0-9.]+$'))
+    - linux_freeipa_enroll_current_fqdn_normalized in ['localhost', 'localhost.localdomain', linux_freeipa_enroll_current_short_hostname.stdout | default('', true) | string | trim | lower]
+  changed_when: true
+
+- name: Re-read Linux guest FQDN after hostname management
+  ansible.builtin.command: hostname -f
+  register: linux_freeipa_enroll_current_fqdn
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  when:
+    - linux_freeipa_enroll_manage_hostname | bool
+    - not ansible_check_mode
+
+- name: Assert the Linux guest has a valid system hostname for IPA enrollment
+  ansible.builtin.assert:
+    that:
+      - >-
+        (
+          linux_freeipa_enroll_current_fqdn.stdout | default('') | trim | lower not in ['localhost', 'localhost.localdomain']
+          and
+          (linux_freeipa_enroll_current_fqdn.stdout | default('') | trim | lower is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$'))
+          and
+          not ((linux_freeipa_enroll_current_fqdn.stdout | default('') | trim | lower) is match('^[0-9.]+$'))
+        )
+        or
+        (
+          ansible_check_mode
+          and
+          linux_freeipa_enroll_manage_hostname | bool
+          and linux_freeipa_enroll_target_hostname is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$')
+          and not (linux_freeipa_enroll_target_hostname is match('^[0-9.]+$'))
+        )
+    fail_msg: >-
+      Linux guest {{ inventory_hostname }} cannot be enrolled into FreeIPA because its current system hostname is
+      {{ linux_freeipa_enroll_current_fqdn.stdout | default('unset') | trim | default('unset', true) }}.
+      {% if linux_freeipa_enroll_target_hostname | length > 0 %}
+      The resolved target hostname for this guest is {{ linux_freeipa_enroll_target_hostname }}.
+      {% endif %}
+      Set a real FQDN on the guest first, or enable linux_freeipa_enroll_manage_hostname and provide a resolvable
+      FQDN through ipa_hostname, linux_ipa_identity_hostname_suffix, or the guest's own hostname configuration.
+
 - name: Skip Linux IPA enrollment in check mode
   ansible.builtin.debug:
     msg: >-

@@ -11,6 +11,8 @@ linux_ipaclient_force_join: false
 linux_ipaclient_no_dns_lookup: true
 linux_ipaclient_no_sudo: false
 linux_ipasssd_permit: false
+linux_ipa_identity_hostname_suffix: ""
+linux_freeipa_enroll_manage_hostname: false
 linux_ipaclient_configure_dns_resolver: false
 linux_ipaclient_dns_servers: []
 linux_ipaclient_install_packages: true
@@ -19,6 +21,10 @@ linux_ipa_client_hosts: []
 # linux_ipa_client_hosts:
 #   - name: rocky-app-01.example.com
 #   - name: ubuntu-jump-01.example.com
+#
+# Example short hostnames completed with a shared suffix:
+# linux_ipa_identity_hostname_suffix: example.net
+# linux_freeipa_enroll_manage_hostname: true
 #
 # Example IP-only entries:
 # linux_ipa_client_hosts:

@@ -378,6 +378,8 @@ Notes:
 - IP discovery depends on the QEMU guest agent reporting network interfaces
 - `linux_ipa_proxmox_discovery_use_vm_name_as_hint` only trusts VM names that are already FQDNs
 - the guest still needs a final hostname, either already configured inside the VM or provided with `ipa_hostname` through a manual definition
+- the guest's real system hostname must also be valid for enrollment; placeholder values such as `localhost.localdomain` must be replaced on the VM before running `linux-clients` or `site`
+- when guests use short hostnames such as `app-server-01`, you can set `linux_ipa_identity_hostname_suffix` and optionally `linux_freeipa_enroll_manage_hostname: true` so the project resolves and applies a full hostname such as `app-server-01.example.net` before enrollment
 
 ## Configuration Surface
 

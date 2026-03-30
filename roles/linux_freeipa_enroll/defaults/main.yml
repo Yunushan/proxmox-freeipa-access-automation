@@ -2,6 +2,7 @@
 linux_freeipa_enroll_enabled: true
 linux_freeipa_enroll_serial: 10
 linux_freeipa_enroll_max_fail_percentage: 0
+linux_freeipa_enroll_manage_hostname: false
 linux_ipa_servers: []
 linux_ipaadmin_principal: "{{ freeipa_admin_principal }}"
 linux_ipaadmin_password: "{{ freeipa_admin_password }}"
