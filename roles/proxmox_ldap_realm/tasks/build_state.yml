@@ -1,8 +1,7 @@
 ---
 - name: Build LDAP sync attributes string
   ansible.builtin.set_fact:
-    proxmox_ldap_sync_attributes_str: >-
-      {{ proxmox_ldap_sync_attributes | dictsort | map('join', '=') | join(',') }}
+    proxmox_ldap_sync_attributes_str: "{{ proxmox_ldap_sync_attributes | dictsort | map('join', '=') | join(',') }}"
 
 - name: Build LDAP sync defaults string
   ansible.builtin.set_fact:
@@ -42,32 +41,36 @@
       }}
 
 - name: Build Proxmox realm command arguments
-  ansible.builtin.set_fact:
-    proxmox_ldap_realm_cmd: >-
+  vars:
+    proxmox_ldap_realm_cmd_yaml: |
       {{
-        ['pveum', 'realm', ((proxmox_ldap_current == {}) | ternary('add', 'modify')), proxmox_ldap_realm_id,
-         '--type', proxmox_ldap_type,
-         '--server1', proxmox_ldap_server1,
-         '--port', proxmox_ldap_port | string,
-         '--mode', proxmox_ldap_mode,
-         '--base_dn', proxmox_ldap_base_dn,
-         '--group_dn', proxmox_ldap_group_dn,
-         '--bind_dn', proxmox_ldap_bind_dn,
-         '--user_attr', proxmox_ldap_user_attr,
-         '--user_classes', proxmox_ldap_user_classes | join(','),
-         '--group_classes', proxmox_ldap_group_classes | join(','),
-         '--group_name_attr', proxmox_ldap_group_name_attr,
-         '--autocreate', ((proxmox_ldap_users_autocreate | bool) | ternary('1', '0')),
-         '--groups-autocreate', ((proxmox_ldap_groups_autocreate | bool) | ternary('1', '0')),
-         '--verify', ((proxmox_ldap_verify_tls | bool) | ternary('1', '0')),
-         '--capath', proxmox_ldap_capath,
-         '--check-connection', ((proxmox_ldap_check_connection | bool) | ternary('1', '0')),
-         '--comment', proxmox_ldap_comment,
-         '--default', ((proxmox_ldap_default_realm | bool) | ternary('1', '0')),
-         '--sync-defaults-options', proxmox_ldap_sync_defaults_options_str]
-        + ((proxmox_ldap_sync_attributes_str | length > 0) | ternary(['--sync_attributes', proxmox_ldap_sync_attributes_str], []))
-        + ((proxmox_ldap_filter | length > 0) | ternary(['--filter', proxmox_ldap_filter], []))
-        + ((proxmox_ldap_group_filter | length > 0) | ternary(['--group_filter', proxmox_ldap_group_filter], []))
-        + ((proxmox_ldap_server2 | length > 0) | ternary(['--server2', proxmox_ldap_server2], []))
-        + ((proxmox_ldap_include_password | bool) | ternary(['--password', proxmox_ldap_bind_password], []))
+        (
+          ['pveum', 'realm', ((proxmox_ldap_current == {}) | ternary('add', 'modify')), proxmox_ldap_realm_id,
+           '--type', proxmox_ldap_type,
+           '--server1', proxmox_ldap_server1,
+           '--port', proxmox_ldap_port | string,
+           '--mode', proxmox_ldap_mode,
+           '--base_dn', proxmox_ldap_base_dn,
+           '--group_dn', proxmox_ldap_group_dn,
+           '--bind_dn', proxmox_ldap_bind_dn,
+           '--user_attr', proxmox_ldap_user_attr,
+           '--user_classes', proxmox_ldap_user_classes | join(','),
+           '--group_classes', proxmox_ldap_group_classes | join(','),
+           '--group_name_attr', proxmox_ldap_group_name_attr,
+           '--autocreate', ((proxmox_ldap_users_autocreate | bool) | ternary('1', '0')),
+           '--groups-autocreate', ((proxmox_ldap_groups_autocreate | bool) | ternary('1', '0')),
+           '--verify', ((proxmox_ldap_verify_tls | bool) | ternary('1', '0')),
+           '--capath', proxmox_ldap_capath,
+           '--check-connection', ((proxmox_ldap_check_connection | bool) | ternary('1', '0')),
+           '--comment', proxmox_ldap_comment,
+           '--default', ((proxmox_ldap_default_realm | bool) | ternary('1', '0')),
+           '--sync-defaults-options', proxmox_ldap_sync_defaults_options_str]
+          + ((proxmox_ldap_sync_attributes_str | length > 0) | ternary(['--sync_attributes', proxmox_ldap_sync_attributes_str], []))
+          + ((proxmox_ldap_filter | length > 0) | ternary(['--filter', proxmox_ldap_filter], []))
+          + ((proxmox_ldap_group_filter | length > 0) | ternary(['--group_filter', proxmox_ldap_group_filter], []))
+          + ((proxmox_ldap_server2 | length > 0) | ternary(['--server2', proxmox_ldap_server2], []))
+          + ((proxmox_ldap_include_password | bool) | ternary(['--password', proxmox_ldap_bind_password], []))
+        ) | to_yaml
       }}
+  ansible.builtin.set_fact:
+    proxmox_ldap_realm_cmd: "{{ proxmox_ldap_realm_cmd_yaml | from_yaml }}"

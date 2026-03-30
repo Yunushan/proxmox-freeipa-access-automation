@@ -21,18 +21,19 @@
   check_mode: false
   changed_when: false
 
+- name: Initialize selected QEMU guests for Linux IPA discovery
+  ansible.builtin.set_fact:
+    linux_ipa_proxmox_node_guests: []
+
 - name: Select QEMU guests for Linux IPA discovery
   ansible.builtin.set_fact:
-    linux_ipa_proxmox_node_guests: >-
-      {% set selected = [] %}
-      {% for guest in (linux_ipa_proxmox_node_guests_raw.stdout | from_json) %}
-      {%   if not (guest.template | default(0) | bool) %}
-      {%     if (not linux_ipa_proxmox_discovery_only_running | bool) or (guest.status | default('') == 'running') %}
-      {%       set _ = selected.append(guest) %}
-      {%     endif %}
-      {%   endif %}
-      {% endfor %}
-      {{ selected }}
+    linux_ipa_proxmox_node_guests: "{{ linux_ipa_proxmox_node_guests + [item] }}"
+  loop: "{{ linux_ipa_proxmox_node_guests_raw.stdout | from_json }}"
+  loop_control:
+    label: "{{ item.name | default('vm-' ~ item.vmid) }}"
+  when:
+    - not (item.template | default(0) | bool)
+    - (not linux_ipa_proxmox_discovery_only_running | bool) or (item.status | default('') == 'running')
 
 - name: Read guest network interfaces through the Proxmox guest agent
   ansible.builtin.command:

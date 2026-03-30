@@ -120,15 +120,7 @@
 
         - name: Extract Proxmox VE major version
           ansible.builtin.set_fact:
-            proxmox_pve_major_version: >-
-              {{
-                (
-                  proxmox_version_raw.stdout
-                  | regex_search('pve-manager/[0-9]+')
-                  | default('0', true)
-                  | regex_replace('^pve-manager/', '')
-                ) | int
-              }}
+            proxmox_pve_major_version: "{{ (proxmox_version_raw.stdout | regex_search('pve-manager/[0-9]+') | default('0', true) | regex_replace('^pve-manager/', '')) | int }}"
 
         - name: Assert Proxmox VE major version is supported
           ansible.builtin.assert:

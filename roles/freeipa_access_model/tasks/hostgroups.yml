@@ -5,19 +5,9 @@
 
 - name: Resolve FreeIPA hostgroup members from inventory groups
   ansible.builtin.set_fact:
-    freeipa_hostgroups_resolved: >-
-      {{
-        freeipa_hostgroups_resolved
-        +
-        [
-          item | combine({
-            'resolved_hosts': freeipa_hostgroup_resolved_hosts,
-            'unresolved_hosts': freeipa_hostgroup_unresolved_hosts
-          })
-        ]
-      }}
+    freeipa_hostgroups_resolved: "{{ freeipa_hostgroups_resolved + [item | combine({'resolved_hosts': (freeipa_hostgroup_resolved_hosts_yaml | from_yaml), 'unresolved_hosts': (freeipa_hostgroup_unresolved_hosts_yaml | from_yaml)})] }}"
   vars:
-    freeipa_hostgroup_resolved_hosts: >-
+    freeipa_hostgroup_resolved_hosts_yaml: |
       {% set members = item.host | default([]) | list %}
       {% for group_name in item.inventory_groups | default([]) %}
       {%   for group_host in groups[group_name] | default([]) %}
@@ -36,8 +26,8 @@
       {%     endif %}
       {%   endfor %}
       {% endfor %}
-      {{ members | reject('equalto', '') | unique | list }}
-    freeipa_hostgroup_unresolved_hosts: >-
+      {{ members | reject('equalto', '') | unique | list | to_yaml }}
+    freeipa_hostgroup_unresolved_hosts_yaml: |
       {% set unresolved = [] %}
       {% for group_name in item.inventory_groups | default([]) %}
       {%   for group_host in groups[group_name] | default([]) %}
@@ -57,7 +47,7 @@
       {%     endif %}
       {%   endfor %}
       {% endfor %}
-      {{ unresolved | unique | list }}
+      {{ unresolved | unique | list | to_yaml }}
   loop: "{{ freeipa_hostgroups }}"
   loop_control:
     label: "{{ item.name }}"

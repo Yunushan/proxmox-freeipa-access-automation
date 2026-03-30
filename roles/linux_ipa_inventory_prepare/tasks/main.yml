@@ -1,14 +1,14 @@
 ---
+- name: Initialize Linux IPA inventory source hosts
+  ansible.builtin.set_fact:
+    linux_ipa_inventory_source_hosts: []
+
 - name: Collect Linux IPA hosts from inventory source groups
   ansible.builtin.set_fact:
-    linux_ipa_inventory_source_hosts: >-
-      {% set hosts = [] %}
-      {% for group_name in linux_ipa_inventory_source_groups %}
-      {%   for group_host in groups[group_name] | default([]) %}
-      {%     set _ = hosts.append(group_host) %}
-      {%   endfor %}
-      {% endfor %}
-      {{ hosts | unique | list }}
+    linux_ipa_inventory_source_hosts: "{{ (linux_ipa_inventory_source_hosts + (groups[item] | default([]))) | unique }}"
+  loop: "{{ linux_ipa_inventory_source_groups }}"
+  loop_control:
+    label: "{{ item }}"
 
 - name: Add inventory-defined Linux IPA hosts to the runtime group
   ansible.builtin.add_host:
