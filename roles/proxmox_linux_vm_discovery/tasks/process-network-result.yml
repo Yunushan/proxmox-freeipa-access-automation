@@ -1,7 +1,7 @@
 ---
 - name: Resolve a usable guest-agent IP address
-  ansible.builtin.set_fact:
-    linux_ipa_proxmox_discovered_ip: >-
+  vars:
+    linux_ipa_proxmox_discovered_ip_raw: >-
       {% set addresses = [] %}
       {% if linux_ipa_proxmox_guest_network_result.rc == 0 and (linux_ipa_proxmox_guest_network_result.stdout | default('') | length > 0) %}
       {%   for interface in (linux_ipa_proxmox_guest_network_result.stdout | from_json) %}
@@ -34,6 +34,8 @@
       {%   endfor %}
       {% endif %}
       {{ addresses | first | default('') }}
+  ansible.builtin.set_fact:
+    linux_ipa_proxmox_discovered_ip: "{{ linux_ipa_proxmox_discovered_ip_raw | trim }}"
 
 - name: Fail when a discovered VM has no usable guest-agent IP
   ansible.builtin.assert:
@@ -52,7 +54,7 @@
   ansible.builtin.add_host:
     name: "{{ linux_ipa_proxmox_discovery_inventory_prefix }}-{{ linux_ipa_proxmox_node_shortname.stdout }}-vm{{ linux_ipa_proxmox_guest_network_result.item.vmid }}"
     groups: "{{ linux_ipa_runtime_group }}"
-    ansible_host: "{{ linux_ipa_proxmox_discovered_ip }}"
+    ansible_host: "{{ linux_ipa_proxmox_discovered_ip | trim }}"
     linux_ipa_requested_hostname: >-
       {{
         (
