@@ -1,11 +1,4 @@
 ---
-- name: Validate Proxmox VM discovery configuration
-  ansible.builtin.include_tasks: validate.yml
-  when: linux_ipa_proxmox_discovery_enabled | bool
-
-- name: Discover Linux guests from configured Proxmox nodes
+- name: Discover Linux guests from the current Proxmox node
   ansible.builtin.include_tasks: discover-node.yml
-  loop: "{{ linux_ipa_proxmox_discovery_nodes }}"
-  loop_control:
-    loop_var: linux_ipa_discovery_target
   when: linux_ipa_proxmox_discovery_enabled | bool

@@ -7,12 +7,47 @@
     - linux
     - inventory
     - discovery
-  roles:
-    - role: linux_ipa_inventory_prepare
+  tasks:
+    - name: Prepare Linux inventory from static and manual sources
+      ansible.builtin.include_role:
+        name: linux_ipa_inventory_prepare
       tags:
         - linux
         - inventory
         - linux_inventory
+
+    - name: Validate Proxmox discovery configuration
+      ansible.builtin.include_role:
+        name: proxmox_linux_vm_discovery
+        tasks_from: validate.yml
+      when: linux_ipa_proxmox_discovery_enabled | bool
+      tags:
+        - linux
+        - discovery
+        - proxmox_discovery
+
+    - name: Seed Proxmox discovery target runtime group
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        groups: linux_ipa_proxmox_discovery_targets
+      loop: "{{ linux_ipa_proxmox_discovery_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+      when: linux_ipa_proxmox_discovery_enabled | bool
+      changed_when: false
+      tags:
+        - linux
+        - discovery
+        - proxmox_discovery
+
+- name: Discover Linux guests from Proxmox nodes
+  hosts: linux_ipa_proxmox_discovery_targets
+  gather_facts: false
+  tags:
+    - linux
+    - inventory
+    - discovery
+  roles:
     - role: proxmox_linux_vm_discovery
       tags:
         - linux

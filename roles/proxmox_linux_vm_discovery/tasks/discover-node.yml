@@ -1,7 +1,6 @@
 ---
 - name: Read Proxmox node short name
   ansible.builtin.command: hostname -s
-  delegate_to: "{{ linux_ipa_discovery_target }}"
   become: true
   register: linux_ipa_proxmox_node_shortname
   check_mode: false
@@ -15,7 +14,6 @@
       - "/nodes/{{ linux_ipa_proxmox_node_shortname.stdout }}/qemu"
       - --output-format
       - json
-  delegate_to: "{{ linux_ipa_discovery_target }}"
   become: true
   register: linux_ipa_proxmox_node_guests_raw
   check_mode: false
@@ -43,7 +41,6 @@
       - cmd
       - "{{ item.vmid | string }}"
       - network-get-interfaces
-  delegate_to: "{{ linux_ipa_discovery_target }}"
   become: true
   register: linux_ipa_proxmox_guest_networks
   check_mode: false
