@@ -129,6 +129,7 @@
     state: present
     ipaadmin_principal: "{{ linux_freeipa_enroll_effective_ipaadmin_principal }}"
     ipaadmin_password: "{{ linux_freeipa_enroll_effective_ipaadmin_password }}"
+    ipaclient_hostname: "{{ linux_freeipa_enroll_target_hostname if (linux_freeipa_enroll_target_hostname | length > 0) else omit }}"
     ipaclient_domain: "{{ linux_freeipa_enroll_effective_domain }}"
     ipaclient_realm: "{{ linux_freeipa_enroll_effective_realm }}"
     ipaclient_servers: "{{ linux_freeipa_enroll_effective_servers if (linux_freeipa_enroll_effective_servers | length > 0) else omit }}"
