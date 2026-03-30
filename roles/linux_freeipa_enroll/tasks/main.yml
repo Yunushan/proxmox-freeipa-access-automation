@@ -9,8 +9,8 @@
       - (linux_ipa_servers | length > 0) or not (linux_ipaclient_no_dns_lookup | bool)
     fail_msg: Required Linux FreeIPA enrollment variables are missing.
 
-- name: Join Linux host to FreeIPA
-  vars:
+- name: Prepare effective Linux IPA enrollment variables
+  ansible.builtin.set_fact:
     linux_freeipa_enroll_effective_ipaadmin_principal: "{{ linux_ipaadmin_principal }}"
     linux_freeipa_enroll_effective_ipaadmin_password: "{{ linux_ipaadmin_password }}"
     linux_freeipa_enroll_effective_domain: "{{ ipaclient_domain }}"
@@ -24,6 +24,10 @@
     linux_freeipa_enroll_effective_install_packages: "{{ linux_ipaclient_install_packages }}"
     linux_freeipa_enroll_effective_configure_dns_resolver: "{{ linux_ipaclient_configure_dns_resolver }}"
     linux_freeipa_enroll_effective_dns_servers: "{{ linux_ipaclient_dns_servers }}"
+  changed_when: false
+  no_log: true
+
+- name: Join Linux host to FreeIPA
   ansible.builtin.include_role:
     name: freeipa.ansible_freeipa.ipaclient
   vars:
