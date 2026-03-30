@@ -1,0 +1,60 @@
+---
+- name: Read the current host FQDN
+  ansible.builtin.command: hostname -f
+  register: linux_ipa_current_fqdn
+  check_mode: false
+  changed_when: false
+  failed_when: false
+
+- name: Read the current host short hostname
+  ansible.builtin.command: hostname -s
+  register: linux_ipa_current_short_hostname
+  check_mode: false
+  changed_when: false
+  failed_when: false
+
+- name: Resolve the effective FreeIPA hostname for this Linux client
+  ansible.builtin.set_fact:
+    linux_ipa_effective_hostname: >-
+      {% set ns = namespace(result='') %}
+      {% set candidates = [] %}
+      {% set requested = linux_ipa_requested_hostname | default('') | trim | lower %}
+      {% set current_fqdn = linux_ipa_current_fqdn.stdout | default('') | trim | lower %}
+      {% set current_short = linux_ipa_current_short_hostname.stdout | default('') | trim | lower %}
+      {% set inventory_name = inventory_hostname | trim | lower %}
+      {% if requested | length > 0 %}
+      {%   set _ = candidates.append(requested) %}
+      {% endif %}
+      {% if current_fqdn | length > 0 %}
+      {%   set _ = candidates.append(current_fqdn) %}
+      {% endif %}
+      {% if inventory_name | length > 0 %}
+      {%   set _ = candidates.append(inventory_name) %}
+      {% endif %}
+      {% if linux_ipa_identity_allow_domain_completion | bool
+            and current_short | length > 0
+            and '.' not in current_short
+            and ipaclient_domain | length > 0 %}
+      {%   set _ = candidates.append(current_short ~ '.' ~ (ipaclient_domain | lower)) %}
+      {% endif %}
+      {% for candidate in candidates %}
+      {%   if ns.result == ''
+            and candidate is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$')
+            and not (candidate is match('^[0-9.]+$')) %}
+      {%     set ns.result = candidate %}
+      {%   endif %}
+      {% endfor %}
+      {{ ns.result }}
+
+- name: Assert the Linux client resolves to a final FQDN
+  ansible.builtin.assert:
+    that:
+      - linux_ipa_effective_hostname | length > 0
+    fail_msg: >-
+      Could not determine a final FQDN for {{ inventory_hostname }}.
+      Use a real FQDN inventory name, set ipa_hostname in linux_ipa_client_hosts,
+      or ensure hostname -f returns the final hostname on the guest.
+
+- name: Publish the resolved FreeIPA hostgroup hostname
+  ansible.builtin.set_fact:
+    freeipa_hostgroup_hostname: "{{ linux_ipa_effective_hostname }}"

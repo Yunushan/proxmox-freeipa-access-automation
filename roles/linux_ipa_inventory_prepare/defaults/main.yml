@@ -1,0 +1,5 @@
+---
+linux_ipa_runtime_group: linux_ipa_clients_runtime
+linux_ipa_inventory_source_groups:
+  - linux_ipa_clients
+linux_ipa_client_hosts: []

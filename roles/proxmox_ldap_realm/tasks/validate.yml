@@ -1,0 +1,12 @@
+---
+- name: Validate Proxmox LDAP realm inputs
+  ansible.builtin.assert:
+    that:
+      - proxmox_ldap_realm_id | length > 0
+      - proxmox_ldap_server1 | length > 0
+      - proxmox_ldap_base_dn | length > 0
+      - proxmox_ldap_group_dn | length > 0
+      - proxmox_ldap_bind_dn | length > 0
+      - proxmox_ldap_bind_password | length > 0
+      - proxmox_ldap_user_attr | length > 0
+    fail_msg: Required Proxmox LDAP realm variables are missing.

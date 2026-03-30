@@ -1,5 +1,5 @@
-inventories/production/hosts.yml
-inventories/production/group_vars/all/vault.yml
+inventories/*/hosts.yml
+inventories/*/group_vars/all/vault*.yml
 collections/
 .ansible/
 *.retry

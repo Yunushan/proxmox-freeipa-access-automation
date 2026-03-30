@@ -1,0 +1,9 @@
+---
+# -----------------------------
+# Global feature toggles
+# -----------------------------
+freeipa_access_model_enabled: true
+proxmox_ldap_enabled: true
+proxmox_rbac_enabled: true
+proxmox_realm_sync_timer_enabled: true
+linux_freeipa_enroll_enabled: true

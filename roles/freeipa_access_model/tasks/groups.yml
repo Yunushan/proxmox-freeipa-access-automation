@@ -1,0 +1,18 @@
+---
+- name: Ensure FreeIPA user groups are present
+  freeipa.ansible_freeipa.ipagroup:
+    ipaadmin_principal: "{{ freeipa_admin_principal }}"
+    ipaadmin_password: "{{ freeipa_admin_password }}"
+    ipaapi_context: "{{ freeipa_api_context }}"
+    name: "{{ item.name }}"
+    description: "{{ item.description | default(omit) }}"
+    gidnumber: "{{ item.gidnumber | default(omit) }}"
+    user: "{{ item.user | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
+    external: "{{ item.external | default(omit) }}"
+    nonposix: "{{ item.nonposix | default(omit) }}"
+    state: "{{ item.state | default('present') }}"
+  loop: "{{ freeipa_user_groups }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true

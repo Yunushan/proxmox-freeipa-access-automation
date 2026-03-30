@@ -1,7 +1,30 @@
 ---
+- import_playbook: includes/prepare_linux_inventory.yml
+  tags:
+    - linux
+    - linux_enroll
+    - inventory
+    - discovery
+
+- import_playbook: includes/resolve_linux_hostnames.yml
+  tags:
+    - linux
+    - linux_enroll
+    - inventory
+    - hostnames
+
 - name: Enroll Linux guests into FreeIPA only
-  hosts: linux_ipa_clients
+  hosts: linux_ipa_clients_runtime
   become: true
   gather_facts: true
+  serial: "{{ linux_freeipa_enroll_serial | default(10) | int }}"
+  max_fail_percentage: "{{ linux_freeipa_enroll_max_fail_percentage | default(0) | int }}"
+  tags:
+    - linux
+    - linux_enroll
   roles:
     - role: linux_freeipa_enroll
+      when: linux_freeipa_enroll_enabled | bool
+      tags:
+        - linux
+        - linux_enroll

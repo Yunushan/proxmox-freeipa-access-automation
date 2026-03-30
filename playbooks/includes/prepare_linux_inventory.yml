@@ -1,0 +1,20 @@
+---
+- name: Prepare Linux guest inventory sources
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - linux
+    - inventory
+    - discovery
+  roles:
+    - role: linux_ipa_inventory_prepare
+      tags:
+        - linux
+        - inventory
+        - linux_inventory
+    - role: proxmox_linux_vm_discovery
+      tags:
+        - linux
+        - discovery
+        - proxmox_discovery

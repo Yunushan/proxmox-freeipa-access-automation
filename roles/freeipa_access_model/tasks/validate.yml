@@ -1,0 +1,7 @@
+---
+- name: Validate FreeIPA access model inputs
+  ansible.builtin.assert:
+    that:
+      - freeipa_admin_principal | length > 0
+      - freeipa_admin_password | length > 0
+    fail_msg: freeipa_admin_principal and freeipa_admin_password must be set.

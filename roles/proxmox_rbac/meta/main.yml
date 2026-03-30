@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  author: Repository maintainers
+  description: Manage Proxmox custom roles and ACL bindings for synced FreeIPA-backed groups.
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

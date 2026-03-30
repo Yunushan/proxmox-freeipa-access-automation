@@ -1,0 +1,63 @@
+---
+- name: Collect Linux IPA hosts from inventory source groups
+  ansible.builtin.set_fact:
+    linux_ipa_inventory_source_hosts: >-
+      {% set hosts = [] %}
+      {% for group_name in linux_ipa_inventory_source_groups %}
+      {%   for group_host in groups[group_name] | default([]) %}
+      {%     set _ = hosts.append(group_host) %}
+      {%   endfor %}
+      {% endfor %}
+      {{ hosts | unique | list }}
+
+- name: Add inventory-defined Linux IPA hosts to the runtime group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    groups: "{{ linux_ipa_runtime_group }}"
+  loop: "{{ linux_ipa_inventory_source_hosts }}"
+  loop_control:
+    label: "{{ item }}"
+  changed_when: false
+
+- name: Validate manual Linux IPA host definitions
+  ansible.builtin.assert:
+    that:
+      - (item.name | default('') | length > 0) or (item.ansible_host | default('') | length > 0) or (item.ipa_hostname | default('') | length > 0)
+    fail_msg: >-
+      Each linux_ipa_client_hosts entry must define at least one of
+      name, ansible_host, or ipa_hostname.
+  loop: "{{ linux_ipa_client_hosts }}"
+  loop_control:
+    label: "{{ item.name | default(item.ansible_host | default(item.ipa_hostname | default('unnamed-client'))) }}"
+
+- name: Add manually defined Linux IPA hosts to the runtime group
+  ansible.builtin.add_host:
+    name: >-
+      {{
+        item.name
+        | default(item.ipa_hostname, true)
+        | default(item.ansible_host, true)
+      }}
+    groups: "{{ linux_ipa_runtime_group }}"
+    ansible_host: "{{ item.ansible_host | default(omit) }}"
+    ansible_user: "{{ item.ansible_user | default(omit) }}"
+    ansible_port: "{{ item.ansible_port | default(omit) }}"
+    ansible_connection: "{{ item.ansible_connection | default(omit) }}"
+    ansible_password: "{{ item.ansible_password | default(omit) }}"
+    ansible_become: "{{ item.ansible_become | default(omit) }}"
+    ansible_become_method: "{{ item.ansible_become_method | default(omit) }}"
+    ansible_become_password: "{{ item.ansible_become_password | default(omit) }}"
+    ansible_ssh_private_key_file: "{{ item.ansible_ssh_private_key_file | default(omit) }}"
+    ansible_ssh_common_args: "{{ item.ansible_ssh_common_args | default(omit) }}"
+    linux_ipa_requested_hostname: "{{ item.ipa_hostname | default(omit, true) }}"
+    freeipa_hostgroup_hostname: "{{ item.ipa_hostname | default(omit, true) }}"
+    linux_ipa_source: manual
+  loop: "{{ linux_ipa_client_hosts }}"
+  loop_control:
+    label: >-
+      {{
+        item.name
+        | default(item.ipa_hostname, true)
+        | default(item.ansible_host, true)
+      }}
+  changed_when: false

@@ -1,0 +1,20 @@
+---
+- name: Validate Proxmox VM discovery settings
+  ansible.builtin.assert:
+    that:
+      - linux_ipa_proxmox_discovery_nodes | length > 0
+      - linux_ipa_proxmox_discovery_ip_preference in ['ipv4', 'ipv6', 'any']
+    fail_msg: >-
+      Set linux_ipa_proxmox_discovery_nodes and use a supported
+      linux_ipa_proxmox_discovery_ip_preference value when
+      linux_ipa_proxmox_discovery_enabled is true.
+
+- name: Validate Proxmox discovery targets exist in inventory
+  ansible.builtin.assert:
+    that:
+      - item in hostvars
+    fail_msg: >-
+      Proxmox discovery target {{ item }} is not defined in the Ansible inventory.
+  loop: "{{ linux_ipa_proxmox_discovery_nodes }}"
+  loop_control:
+    label: "{{ item }}"

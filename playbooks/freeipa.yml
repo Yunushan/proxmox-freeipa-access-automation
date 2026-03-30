@@ -1,8 +1,23 @@
 ---
+- import_playbook: includes/prepare_linux_inventory.yml
+  tags:
+    - freeipa
+    - freeipa_access
+    - inventory
+    - discovery
+
 - name: Build FreeIPA access model only
   hosts: ipa_servers
   become: true
   gather_facts: false
-  serial: 1
+  serial: "{{ freeipa_access_serial | default(1) | int }}"
+  max_fail_percentage: "{{ freeipa_access_max_fail_percentage | default(0) | int }}"
+  tags:
+    - freeipa
+    - freeipa_access
   roles:
     - role: freeipa_access_model
+      when: freeipa_access_model_enabled | bool
+      tags:
+        - freeipa
+        - freeipa_access

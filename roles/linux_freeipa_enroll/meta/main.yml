@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  author: Repository maintainers
+  description: Enroll Linux guests into FreeIPA with the upstream ipaclient role and repository defaults.
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

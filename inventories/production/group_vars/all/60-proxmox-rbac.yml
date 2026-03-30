@@ -1,0 +1,13 @@
+---
+# -----------------------------
+# Proxmox RBAC
+# -----------------------------
+proxmox_custom_roles:
+  - name: LinuxVMOperator
+    privs: "VM.Audit VM.Console VM.Monitor VM.PowerMgmt Pool.Audit Datastore.Audit"
+
+proxmox_acl_bindings:
+  - path: "/"
+    group: "proxmox-admins-{{ proxmox_ldap_realm_id }}"
+    role: PVEAdmin
+    propagate: true

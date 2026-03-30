@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  author: Repository maintainers
+  description: Configure the Proxmox LDAP realm against FreeIPA and optionally trigger an initial sync.
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

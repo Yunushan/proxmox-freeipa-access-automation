@@ -18,7 +18,15 @@ all:
           ansible_host: 192.0.2.11
     linux_ipa_clients:
       hosts:
+        # This is the declarative source group. The playbooks build
+        # linux_ipa_clients_runtime from these entries, manual definitions,
+        # and optional Proxmox discovery.
+        # Option 1: static FQDN inventory entries.
         rocky-app-01.example.com:
           ansible_host: 192.0.2.101
-        ubuntu-jump-01.example.com:
+        # Option 2: IP-only aliases also work if the guest's final hostname can
+        # be resolved with hostname -f during the play.
+        vm-102:
           ansible_host: 192.0.2.102
+        # Option 3: remove these entries entirely and use linux_ipa_client_hosts
+        # or Proxmox VM discovery from group_vars/all/30-linux-clients.yml instead.

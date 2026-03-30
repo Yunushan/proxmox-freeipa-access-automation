@@ -17,6 +17,7 @@
   <a href="#quick-start">Quick Start</a> •
   <a href="#rollout-order">Rollout Order</a> •
   <a href="#inventory-model">Inventory Model</a> •
+  <a href="docs/VARIABLES.md">Variables</a> •
   <a href="#verification">Verification</a> •
   <a href="#development">Development</a> •
   <a href="CONTRIBUTING.md">Contributing</a> •
@@ -53,7 +54,7 @@ This is a good fit when you want onboarding and offboarding to be mostly:
 - Proxmox LDAP realm configuration against FreeIPA
 - recurring Proxmox realm sync from one designated cluster node
 - Proxmox RBAC bindings for synced directory groups
-- Linux guest enrollment into FreeIPA with the upstream `freeipa.ansible_freeipa.ipaclient` role
+- Linux guest enrollment into FreeIPA with static inventory, IP-only targets, or Proxmox VM discovery
 
 ## Scope
 
@@ -92,6 +93,7 @@ For the longer design explanation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.
 - FreeIPA reachable from Proxmox and Linux clients
 - sane DNS and time synchronization
 - for `proxmox_primary`, either connect as `root` or use an SSH user that can run `sudo` for `pveversion`, `pvesh`, and `pveum`
+- if you use Proxmox VM auto-discovery, discovered guests must expose a usable IP through the QEMU guest agent
 
 ## Compatibility
 
@@ -123,25 +125,40 @@ proxmox_supported_major_versions:
 
 Examples below use shell commands. PowerShell equivalents are included where that is likely to matter.
 
-### 1. Copy the example inventory and vault template
+### 1. Copy the example inventory and vault templates
 
 ```bash
 cp inventories/production/hosts.yml.example inventories/production/hosts.yml
-cp inventories/production/group_vars/all/vault.yml.example inventories/production/group_vars/all/vault.yml
+cp inventories/production/group_vars/all/vault-freeipa.yml.example inventories/production/group_vars/all/vault-freeipa.yml
+cp inventories/production/group_vars/all/vault-proxmox.yml.example inventories/production/group_vars/all/vault-proxmox.yml
 ```
 
 ```powershell
 Copy-Item inventories\production\hosts.yml.example inventories\production\hosts.yml
-Copy-Item inventories\production\group_vars\all\vault.yml.example inventories\production\group_vars\all\vault.yml
+Copy-Item inventories\production\group_vars\all\vault-freeipa.yml.example inventories\production\group_vars\all\vault-freeipa.yml
+Copy-Item inventories\production\group_vars\all\vault-proxmox.yml.example inventories\production\group_vars\all\vault-proxmox.yml
 ```
 
 ### 2. Edit the environment-specific files
 
 - `inventories/production/hosts.yml`
-- `inventories/production/group_vars/all/main.yml`
-- `inventories/production/group_vars/all/vault.yml`
+- `inventories/production/group_vars/all/10-features.yml`
+- `inventories/production/group_vars/all/15-rollout.yml`
+- `inventories/production/group_vars/all/20-freeipa.yml`
+- `inventories/production/group_vars/all/30-linux-clients.yml`
+- `inventories/production/group_vars/all/40-proxmox-ldap.yml`
+- `inventories/production/group_vars/all/50-proxmox-sync.yml`
+- `inventories/production/group_vars/all/60-proxmox-rbac.yml`
+- `inventories/production/group_vars/all/vault-freeipa.yml`
+- `inventories/production/group_vars/all/vault-proxmox.yml`
 
-If you want to SSH to Proxmox with a regular sudo-capable user instead of `root`, set that under `proxmox_primary` in `hosts.yml` and keep the sudo password in `vault.yml`:
+Choose one Linux guest source mode in addition to the IPA and Proxmox settings:
+
+- static inventory entries under `linux_ipa_clients`
+- `linux_ipa_client_hosts` entries in `group_vars/all/30-linux-clients.yml`
+- Proxmox VM discovery with `linux_ipa_proxmox_discovery_enabled: true`
+
+If you want to SSH to Proxmox with a regular sudo-capable user instead of `root`, set that under `proxmox_primary` in `hosts.yml` and keep the sudo password in `vault-proxmox.yml`:
 
 ```yaml
 proxmox_primary:
@@ -156,11 +173,37 @@ proxmox_primary:
 
 In that setup, `vault_proxmox_become_password` is the password you would normally type for `sudo` on the Proxmox host.
 
-### 3. Encrypt the vault file
+### 3. Encrypt the vault files
 
 ```bash
-ansible-vault encrypt inventories/production/group_vars/all/vault.yml
+ansible-vault encrypt \
+  inventories/production/group_vars/all/vault-freeipa.yml \
+  inventories/production/group_vars/all/vault-proxmox.yml
 ```
+
+```powershell
+ansible-vault encrypt `
+  inventories/production/group_vars/all/vault-freeipa.yml `
+  inventories/production/group_vars/all/vault-proxmox.yml
+```
+
+Or use the helper wrappers, which default to separate vault IDs and create the working vault files from the example templates if needed:
+
+```bash
+./scripts/vault.sh --action encrypt --domain all
+```
+
+```powershell
+.\scripts\vault.ps1 -Action encrypt -Domain all
+```
+
+If you want separate passwords per domain when running playbooks, prefer vault IDs over `--ask-vault-pass`:
+
+```powershell
+.\scripts\run-playbook.ps1 -Playbook site -VaultId freeipa@prompt,proxmox@prompt
+```
+
+Use `-AskVaultPass` only when both vault files share the same password.
 
 ### 4. Install the required collection
 
@@ -233,37 +276,132 @@ For a limited PowerShell rollout, for example one Linux guest:
 .\scripts\run-playbook.ps1 -Playbook linux-clients -Limit rocky-app-01.example.com -AskVaultPass
 ```
 
+Default rollout controls are conservative:
+
+- FreeIPA access changes run with `serial: 1`
+- Proxmox changes run with `serial: 1`
+- Linux hostname resolution, validation, and enrollment run with `serial: 10`
+- all rollout paths default to `max_fail_percentage: 0`
+
+Tune those values in `inventories/production/group_vars/all/15-rollout.yml`.
+
+## Tag Model
+
+Use tags to target stable rollout slices instead of creating more playbooks.
+
+- Core domains: `freeipa`, `proxmox`, `linux`, `validate`
+- FreeIPA model: `freeipa_access`
+- Proxmox subsets: `proxmox_ldap`, `proxmox_sync`, `proxmox_rbac`
+- Linux preparation: `inventory`, `discovery`, `hostnames`, `linux_inventory`, `proxmox_discovery`
+- Linux enrollment: `linux_enroll`
+
+Examples:
+
+```powershell
+.\scripts\run-playbook.ps1 -Playbook site -Tags freeipa_access -VaultId freeipa@prompt,proxmox@prompt
+.\scripts\run-playbook.ps1 -Playbook proxmox -Tags proxmox_ldap,proxmox_rbac -VaultId freeipa@prompt,proxmox@prompt
+.\scripts\run-playbook.ps1 -Playbook validate -Tags discovery -VaultId freeipa@prompt,proxmox@prompt
+```
+
 ## Inventory Model
 
-This repository uses three main inventory groups:
+This repository uses three declared inventory groups plus one generated runtime group:
 
 - `ipa_servers`: one or more FreeIPA servers
 - `proxmox_primary`: one Proxmox node chosen to own realm configuration and the recurring sync timer
-- `linux_ipa_clients`: Linux guests to enroll into FreeIPA
+- `linux_ipa_clients`: the declarative source inventory group for Linux guests
+- `linux_ipa_clients_runtime`: the generated runtime group built from static inventory, manual host definitions, and optional Proxmox discovery
 
-You can add your own inventory groups and reference them from FreeIPA hostgroup definitions.
+You can add your own inventory groups and reference them from FreeIPA hostgroup definitions. When you want the full prepared Linux guest set in FreeIPA hostgroups, reference `linux_ipa_clients_runtime`.
 
 > [!IMPORTANT]
-> Hosts in `linux_ipa_clients` should use the guest's final FQDN, not a short alias, VM ID, or temporary template name. The hostgroup logic expands inventory hostnames directly into FreeIPA hostgroup membership, so those names need to match what FreeIPA and DNS expect.
+> FreeIPA still needs each guest's final hostname. If you use IP-only targets or Proxmox discovery, either set `ipa_hostname` explicitly or make sure `hostname -f` on the guest returns the final FQDN. The playbooks now resolve that hostname before FreeIPA hostgroup membership is built.
 
 > [!TIP]
 > Do not enroll a reusable golden template into FreeIPA. Clone the VM first, assign the final hostname, and enroll the resulting guest instead.
+
+### Linux Guest Source Modes
+
+You can populate `linux_ipa_clients` in three different ways.
+
+#### 1. Static inventory hosts
+
+Use normal Ansible inventory entries when you already know the guest names:
+
+```yaml
+linux_ipa_clients:
+  hosts:
+    rocky-app-01.example.com:
+      ansible_host: 192.0.2.101
+    ubuntu-jump-01.example.com:
+      ansible_host: 192.0.2.102
+```
+
+#### 2. Manual host definitions in variables
+
+Use `linux_ipa_client_hosts` when you want to keep guests out of `hosts.yml` or when all you have is an IP:
+
+```yaml
+linux_ipa_client_hosts:
+  - name: rocky-app-01.example.com
+  - name: vm-102
+    ansible_host: 192.0.2.102
+  - name: vm-103
+    ansible_host: 192.0.2.103
+    ipa_hostname: ubuntu-jump-01.example.com
+```
+
+Notes:
+
+- if `name` is a resolvable hostname or FQDN, `ansible_host` is optional
+- if you only know the IP, use any stable alias for `name`
+- when `ipa_hostname` is omitted, the playbook falls back to `hostname -f` on the guest
+
+#### 3. Proxmox VM auto-discovery
+
+Use discovery when you want the playbook to pull Linux guests from one or more Proxmox nodes:
+
+```yaml
+linux_ipa_proxmox_discovery_enabled: true
+linux_ipa_proxmox_discovery_nodes:
+  - pve01.example.com
+linux_ipa_proxmox_discovery_only_running: true
+linux_ipa_proxmox_discovery_skip_missing_ip: true
+linux_ipa_proxmox_discovery_ip_preference: ipv4
+```
+
+Notes:
+
+- discovery adds VMs to the same `linux_ipa_clients_runtime` group used by the rest of the playbooks
+- IP discovery depends on the QEMU guest agent reporting network interfaces
+- `linux_ipa_proxmox_discovery_use_vm_name_as_hint` only trusts VM names that are already FQDNs
+- the guest still needs a final hostname, either already configured inside the VM or provided with `ipa_hostname` through a manual definition
 
 ## Configuration Surface
 
 Most values live in:
 
-- `inventories/production/group_vars/all/main.yml`
-- `inventories/production/group_vars/all/vault.yml`
+- `inventories/production/group_vars/all/10-features.yml`
+- `inventories/production/group_vars/all/15-rollout.yml`
+- `inventories/production/group_vars/all/20-freeipa.yml`
+- `inventories/production/group_vars/all/30-linux-clients.yml`
+- `inventories/production/group_vars/all/40-proxmox-ldap.yml`
+- `inventories/production/group_vars/all/50-proxmox-sync.yml`
+- `inventories/production/group_vars/all/60-proxmox-rbac.yml`
+- `inventories/production/group_vars/all/vault-freeipa.yml`
+- `inventories/production/group_vars/all/vault-proxmox.yml`
+
+For the file-by-file layout, see [docs/VARIABLES.md](docs/VARIABLES.md).
 
 Key variable families:
 
 | Area | Variables |
 | --- | --- |
 | FreeIPA access model | `freeipa_user_groups`, `freeipa_hostgroups`, `freeipa_hbac_rules` |
+| Rollout controls | `freeipa_access_serial`, `freeipa_access_max_fail_percentage`, `proxmox_rollout_serial`, `proxmox_rollout_max_fail_percentage`, `linux_freeipa_enroll_serial`, `linux_freeipa_enroll_max_fail_percentage` |
 | Proxmox LDAP realm | `proxmox_ldap_realm_id`, `proxmox_ldap_server1`, `proxmox_ldap_base_dn`, `proxmox_ldap_group_dn`, `proxmox_ldap_bind_dn`, `proxmox_ldap_bind_password`, `proxmox_ldap_sync_attributes`, `proxmox_ldap_sync_defaults` |
 | Proxmox RBAC | `proxmox_custom_roles`, `proxmox_acl_bindings` |
-| Linux IPA enrollment | `ipaclient_domain`, `ipaclient_realm`, `linux_ipa_servers`, `linux_ipaclient_mkhomedir`, `linux_ipasssd_permit` |
+| Linux IPA enrollment | `ipaclient_domain`, `ipaclient_realm`, `linux_ipa_servers`, `linux_ipaclient_mkhomedir`, `linux_ipasssd_permit`, `linux_ipa_client_hosts`, `linux_ipa_proxmox_discovery_*` |
 | Ansible connection secrets | `vault_proxmox_become_password` when `proxmox_primary` uses a sudo-capable non-root SSH user |
 
 ## Example Group Strategy
@@ -290,11 +428,22 @@ proxmox-admins-ipa
 
 ## Security
 
-- store all secrets in `vault.yml`, not in `main.yml`
+- store all secrets in `vault-freeipa.yml` and `vault-proxmox.yml`, not in plaintext inventory variable files
 - prefer a dedicated read-only LDAP bind account for Proxmox
 - prefer TLS with certificate verification enabled
+- keep SSH host key checking enabled outside disposable lab environments
 - do not reuse the IPA admin account as the Proxmox LDAP bind account
 - review `proxmox_ldap_filter` and `proxmox_ldap_group_filter` before production rollout to avoid importing too much
+
+For a disposable lab where you explicitly want to bypass SSH host verification, opt out per shell session instead of changing repository defaults:
+
+```bash
+export ANSIBLE_HOST_KEY_CHECKING=False
+```
+
+```powershell
+$env:ANSIBLE_HOST_KEY_CHECKING = 'False'
+```
 
 ## Idempotency and Caveats
 
@@ -305,8 +454,10 @@ Known caveats:
 - Proxmox CLI output can vary slightly across releases
 - FreeIPA directory layouts are flexible, so LDAP filters may need tuning for your tree
 - existing hand-managed PVE ACLs and roles should be compared before applying automation over them
+- Proxmox VM auto-discovery depends on running guests and QEMU guest-agent network data
+- IP-only guest definitions still require a valid final hostname inside the guest, or an explicit `ipa_hostname`
 - the Proxmox plays run with privilege escalation, so a non-root SSH user must have working `sudo` and you must supply a become password with `-K` unless that user has passwordless sudo
-- if you store `ansible_become_password` in `vault.yml`, you can skip `-K` because Ansible will read the sudo password from the encrypted variable instead
+- if you store `ansible_become_password` in `vault-proxmox.yml`, you can skip `-K` because Ansible will read the sudo password from the encrypted variable instead
 
 ## Verification
 
@@ -337,20 +488,38 @@ After a successful rollout, verify the resulting state instead of assuming every
 
 ```text
 .
+├── .editorconfig
+├── CHANGELOG.md
 ├── LICENSE
 ├── README.md
 ├── ansible.cfg
 ├── requirements.yml
+├── tests/
+│   ├── README.md
+│   └── smoke/
+│       └── README.md
 ├── docs/
-│   └── ARCHITECTURE.md
+│   ├── ARCHITECTURE.md
+│   └── VARIABLES.md
 ├── inventories/
 │   └── production/
 │       ├── hosts.yml.example
 │       └── group_vars/
 │           └── all/
+│               ├── 10-features.yml
+│               ├── 15-rollout.yml
+│               ├── 20-freeipa.yml
+│               ├── 30-linux-clients.yml
+│               ├── 40-proxmox-ldap.yml
+│               ├── 50-proxmox-sync.yml
+│               ├── 60-proxmox-rbac.yml
 │               ├── main.yml
-│               └── vault.yml.example
+│               ├── vault-freeipa.yml.example
+│               └── vault-proxmox.yml.example
 ├── playbooks/
+│   ├── includes/
+│   │   ├── prepare_linux_inventory.yml
+│   │   └── resolve_linux_hostnames.yml
 │   ├── freeipa.yml
 │   ├── linux-clients.yml
 │   ├── proxmox.yml
@@ -358,7 +527,10 @@ After a successful rollout, verify the resulting state instead of assuming every
 │   └── validate.yml
 ├── roles/
 │   ├── freeipa_access_model/
+│   ├── linux_ipa_host_identity/
+│   ├── linux_ipa_inventory_prepare/
 │   ├── linux_freeipa_enroll/
+│   ├── proxmox_linux_vm_discovery/
 │   ├── proxmox_ldap_realm/
 │   ├── proxmox_rbac/
 │   └── proxmox_realm_sync_timer/
@@ -367,7 +539,10 @@ After a successful rollout, verify the resulting state instead of assuming every
     ├── lint.py
     ├── lint.ps1
     ├── lint.sh
+    ├── smoke-test.py
     ├── run-playbook.ps1
+    ├── vault.ps1
+    ├── vault.sh
     └── bootstrap.sh
 ```
 
@@ -377,16 +552,23 @@ After a successful rollout, verify the resulting state instead of assuming every
 
 Repository helper files included here:
 
+- `.editorconfig` keeps whitespace, encoding, and line-ending defaults consistent across editors
 - `.gitattributes` keeps common text files on LF line endings
 - `.gitignore` keeps generated inventory, vault data, local collections, and editor files out of Git
 - `.ansible-lint` excludes vendored collections and suppresses only the YAML line-length rule
 - `.yamllint` keeps YAML formatting checks consistent across playbooks, inventories, and workflow files
-- `.github/workflows/ci.yml` runs `ansible-lint`, `yamllint`, and playbook syntax checks on pushes and pull requests
-- `.pre-commit-config.yaml` runs the local lint wrapper before commits when `pre-commit` is installed
+- `.github/CODEOWNERS` routes review ownership for the main repository areas
+- `.github/workflows/ci.yml` runs repository lint checks and smoke validation on pushes and pull requests
+- `.pre-commit-config.yaml` runs the fast lint hook before commits when `pre-commit` is installed
+- `CHANGELOG.md` tracks notable repository changes in a single place
+- `docs/VARIABLES.md` explains the split inventory variable layout
 - `scripts/bootstrap.ps1` and `scripts/bootstrap.sh` install the required collection
-- `scripts/lint.py` provides a cross-platform lint entrypoint for local use and pre-commit
-- `scripts/lint.ps1` and `scripts/lint.sh` run the same local lint and syntax checks used in CI
+- `scripts/lint.py` provides the cross-platform lint entrypoint for local use, CI, and pre-commit
+- `scripts/smoke-test.py` validates the example inventory and runs syntax checks without touching real infrastructure
+- `scripts/lint.ps1` and `scripts/lint.sh` run the combined local lint and smoke workflow
 - `scripts/run-playbook.ps1` wraps common `ansible-playbook` commands for PowerShell users
+- `scripts/vault.ps1` and `scripts/vault.sh` wrap common split-vault operations for FreeIPA and Proxmox secrets
+- `tests/` holds the repository verification surface, starting with smoke-test documentation
 - `CONTRIBUTING.md` documents the expected contribution and validation workflow
 - `SECURITY.md` documents how to report vulnerabilities and handle security-sensitive information
 
@@ -394,6 +576,16 @@ If `ansible-lint` is installed on your controller:
 
 ```bash
 ansible-lint
+```
+
+To run the repository smoke checks directly:
+
+```bash
+python scripts/smoke-test.py
+```
+
+```powershell
+python .\scripts\smoke-test.py
 ```
 
 For the full local lint pass:
@@ -406,12 +598,20 @@ For the full local lint pass:
 .\scripts\lint.ps1
 ```
 
-To enable the same checks before each commit:
+To enable the fast lint hook before each commit:
 
 ```bash
 pip install pre-commit
 pre-commit install
 pre-commit run --all-files
+```
+
+The PowerShell playbook wrapper now also supports common operator options directly:
+
+```powershell
+.\scripts\run-playbook.ps1 -Playbook site -Inventory inventories\production\hosts.yml -Tags freeipa,proxmox -AskVaultPass
+.\scripts\run-playbook.ps1 -Playbook linux-clients -Limit rocky-app-01.example.com -AskBecomePass -ExtraVars ipaclient_domain=example.com
+.\scripts\run-playbook.ps1 -Playbook site -VaultId freeipa@prompt,proxmox@prompt
 ```
 
 ## Next Extensions

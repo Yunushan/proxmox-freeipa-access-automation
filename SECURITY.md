@@ -60,7 +60,8 @@ When discussing or reproducing a security issue:
 
 This repository is designed so secrets belong in:
 
-- `inventories/production/group_vars/all/vault.yml`
+- `inventories/production/group_vars/all/vault-freeipa.yml`
+- `inventories/production/group_vars/all/vault-proxmox.yml`
 
 They should not be moved into plaintext files for debugging or convenience.
 

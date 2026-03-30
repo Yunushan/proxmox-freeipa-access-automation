@@ -1,0 +1,17 @@
+---
+- name: Resolve Linux guest hostnames for FreeIPA
+  hosts: linux_ipa_clients_runtime
+  gather_facts: false
+  serial: "{{ linux_freeipa_enroll_serial | default(10) | int }}"
+  max_fail_percentage: "{{ linux_freeipa_enroll_max_fail_percentage | default(0) | int }}"
+  tags:
+    - linux
+    - inventory
+    - hostnames
+  roles:
+    - role: linux_ipa_host_identity
+      when: linux_freeipa_enroll_enabled | bool
+      tags:
+        - linux
+        - inventory
+        - hostnames

@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  author: Repository maintainers
+  description: Manage FreeIPA user groups, hostgroups, and HBAC rules for centralized access control.
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

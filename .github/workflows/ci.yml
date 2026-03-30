@@ -6,7 +6,7 @@ name: CI
   pull_request:
 
 jobs:
-  lint-and-syntax:
+  lint-and-smoke:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,24 +23,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install "ansible-core>=2.14,<2.24" ansible-lint yamllint
 
-      - name: Prepare example inventory and vars for CI
-        run: |
-          cp inventories/production/hosts.yml.example inventories/production/hosts.yml
-          cp inventories/production/group_vars/all/vault.yml.example inventories/production/group_vars/all/vault.yml
-
       - name: Install required Ansible collection
         run: ansible-galaxy collection install -r requirements.yml
 
-      - name: Run ansible-lint
-        run: ansible-lint
+      - name: Run repository lint checks
+        run: python scripts/lint.py
 
-      - name: Run yamllint
-        run: yamllint .
-
-      - name: Syntax-check playbooks
-        run: |
-          ansible-playbook --syntax-check playbooks/freeipa.yml
-          ansible-playbook --syntax-check playbooks/proxmox.yml
-          ansible-playbook --syntax-check playbooks/linux-clients.yml
-          ansible-playbook --syntax-check playbooks/site.yml
-          ansible-playbook --syntax-check playbooks/validate.yml
+      - name: Run repository smoke checks
+        run: python scripts/smoke-test.py

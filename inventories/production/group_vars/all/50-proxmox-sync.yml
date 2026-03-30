@@ -1,0 +1,10 @@
+---
+# -----------------------------
+# Proxmox recurring sync timer
+# -----------------------------
+proxmox_realm_sync_service_name: proxmox-realm-sync
+proxmox_realm_sync_on_calendar: "*:0/15"
+proxmox_realm_sync_persistent: true
+proxmox_realm_sync_scope: "{{ proxmox_ldap_sync_defaults.scope }}"
+proxmox_realm_sync_enable_new: "{{ proxmox_ldap_sync_defaults.enable_new }}"
+proxmox_realm_sync_remove_vanished: "{{ proxmox_ldap_sync_defaults.remove_vanished }}"

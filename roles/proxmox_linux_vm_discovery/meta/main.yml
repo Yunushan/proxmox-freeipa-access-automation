@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  author: Repository maintainers
+  description: Discover Linux guest candidates from Proxmox nodes and add them to the runtime inventory.
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

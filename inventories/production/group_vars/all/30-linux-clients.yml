@@ -1,0 +1,43 @@
+---
+# -----------------------------
+# Linux IPA client enrollment
+# -----------------------------
+ipaclient_domain: example.com
+ipaclient_realm: EXAMPLE.COM
+linux_ipa_servers:
+  - ipa01.example.com
+linux_ipaclient_mkhomedir: true
+linux_ipaclient_force_join: false
+linux_ipaclient_no_dns_lookup: true
+linux_ipaclient_no_sudo: false
+linux_ipasssd_permit: false
+linux_ipaclient_configure_dns_resolver: false
+linux_ipaclient_dns_servers: []
+linux_ipaclient_install_packages: true
+linux_ipa_client_hosts: []
+# Example hostname-based entries:
+# linux_ipa_client_hosts:
+#   - name: rocky-app-01.example.com
+#   - name: ubuntu-jump-01.example.com
+#
+# Example IP-only entries:
+# linux_ipa_client_hosts:
+#   - name: vm-101
+#     ansible_host: 192.0.2.101
+#   - name: vm-102
+#     ansible_host: 192.0.2.102
+#     ipa_hostname: ubuntu-jump-01.example.com
+#
+# Example Proxmox discovery:
+# linux_ipa_proxmox_discovery_enabled: true
+# linux_ipa_proxmox_discovery_nodes:
+#   - pve01.example.com
+linux_ipa_proxmox_discovery_enabled: false
+linux_ipa_proxmox_discovery_nodes: []
+linux_ipa_proxmox_discovery_only_running: true
+linux_ipa_proxmox_discovery_skip_missing_ip: true
+linux_ipa_proxmox_discovery_ip_preference: ipv4
+linux_ipa_proxmox_discovery_inventory_prefix: proxmox
+# When enabled, only Proxmox VM names that are already FQDNs are used as
+# hostname hints. Short VM names are not promoted into FreeIPA hostnames.
+linux_ipa_proxmox_discovery_use_vm_name_as_hint: true

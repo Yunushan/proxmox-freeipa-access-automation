@@ -1,0 +1,8 @@
+# Update these ownership rules if your GitHub team or review model changes.
+
+* @Yunushan
+/docs/ @Yunushan
+/inventories/ @Yunushan
+/playbooks/ @Yunushan
+/roles/ @Yunushan
+/scripts/ @Yunushan

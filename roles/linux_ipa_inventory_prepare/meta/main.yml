@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  author: Repository maintainers
+  description: Build the generated Linux IPA runtime inventory group from declared sources and manual host definitions.
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

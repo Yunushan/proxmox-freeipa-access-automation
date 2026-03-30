@@ -1,0 +1,13 @@
+---
+# -----------------------------
+# Rollout controls
+# -----------------------------
+# Set these to tune change windows and failure budgets without editing playbooks.
+freeipa_access_serial: 1
+freeipa_access_max_fail_percentage: 0
+
+proxmox_rollout_serial: 1
+proxmox_rollout_max_fail_percentage: 0
+
+linux_freeipa_enroll_serial: 10
+linux_freeipa_enroll_max_fail_percentage: 0

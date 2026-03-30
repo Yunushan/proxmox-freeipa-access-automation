@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  author: Repository maintainers
+  description: Deploy the recurring Proxmox realm sync script, service, and timer units.
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

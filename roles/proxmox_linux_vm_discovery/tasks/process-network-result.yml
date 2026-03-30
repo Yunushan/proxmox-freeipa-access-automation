@@ -1,0 +1,69 @@
+---
+- name: Resolve a usable guest-agent IP address
+  ansible.builtin.set_fact:
+    linux_ipa_proxmox_discovered_ip: >-
+      {% set addresses = [] %}
+      {% if linux_ipa_proxmox_guest_network_result.rc == 0 and (linux_ipa_proxmox_guest_network_result.stdout | default('') | length > 0) %}
+      {%   for interface in (linux_ipa_proxmox_guest_network_result.stdout | from_json) %}
+      {%     for address in interface['ip-addresses'] | default([]) %}
+      {%       set current_ip = address['ip-address'] | default('') %}
+      {%       set current_type = address['ip-address-type'] | default('') %}
+      {%       if linux_ipa_proxmox_discovery_ip_preference == 'ipv4'
+              and current_type == 'ipv4'
+              and not current_ip.startswith('127.')
+              and not current_ip.startswith('169.254.') %}
+      {%         set _ = addresses.append(current_ip) %}
+      {%       elif linux_ipa_proxmox_discovery_ip_preference == 'ipv6'
+                and current_type == 'ipv6'
+                and current_ip != '::1'
+                and not current_ip.startswith('fe80:') %}
+      {%         set _ = addresses.append(current_ip) %}
+      {%       elif linux_ipa_proxmox_discovery_ip_preference == 'any'
+                and (
+                  (current_type == 'ipv4'
+                   and not current_ip.startswith('127.')
+                   and not current_ip.startswith('169.254.'))
+                  or
+                  (current_type == 'ipv6'
+                   and current_ip != '::1'
+                   and not current_ip.startswith('fe80:'))
+                ) %}
+      {%         set _ = addresses.append(current_ip) %}
+      {%       endif %}
+      {%     endfor %}
+      {%   endfor %}
+      {% endif %}
+      {{ addresses | first | default('') }}
+
+- name: Fail when a discovered VM has no usable guest-agent IP
+  ansible.builtin.assert:
+    that:
+      - linux_ipa_proxmox_discovered_ip | length > 0
+    fail_msg: >-
+      No usable {{ linux_ipa_proxmox_discovery_ip_preference }} address was found
+      for VM {{ linux_ipa_proxmox_guest_network_result.item.name | default('vm-' ~ linux_ipa_proxmox_guest_network_result.item.vmid) }}
+      on node {{ linux_ipa_proxmox_node_shortname.stdout }}. Ensure the VM is running and
+      the QEMU guest agent can report network interfaces, or enable
+      linux_ipa_proxmox_discovery_skip_missing_ip to skip it.
+  when:
+    - not linux_ipa_proxmox_discovery_skip_missing_ip | bool
+
+- name: Add discovered Proxmox VMs to the Linux IPA runtime group
+  ansible.builtin.add_host:
+    name: "{{ linux_ipa_proxmox_discovery_inventory_prefix }}-{{ linux_ipa_proxmox_node_shortname.stdout }}-vm{{ linux_ipa_proxmox_guest_network_result.item.vmid }}"
+    groups: "{{ linux_ipa_runtime_group }}"
+    ansible_host: "{{ linux_ipa_proxmox_discovered_ip }}"
+    linux_ipa_requested_hostname: >-
+      {{
+        (
+          linux_ipa_proxmox_discovery_use_vm_name_as_hint | bool
+          and '.' in (linux_ipa_proxmox_guest_network_result.item.name | default(''))
+          and (linux_ipa_proxmox_guest_network_result.item.name | default('') | length > 0)
+        ) | ternary(linux_ipa_proxmox_guest_network_result.item.name, omit)
+      }}
+    linux_ipa_source: proxmox_discovery
+    linux_ipa_proxmox_node: "{{ linux_ipa_proxmox_node_shortname.stdout }}"
+    linux_ipa_proxmox_vmid: "{{ linux_ipa_proxmox_guest_network_result.item.vmid }}"
+    linux_ipa_proxmox_vm_name: "{{ linux_ipa_proxmox_guest_network_result.item.name | default('vm-' ~ linux_ipa_proxmox_guest_network_result.item.vmid) }}"
+  when: linux_ipa_proxmox_discovered_ip | length > 0
+  changed_when: false

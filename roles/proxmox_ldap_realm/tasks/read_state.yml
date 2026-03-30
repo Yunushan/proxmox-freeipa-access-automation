@@ -1,0 +1,50 @@
+---
+- name: Read Proxmox VE version
+  ansible.builtin.command: pveversion
+  register: proxmox_version_raw
+  check_mode: false
+  changed_when: false
+
+- name: Extract Proxmox VE major version
+  ansible.builtin.set_fact:
+    proxmox_pve_major_version: >-
+      {{
+        (
+          proxmox_version_raw.stdout
+          | regex_search('pve-manager/[0-9]+')
+          | default('0', true)
+          | regex_replace('^pve-manager/', '')
+        ) | int
+      }}
+
+- name: Assert Proxmox VE major version is supported
+  ansible.builtin.assert:
+    that:
+      - proxmox_pve_major_version > 0
+      - proxmox_pve_major_version in proxmox_supported_major_versions
+    fail_msg: >-
+      Proxmox VE major version {{ proxmox_pve_major_version | default('unknown') }} is not supported by this role.
+      Supported major versions: {{ proxmox_supported_major_versions | join(', ') }}.
+      Detected version string: {{ proxmox_version_raw.stdout }}.
+
+- name: Read current Proxmox authentication realms
+  ansible.builtin.command:
+    argv:
+      - pvesh
+      - get
+      - /access/domains
+      - --output-format
+      - json
+  register: proxmox_realms_raw
+  check_mode: false
+  changed_when: false
+
+- name: Extract current realm definition
+  ansible.builtin.set_fact:
+    proxmox_ldap_current: >-
+      {{
+        (proxmox_realms_raw.stdout | from_json
+         | selectattr('realm', 'equalto', proxmox_ldap_realm_id)
+         | list
+         | first) | default({})
+      }}

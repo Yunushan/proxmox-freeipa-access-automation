@@ -4,15 +4,35 @@ param(
     [ValidateSet('validate', 'site', 'freeipa', 'proxmox', 'linux-clients')]
     [string]$Playbook,
 
+    [string]$Inventory = 'inventories/production/hosts.yml',
     [switch]$AskVaultPass,
+    [string[]]$VaultId,
+    [switch]$AskBecomePass,
     [switch]$Check,
     [switch]$Diff,
     [switch]$SyntaxCheck,
     [string]$Limit,
+    [string[]]$Tags,
+    [string[]]$SkipTags,
+    [string[]]$ExtraVars,
+    [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$ExtraArgs
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Format-CommandArgument {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Value
+    )
+
+    if ($Value -notmatch '[\s"]') {
+        return $Value
+    }
+
+    return '"' + $Value.Replace('"', '\"') + '"'
+}
 
 $RootDir = Split-Path -Parent $PSScriptRoot
 Set-Location $RootDir
@@ -29,7 +49,20 @@ $PlaybookMap = @{
     'linux-clients' = 'playbooks/linux-clients.yml'
 }
 
-$CommandArgs = @($PlaybookMap[$Playbook])
+$PlaybookPath = $PlaybookMap[$Playbook]
+if (-not (Test-Path -LiteralPath $PlaybookPath)) {
+    throw "Playbook path does not exist: $PlaybookPath"
+}
+
+if (-not (Test-Path -LiteralPath $Inventory)) {
+    throw "Inventory path does not exist: $Inventory"
+}
+
+$CommandArgs = @(
+    '-i'
+    $Inventory
+    $PlaybookPath
+)
 
 if ($SyntaxCheck) {
     $CommandArgs += '--syntax-check'
@@ -44,7 +77,22 @@ if ($Diff) {
 }
 
 if ($AskVaultPass) {
+    if ($VaultId) {
+        throw 'Use either -AskVaultPass or -VaultId, not both.'
+    }
+
     $CommandArgs += '--ask-vault-pass'
+}
+
+if ($VaultId) {
+    foreach ($VaultIdentity in $VaultId) {
+        $CommandArgs += '--vault-id'
+        $CommandArgs += $VaultIdentity
+    }
+}
+
+if ($AskBecomePass) {
+    $CommandArgs += '--ask-become-pass'
 }
 
 if ($Limit) {
@@ -52,9 +100,26 @@ if ($Limit) {
     $CommandArgs += $Limit
 }
 
+if ($Tags) {
+    $CommandArgs += '--tags'
+    $CommandArgs += ($Tags -join ',')
+}
+
+if ($SkipTags) {
+    $CommandArgs += '--skip-tags'
+    $CommandArgs += ($SkipTags -join ',')
+}
+
+if ($ExtraVars) {
+    foreach ($ExtraVar in $ExtraVars) {
+        $CommandArgs += '--extra-vars'
+        $CommandArgs += $ExtraVar
+    }
+}
+
 if ($ExtraArgs) {
     $CommandArgs += $ExtraArgs
 }
 
-Write-Output ("Running: ansible-playbook " + ($CommandArgs -join ' '))
+Write-Output ("Running: ansible-playbook " + (($CommandArgs | ForEach-Object { Format-CommandArgument -Value $_ }) -join ' '))
 & ansible-playbook @CommandArgs

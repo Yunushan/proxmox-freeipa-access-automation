@@ -1,0 +1,33 @@
+---
+# -----------------------------
+# FreeIPA admin/API values
+# -----------------------------
+freeipa_admin_principal: admin
+freeipa_admin_password: "{{ vault_freeipa_admin_password }}"
+freeipa_api_context: server
+
+# -----------------------------
+# FreeIPA access model
+# -----------------------------
+freeipa_user_groups:
+  - name: proxmox-admins
+    description: Full Proxmox administrators
+  - name: linux-ssh-admins
+    description: Linux SSH administrators
+
+freeipa_hostgroups:
+  - name: linux-all
+    description: All Linux clients from the prepared runtime group
+    inventory_groups:
+      - linux_ipa_clients_runtime
+
+freeipa_hbac_rules:
+  - name: allow-linux-ssh-admins
+    description: Allow linux-ssh-admins to access all Linux IPA clients over SSH
+    group:
+      - linux-ssh-admins
+    hostgroup:
+      - linux-all
+    hbacsvc:
+      - sshd
+    state: enabled

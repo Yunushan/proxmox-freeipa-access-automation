@@ -1,0 +1,55 @@
+---
+# -----------------------------
+# Proxmox LDAP realm
+# -----------------------------
+proxmox_supported_major_versions:
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+# Older legacy majors can be added locally if you need to bypass the version gate,
+# but they are not claimed as tested support by this public repository.
+# Future major versions may appear here as provisional compatibility gates before
+# they are publicly validated end-to-end against a released Proxmox version.
+proxmox_ldap_realm_id: ipa
+proxmox_ldap_type: ldap
+proxmox_ldap_server1: ipa01.example.com
+proxmox_ldap_server2: ""
+proxmox_ldap_port: 636
+proxmox_ldap_mode: ldaps
+proxmox_ldap_verify_tls: true
+proxmox_ldap_sslversion: tlsv1_2
+proxmox_ldap_capath: /etc/ssl/certs
+proxmox_ldap_base_dn: cn=users,cn=accounts,dc=example,dc=com
+proxmox_ldap_group_dn: cn=groups,cn=accounts,dc=example,dc=com
+proxmox_ldap_bind_dn: uid=svc-proxmox,cn=users,cn=accounts,dc=example,dc=com
+proxmox_ldap_bind_password: "{{ vault_proxmox_ldap_bind_password }}"
+proxmox_ldap_user_attr: uid
+proxmox_ldap_user_classes:
+  - inetorgperson
+  - posixaccount
+  - person
+proxmox_ldap_group_classes:
+  - ipausergroup
+  - groupOfNames
+  - group
+proxmox_ldap_group_name_attr: cn
+proxmox_ldap_users_autocreate: true
+proxmox_ldap_groups_autocreate: true
+proxmox_ldap_check_connection: true
+proxmox_ldap_default_realm: false
+proxmox_ldap_comment: FreeIPA LDAP realm
+proxmox_ldap_filter: ""
+proxmox_ldap_group_filter: ""
+proxmox_ldap_force_password_update: false
+proxmox_ldap_sync_attributes:
+  email: mail
+  firstname: givenname
+  lastname: sn
+proxmox_ldap_sync_defaults:
+  enable_new: true
+  remove_vanished: none
+  scope: both
+proxmox_ldap_initial_sync_enabled: true
+proxmox_ldap_force_sync_on_run: false

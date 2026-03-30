@@ -1,0 +1,60 @@
+---
+- name: Read Proxmox node short name
+  ansible.builtin.command: hostname -s
+  delegate_to: "{{ linux_ipa_discovery_target }}"
+  become: true
+  register: linux_ipa_proxmox_node_shortname
+  check_mode: false
+  changed_when: false
+
+- name: Read QEMU guests from Proxmox node
+  ansible.builtin.command:
+    argv:
+      - pvesh
+      - get
+      - "/nodes/{{ linux_ipa_proxmox_node_shortname.stdout }}/qemu"
+      - --output-format
+      - json
+  delegate_to: "{{ linux_ipa_discovery_target }}"
+  become: true
+  register: linux_ipa_proxmox_node_guests_raw
+  check_mode: false
+  changed_when: false
+
+- name: Select QEMU guests for Linux IPA discovery
+  ansible.builtin.set_fact:
+    linux_ipa_proxmox_node_guests: >-
+      {% set selected = [] %}
+      {% for guest in (linux_ipa_proxmox_node_guests_raw.stdout | from_json) %}
+      {%   if not (guest.template | default(0) | bool) %}
+      {%     if (not linux_ipa_proxmox_discovery_only_running | bool) or (guest.status | default('') == 'running') %}
+      {%       set _ = selected.append(guest) %}
+      {%     endif %}
+      {%   endif %}
+      {% endfor %}
+      {{ selected }}
+
+- name: Read guest network interfaces through the Proxmox guest agent
+  ansible.builtin.command:
+    argv:
+      - qm
+      - guest
+      - cmd
+      - "{{ item.vmid | string }}"
+      - network-get-interfaces
+  delegate_to: "{{ linux_ipa_discovery_target }}"
+  become: true
+  register: linux_ipa_proxmox_guest_networks
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  loop: "{{ linux_ipa_proxmox_node_guests }}"
+  loop_control:
+    label: "{{ item.name | default('vm-' ~ item.vmid) }}"
+
+- name: Process discovered guest network results
+  ansible.builtin.include_tasks: process-network-result.yml
+  loop: "{{ linux_ipa_proxmox_guest_networks.results }}"
+  loop_control:
+    loop_var: linux_ipa_proxmox_guest_network_result
+    label: "{{ linux_ipa_proxmox_guest_network_result.item.name | default('vm-' ~ linux_ipa_proxmox_guest_network_result.item.vmid) }}"

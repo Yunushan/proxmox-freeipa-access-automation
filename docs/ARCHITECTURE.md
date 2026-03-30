@@ -54,6 +54,14 @@ This project uses the `proxmox_primary` inventory group for that purpose.
 ## Linux guest model
 
 Linux guests are joined to FreeIPA using the upstream `ipaclient` role.
+This repository can source those guests from static inventory entries,
+manual host definitions, or Proxmox VM discovery.
+The source inventory group is `linux_ipa_clients`, and the generated runtime
+group is `linux_ipa_clients_runtime`.
+When the connection target is only an IP or a synthetic alias, the combined
+`site` and `linux-clients` flows resolve the guest's effective FQDN before
+FreeIPA hostgroup membership is built.
+
 This is better than creating local guest users via automation because:
 
 - onboarding becomes group membership,

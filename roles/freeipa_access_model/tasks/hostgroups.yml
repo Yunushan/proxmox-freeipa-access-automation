@@ -1,0 +1,90 @@
+---
+- name: Initialize resolved FreeIPA hostgroup definitions
+  ansible.builtin.set_fact:
+    freeipa_hostgroups_resolved: []
+
+- name: Resolve FreeIPA hostgroup members from inventory groups
+  ansible.builtin.set_fact:
+    freeipa_hostgroups_resolved: >-
+      {{
+        freeipa_hostgroups_resolved
+        +
+        [
+          item | combine({
+            'resolved_hosts': freeipa_hostgroup_resolved_hosts,
+            'unresolved_hosts': freeipa_hostgroup_unresolved_hosts
+          })
+        ]
+      }}
+  vars:
+    freeipa_hostgroup_resolved_hosts: >-
+      {% set members = item.host | default([]) | list %}
+      {% for group_name in item.inventory_groups | default([]) %}
+      {%   for group_host in groups[group_name] | default([]) %}
+      {%     set explicit_hostname = hostvars[group_host].freeipa_hostgroup_hostname
+            | default(hostvars[group_host].ipa_hostname, true)
+            | default('', true)
+            | string
+            | trim
+            | lower %}
+      {%     set inventory_candidate = group_host | string | trim | lower %}
+      {%     if explicit_hostname | length > 0 %}
+      {%       set _ = members.append(explicit_hostname) %}
+      {%     elif inventory_candidate is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$')
+              and not (inventory_candidate is match('^[0-9.]+$')) %}
+      {%       set _ = members.append(inventory_candidate) %}
+      {%     endif %}
+      {%   endfor %}
+      {% endfor %}
+      {{ members | reject('equalto', '') | unique | list }}
+    freeipa_hostgroup_unresolved_hosts: >-
+      {% set unresolved = [] %}
+      {% for group_name in item.inventory_groups | default([]) %}
+      {%   for group_host in groups[group_name] | default([]) %}
+      {%     set explicit_hostname = hostvars[group_host].freeipa_hostgroup_hostname
+            | default(hostvars[group_host].ipa_hostname, true)
+            | default('', true)
+            | string
+            | trim
+            | lower %}
+      {%     set inventory_candidate = group_host | string | trim | lower %}
+      {%     if explicit_hostname | length == 0
+              and not (
+                inventory_candidate is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$')
+                and not (inventory_candidate is match('^[0-9.]+$'))
+              ) %}
+      {%       set _ = unresolved.append(group_host) %}
+      {%     endif %}
+      {%   endfor %}
+      {% endfor %}
+      {{ unresolved | unique | list }}
+  loop: "{{ freeipa_hostgroups }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Assert FreeIPA hostgroup members resolve to final hostnames
+  ansible.builtin.assert:
+    that:
+      - item.unresolved_hosts | default([]) | length == 0
+    fail_msg: >-
+      FreeIPA hostgroup {{ item.name }} includes hosts that do not resolve to final hostnames:
+      {{ item.unresolved_hosts | join(', ') }}.
+      Use FQDN inventory names, set ipa_hostname for those hosts, or run the combined site/linux playbooks first.
+  loop: "{{ freeipa_hostgroups_resolved }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Ensure FreeIPA hostgroups are present
+  freeipa.ansible_freeipa.ipahostgroup:
+    ipaadmin_principal: "{{ freeipa_admin_principal }}"
+    ipaadmin_password: "{{ freeipa_admin_password }}"
+    ipaapi_context: "{{ freeipa_api_context }}"
+    name: "{{ item.name }}"
+    description: "{{ item.description | default(omit) }}"
+    host: "{{ item.resolved_hosts if (item.resolved_hosts | default([]) | length > 0) else omit }}"
+    hostgroup: "{{ item.hostgroup | default(omit) }}"
+    state: "{{ item.state | default('present') }}"
+  loop: "{{ freeipa_hostgroups_resolved }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true

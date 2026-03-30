@@ -3,8 +3,23 @@
   hosts: proxmox_primary
   become: true
   gather_facts: false
-  serial: 1
+  serial: "{{ proxmox_rollout_serial | default(1) | int }}"
+  max_fail_percentage: "{{ proxmox_rollout_max_fail_percentage | default(0) | int }}"
+  tags:
+    - proxmox
   roles:
     - role: proxmox_ldap_realm
+      when: proxmox_ldap_enabled | bool
+      tags:
+        - proxmox
+        - proxmox_ldap
     - role: proxmox_realm_sync_timer
+      when: proxmox_ldap_enabled | bool and proxmox_realm_sync_timer_enabled | bool
+      tags:
+        - proxmox
+        - proxmox_sync
     - role: proxmox_rbac
+      when: proxmox_ldap_enabled | bool and proxmox_rbac_enabled | bool
+      tags:
+        - proxmox
+        - proxmox_rbac

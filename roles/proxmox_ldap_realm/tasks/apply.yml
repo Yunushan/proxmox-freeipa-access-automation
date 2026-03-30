@@ -1,0 +1,8 @@
+---
+- name: Apply Proxmox LDAP realm configuration
+  ansible.builtin.command:
+    argv: "{{ proxmox_ldap_realm_cmd }}"
+  register: proxmox_ldap_realm_change
+  when: proxmox_ldap_needs_change | bool
+  changed_when: true
+  no_log: true
