@@ -1,5 +1,6 @@
 ---
-- import_playbook: includes/prepare_linux_inventory.yml
+- name: Prepare Linux inventory for validation
+  import_playbook: includes/prepare_linux_inventory.yml
   tags:
     - validate
     - linux
@@ -7,7 +8,8 @@
     - inventory
     - discovery
 
-- import_playbook: includes/resolve_linux_hostnames.yml
+- name: Resolve Linux hostnames for validation
+  import_playbook: includes/resolve_linux_hostnames.yml
   tags:
     - validate
     - linux

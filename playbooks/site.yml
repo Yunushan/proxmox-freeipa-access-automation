@@ -1,5 +1,6 @@
 ---
-- import_playbook: includes/prepare_linux_inventory.yml
+- name: Prepare Linux inventory for the combined site workflow
+  import_playbook: includes/prepare_linux_inventory.yml
   tags:
     - freeipa
     - freeipa_access
@@ -8,7 +9,8 @@
     - inventory
     - discovery
 
-- import_playbook: includes/resolve_linux_hostnames.yml
+- name: Resolve Linux hostnames for the combined site workflow
+  import_playbook: includes/resolve_linux_hostnames.yml
   tags:
     - freeipa
     - freeipa_access
