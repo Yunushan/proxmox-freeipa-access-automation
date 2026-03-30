@@ -27,6 +27,14 @@
   changed_when: false
   no_log: true
 
+- name: Skip Linux IPA enrollment in check mode
+  ansible.builtin.debug:
+    msg: >-
+      Check mode skips the upstream FreeIPA ipaclient enrollment role in this repository.
+      Use validate.yml plus a real linux-clients or site run to verify actual Linux IPA enrollment.
+  when: ansible_check_mode
+  changed_when: false
+
 - name: Join Linux host to FreeIPA
   ansible.builtin.include_role:
     name: freeipa.ansible_freeipa.ipaclient
@@ -45,4 +53,5 @@
     ipaclient_install_packages: "{{ linux_freeipa_enroll_effective_install_packages }}"
     ipaclient_configure_dns_resolver: "{{ linux_freeipa_enroll_effective_configure_dns_resolver }}"
     ipaclient_dns_servers: "{{ linux_freeipa_enroll_effective_dns_servers if (linux_freeipa_enroll_effective_dns_servers | length > 0) else omit }}"
+  when: not ansible_check_mode
   no_log: true

@@ -247,6 +247,8 @@ ansible-playbook playbooks/site.yml --check --diff --ask-vault-pass
 > For FreeIPA HBAC rules, check mode validates the rule-definition step but skips the follow-up enable or disable action. That avoids false failures where FreeIPA reports the rule as missing because it was not actually created during the dry run.
 >
 > The Proxmox realm sync timer role also skips the final `systemd` enable or start step in check mode, because unit files are diffed but not actually written during the dry run.
+>
+> Linux IPA enrollment is also skipped in check mode. The repository still performs discovery, hostname resolution, and input validation, but the upstream `ipaclient` role is not executed during a dry run.
 
 ### 7. Apply the full configuration
 
