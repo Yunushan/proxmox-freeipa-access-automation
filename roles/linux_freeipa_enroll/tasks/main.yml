@@ -98,6 +98,62 @@
     label: "{{ item.item }}"
   when: not (linux_freeipa_enroll_effective_configure_dns_resolver | bool)
 
+- name: Check LDAP reachability to configured IPA servers from the Linux guest
+  ansible.builtin.wait_for:
+    host: "{{ item }}"
+    port: 389
+    timeout: 5
+    connect_timeout: 3
+    state: started
+  register: linux_freeipa_enroll_ldap_connectivity
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  loop: "{{ linux_freeipa_enroll_effective_servers_normalized }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Assert LDAP reachability to configured IPA servers from the Linux guest
+  ansible.builtin.assert:
+    that:
+      - not (item.failed | default(false))
+      - item.elapsed is defined
+    fail_msg: >-
+      Linux guest {{ inventory_hostname }} cannot reach LDAP on {{ item.item }}:389.
+      FreeIPA client discovery needs TCP 389 to the IPA server. Verify firewall, routing, and that
+      the configured target is a real IPA server.
+  loop: "{{ linux_freeipa_enroll_ldap_connectivity.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Check HTTPS reachability to configured IPA servers from the Linux guest
+  ansible.builtin.wait_for:
+    host: "{{ item }}"
+    port: 443
+    timeout: 5
+    connect_timeout: 3
+    state: started
+  register: linux_freeipa_enroll_https_connectivity
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  loop: "{{ linux_freeipa_enroll_effective_servers_normalized }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Assert HTTPS reachability to configured IPA servers from the Linux guest
+  ansible.builtin.assert:
+    that:
+      - not (item.failed | default(false))
+      - item.elapsed is defined
+    fail_msg: >-
+      Linux guest {{ inventory_hostname }} cannot reach HTTPS on {{ item.item }}:443.
+      FreeIPA enrollment also needs the IPA web/API endpoint. Verify firewall, routing, and that
+      the configured target is a real IPA server.
+  loop: "{{ linux_freeipa_enroll_https_connectivity.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+
 - name: Read current Linux guest FQDN before IPA enrollment
   ansible.builtin.command: hostname -f
   register: linux_freeipa_enroll_current_fqdn
