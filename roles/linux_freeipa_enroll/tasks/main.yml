@@ -185,6 +185,48 @@
       Set a real FQDN on the guest first, or enable linux_freeipa_enroll_manage_hostname and provide a resolvable
       FQDN through ipa_hostname, linux_ipa_identity_hostname_suffix, or the guest's own hostname configuration.
 
+- name: Resolve the Linux guest hostname that will be enrolled
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_hostname_to_verify: >-
+      {{
+        (
+          linux_freeipa_enroll_target_hostname
+          if (linux_freeipa_enroll_target_hostname | length > 0)
+          else (
+            linux_freeipa_enroll_current_fqdn.stdout
+            | default('', true)
+            | string
+            | trim
+            | lower
+          )
+        )
+      }}
+  changed_when: false
+
+- name: Resolve the Linux guest enrollment hostname locally on the guest
+  ansible.builtin.command:
+    argv:
+      - getent
+      - hosts
+      - "{{ linux_freeipa_enroll_hostname_to_verify }}"
+  register: linux_freeipa_enroll_hostname_resolution
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Assert the Linux guest enrollment hostname resolves to a non-loopback address
+  ansible.builtin.assert:
+    that:
+      - linux_freeipa_enroll_hostname_resolution.rc == 0
+      - linux_freeipa_enroll_hostname_resolution.stdout | default('') | trim | length > 0
+      - (linux_freeipa_enroll_hostname_resolution.stdout | trim | split() | first) not in ['127.0.0.1', '::1']
+      - not ((linux_freeipa_enroll_hostname_resolution.stdout | trim | split() | first) is match('^127\\.'))
+    fail_msg: >-
+      Linux guest {{ inventory_hostname }} resolves its enrollment hostname {{ linux_freeipa_enroll_hostname_to_verify }}
+      to {{ linux_freeipa_enroll_hostname_resolution.stdout | default('an unresolved value') | trim | default('an unresolved value', true) }}.
+      The guest hostname must resolve to the guest's real non-loopback address, not 127.0.0.1 or ::1.
+      Fix DNS or /etc/hosts on the guest before IPA enrollment.
+
 - name: Skip Linux IPA enrollment in check mode
   ansible.builtin.debug:
     msg: >-
