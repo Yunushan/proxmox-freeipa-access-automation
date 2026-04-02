@@ -131,14 +131,24 @@
           ansible.builtin.assert:
             that:
               - proxmox_pve_major_version > 0
-              - proxmox_pve_major_version in (proxmox_supported_major_versions | default([6, 7, 8, 9, 10]))
+              - >-
+                (
+                  proxmox_pve_major_version in (proxmox_supported_major_versions | default([6, 7, 8, 9, 10]))
+                )
+                or
+                (
+                  proxmox_allow_future_major_versions | default(true) | bool
+                  and proxmox_pve_major_version > ((proxmox_supported_major_versions | default([6, 7, 8, 9, 10])) | max)
+                )
             fail_msg: >-
               Proxmox VE major version {{ proxmox_pve_major_version | default('unknown') }} is not supported by this repository.
               Supported major versions: {{ proxmox_supported_major_versions | default([6, 7, 8, 9, 10]) | join(', ') }}.
+              Future-major compatibility gate: {{ proxmox_allow_future_major_versions | default(true) | bool }}.
               Detected version string: {{ proxmox_version_raw.stdout }}.
             success_msg: >-
-              Proxmox VE {{ proxmox_pve_major_version }} is within the supported major version set:
-              {{ proxmox_supported_major_versions | default([6, 7, 8, 9, 10]) | join(', ') }}.
+              Proxmox VE {{ proxmox_pve_major_version }} passed compatibility validation.
+              Tested major versions: {{ proxmox_supported_major_versions | default([6, 7, 8, 9, 10]) | join(', ') }}.
+              Future-major compatibility gate: {{ proxmox_allow_future_major_versions | default(true) | bool }}.
 
 - name: Validate IPA server prerequisites
   hosts: ipa_servers

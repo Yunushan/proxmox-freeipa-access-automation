@@ -13,11 +13,24 @@
   ansible.builtin.assert:
     that:
       - proxmox_pve_major_version > 0
-      - proxmox_pve_major_version in proxmox_supported_major_versions
+      - >-
+        (
+          proxmox_pve_major_version in proxmox_supported_major_versions
+        )
+        or
+        (
+          proxmox_allow_future_major_versions | bool
+          and proxmox_pve_major_version > (proxmox_supported_major_versions | max)
+        )
     fail_msg: >-
       Proxmox VE major version {{ proxmox_pve_major_version | default('unknown') }} is not supported by this role.
       Supported major versions: {{ proxmox_supported_major_versions | join(', ') }}.
+      Future-major compatibility gate: {{ proxmox_allow_future_major_versions | bool }}.
       Detected version string: {{ proxmox_version_raw.stdout }}.
+    success_msg: >-
+      Proxmox VE major version {{ proxmox_pve_major_version }} passed compatibility validation.
+      Tested major versions: {{ proxmox_supported_major_versions | join(', ') }}.
+      Future-major compatibility gate: {{ proxmox_allow_future_major_versions | bool }}.
 
 - name: Read current Proxmox authentication realms
   ansible.builtin.command:

@@ -6,7 +6,7 @@
 
 <p>
   <img src="https://img.shields.io/badge/Ansible-Core%202.14%2B-EE0000?style=for-the-badge&logo=ansible&logoColor=white" alt="Ansible Core 2.14+" />
-  <img src="https://img.shields.io/badge/Proxmox-VE%206.x%20%7C%207.x%20%7C%208.x%20%7C%209.x%20%7C%2010.x-E57000?style=for-the-badge" alt="Proxmox VE 6.x 7.x 8.x 9.x 10.x" />
+  <img src="https://img.shields.io/badge/Proxmox-VE%206.x%2B-E57000?style=for-the-badge" alt="Proxmox VE 6.x+" />
   <img src="https://img.shields.io/badge/FreeIPA-Source%20of%20Truth-1778F2?style=for-the-badge" alt="FreeIPA Source of Truth" />
   <img src="https://img.shields.io/badge/Linux-IPA%20Enrollment-0B7D69?style=for-the-badge&logo=linux&logoColor=white" alt="Linux IPA Enrollment" />
   <img src="https://img.shields.io/badge/Secrets-Ansible%20Vault-4C9A2A?style=for-the-badge" alt="Ansible Vault" />
@@ -89,7 +89,7 @@ For the longer design explanation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.
 
 ### Targets
 
-- Proxmox VE 6.x, 7.x, 8.x, 9.x, or provisionally 10.x on the host in `proxmox_primary`
+- Proxmox VE 6.x and later on the host in `proxmox_primary`
 - FreeIPA reachable from Proxmox and Linux clients
 - sane DNS and time synchronization
 - for `proxmox_primary`, either connect as `root` or use an SSH user that can run `sudo` for `pveversion`, `pvesh`, and `pveum`
@@ -97,12 +97,13 @@ For the longer design explanation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.
 
 ## Compatibility
 
-The Proxmox automation in this repository is written around the `pveum` and `pvesh` realm and RBAC interfaces used by Proxmox VE 6.x, 7.x, 8.x, 9.x, and anticipated 10.x releases.
+The Proxmox automation in this repository is written around the `pveum` and `pvesh` realm and RBAC interfaces used by Proxmox VE 6.x and later releases.
 
 - Supported major versions by default: `6`, `7`, `8`, `9`, `10`
 - Validation checks the detected Proxmox version with `pveversion`
 - The supported version list can be overridden with `proxmox_supported_major_versions` if you need to narrow or extend it in your environment
-- `10.x` is included as a provisional future-release compatibility gate so a new major version does not fail validation by default on day one; it should still be treated as unvalidated until the released Proxmox VE 10 interface is checked against this automation
+- `proxmox_allow_future_major_versions` defaults to `true`, so majors newer than the highest listed tested version also pass validation by default
+- Future major versions should still be treated as compatibility candidates until the released Proxmox interface is checked against this automation
 - Older legacy majors such as `1` through `5` are not claimed as tested support by this public repository; if you add them locally, treat that as an explicit compatibility override and validate the full workflow in a lab first
 
 Example local override for a legacy lab environment:
@@ -119,6 +120,7 @@ proxmox_supported_major_versions:
   - 8
   - 9
   - 10
+proxmox_allow_future_major_versions: false
 ```
 
 ## Quick Start
