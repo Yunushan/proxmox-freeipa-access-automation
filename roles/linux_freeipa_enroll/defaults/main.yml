@@ -14,3 +14,5 @@ linux_ipasssd_permit: false
 linux_ipaclient_configure_dns_resolver: false
 linux_ipaclient_dns_servers: []
 linux_ipaclient_install_packages: true
+linux_ipa_manage_etc_hosts: false
+linux_ipa_etc_hosts_entries: []

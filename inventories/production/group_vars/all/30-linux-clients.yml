@@ -16,6 +16,8 @@ linux_freeipa_enroll_manage_hostname: false
 linux_ipaclient_configure_dns_resolver: false
 linux_ipaclient_dns_servers: []
 linux_ipaclient_install_packages: true
+linux_ipa_manage_etc_hosts: false
+linux_ipa_etc_hosts_entries: []
 linux_ipa_client_hosts: []
 # Example hostname-based entries:
 # linux_ipa_client_hosts:
@@ -25,6 +27,22 @@ linux_ipa_client_hosts: []
 # Example short hostnames completed with a shared suffix:
 # linux_ipa_identity_hostname_suffix: example.net
 # linux_freeipa_enroll_manage_hostname: true
+#
+# Example /etc/hosts bootstrap entries when IPA DNS is not ready yet:
+# linux_ipa_manage_etc_hosts: true
+# linux_ipa_etc_hosts_entries:
+#   - ip: 192.0.2.101
+#     names:
+#       - app-server-01.example.com
+#       - app-server-01
+#   - ip: 192.0.2.10
+#     names:
+#       - ipa01.example.com
+#       - ipa01
+#   - ip: 192.0.2.11
+#     names:
+#       - ipa02.example.com
+#       - ipa02
 #
 # Example IP-only entries:
 # linux_ipa_client_hosts:

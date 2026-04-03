@@ -24,6 +24,8 @@
     linux_freeipa_enroll_effective_install_packages: "{{ linux_ipaclient_install_packages }}"
     linux_freeipa_enroll_effective_configure_dns_resolver: "{{ linux_ipaclient_configure_dns_resolver }}"
     linux_freeipa_enroll_effective_dns_servers: "{{ linux_ipaclient_dns_servers }}"
+    linux_freeipa_enroll_effective_manage_etc_hosts: "{{ linux_ipa_manage_etc_hosts }}"
+    linux_freeipa_enroll_effective_etc_hosts_entries: "{{ linux_ipa_etc_hosts_entries }}"
   changed_when: false
   no_log: true
 
@@ -57,6 +59,79 @@
       }}
   changed_when: false
   no_log: true
+
+- name: Validate Linux IPA /etc/hosts bootstrap entries
+  vars:
+    linux_freeipa_enroll_entry_names: >-
+      {{
+        (
+          item.names
+          if (item.names is sequence and item.names is not string)
+          else (
+            item.names
+            | default('', true)
+            | string
+            | split(',')
+          )
+        )
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
+  ansible.builtin.assert:
+    that:
+      - item.ip | default('', true) | string | trim | length > 0
+      - linux_freeipa_enroll_entry_names | length > 0
+    fail_msg: >-
+      Each linux_ipa_etc_hosts_entries item must define a non-empty ip and at least one hostname under names.
+      Invalid entry: {{ item | to_nice_yaml(indent=2) | trim }}
+  loop: "{{ linux_freeipa_enroll_effective_etc_hosts_entries }}"
+  loop_control:
+    label: "{{ item.ip | default('missing-ip') }}"
+  when: linux_freeipa_enroll_effective_manage_etc_hosts | bool
+
+- name: Build Linux IPA /etc/hosts bootstrap lines
+  vars:
+    linux_freeipa_enroll_etc_hosts_lines_yaml: |
+      {% set lines = [] %}
+      {% for entry in linux_freeipa_enroll_effective_etc_hosts_entries %}
+      {%   set entry_names = (
+             entry.names
+             if (entry.names is sequence and entry.names is not string)
+             else (
+               entry.names
+               | default('', true)
+               | string
+               | split(',')
+             )
+           )
+           | map('string')
+           | map('trim')
+           | reject('equalto', '')
+           | list %}
+      {%   if (entry.ip | default('', true) | string | trim | length > 0) and (entry_names | length > 0) %}
+      {%     set _ = lines.append((entry.ip | string | trim) ~ ' ' ~ (entry_names | join(' '))) %}
+      {%   endif %}
+      {% endfor %}
+      {{ lines | to_yaml }}
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_etc_hosts_lines: "{{ linux_freeipa_enroll_etc_hosts_lines_yaml | from_yaml }}"
+  changed_when: false
+  when: linux_freeipa_enroll_effective_manage_etc_hosts | bool
+
+- name: Ensure Linux IPA /etc/hosts bootstrap entries are present
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    create: true
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: FreeIPA bootstrap entries"
+    block: |
+      {% for line in linux_freeipa_enroll_etc_hosts_lines %}
+      {{ line }}
+      {% endfor %}
+  when:
+    - linux_freeipa_enroll_effective_manage_etc_hosts | bool
+    - linux_freeipa_enroll_etc_hosts_lines | default([]) | length > 0
 
 - name: Assert Linux IPA domain is not configured as an IPA server hostname
   ansible.builtin.assert:
