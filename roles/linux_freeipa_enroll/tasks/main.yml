@@ -124,6 +124,7 @@
   ansible.builtin.blockinfile:
     path: /etc/hosts
     create: true
+    mode: "0644"
     marker: "# {mark} ANSIBLE MANAGED BLOCK: FreeIPA bootstrap entries"
     block: |
       {% for line in linux_freeipa_enroll_etc_hosts_lines %}
