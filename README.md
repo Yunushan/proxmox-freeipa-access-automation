@@ -246,8 +246,14 @@ Use `-AskVaultPass` only when both vault files share the same password.
 
 Or directly:
 
+```bash
+ansible-galaxy collection install -r requirements.yml -p ./collections
+python scripts/patch_freeipa_collection.py
+```
+
 ```powershell
-ansible-galaxy collection install -r requirements.yml
+ansible-galaxy collection install -r requirements.yml -p .\collections
+python .\scripts\patch_freeipa_collection.py
 ```
 
 ### 5. Run validation first
@@ -572,6 +578,7 @@ After a successful rollout, verify the resulting state instead of assuming every
     ├── lint.py
     ├── lint.ps1
     ├── lint.sh
+    ├── patch_freeipa_collection.py
     ├── smoke-test.py
     ├── run-playbook.ps1
     ├── vault.ps1
@@ -595,7 +602,8 @@ Repository helper files included here:
 - `.pre-commit-config.yaml` runs the fast lint hook before commits when `pre-commit` is installed
 - `CHANGELOG.md` tracks notable repository changes in a single place
 - `docs/VARIABLES.md` explains the split inventory variable layout
-- `scripts/bootstrap.ps1` and `scripts/bootstrap.sh` install the required collection
+- `scripts/bootstrap.ps1` and `scripts/bootstrap.sh` install the required collection into the repo-local `collections/` path and patch it for ansible-core 2.24+ compatibility
+- `scripts/patch_freeipa_collection.py` rewrites deprecated imports in the pinned FreeIPA collection so it stays compatible with future ansible-core releases
 - `scripts/lint.py` provides the cross-platform lint entrypoint for local use, CI, and pre-commit
 - `scripts/smoke-test.py` validates the example inventory and runs syntax checks without touching real infrastructure
 - `scripts/lint.ps1` and `scripts/lint.sh` run the combined local lint and smoke workflow

@@ -3,6 +3,9 @@ $ErrorActionPreference = 'Stop'
 $RootDir = Split-Path -Parent $PSScriptRoot
 Set-Location $RootDir
 
-ansible-galaxy collection install -r requirements.yml
+$CollectionPath = Join-Path $RootDir 'collections'
 
-Write-Output 'Collections installed successfully.'
+ansible-galaxy collection install -r requirements.yml -p $CollectionPath
+python .\scripts\patch_freeipa_collection.py
+
+Write-Output 'Collections installed and patched successfully.'

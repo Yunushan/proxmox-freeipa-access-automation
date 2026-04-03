@@ -31,6 +31,8 @@ Install the required Ansible collection first:
 .\scripts\bootstrap.ps1
 ```
 
+The bootstrap helpers install the pinned FreeIPA collection into the repo-local `collections/` path and patch deprecated imports so it remains compatible with ansible-core 2.24+.
+
 If you want the same checks used in CI, make sure these tools are installed and available in `PATH`:
 
 - `ansible-playbook`
