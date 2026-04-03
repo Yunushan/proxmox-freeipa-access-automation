@@ -256,6 +256,10 @@ ansible-galaxy collection install -r requirements.yml -p .\collections
 python .\scripts\patch_freeipa_collection.py
 ```
 
+If you installed `freeipa.ansible_freeipa` before this repository added the compatibility patch, rerun one of the bootstrap helpers or run `python .\scripts\patch_freeipa_collection.py` once to patch the existing user-level collection install as well.
+
+When you use `scripts/run-playbook.ps1`, it runs the patch helper automatically before `ansible-playbook`.
+
 ### 5. Run validation first
 
 ```bash

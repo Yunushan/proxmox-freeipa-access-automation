@@ -37,6 +37,14 @@ function Format-CommandArgument {
 $RootDir = Split-Path -Parent $PSScriptRoot
 Set-Location $RootDir
 
+if (Get-Command python -ErrorAction SilentlyContinue) {
+    & python .\scripts\patch_freeipa_collection.py
+} elseif (Get-Command py -ErrorAction SilentlyContinue) {
+    & py -3 .\scripts\patch_freeipa_collection.py
+} else {
+    throw 'python was not found in PATH.'
+}
+
 if (-not (Get-Command ansible-playbook -ErrorAction SilentlyContinue)) {
     throw 'ansible-playbook was not found in PATH.'
 }
