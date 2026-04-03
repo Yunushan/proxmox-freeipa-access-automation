@@ -24,7 +24,7 @@ jobs:
           pip install "ansible-core>=2.14" ansible-lint yamllint
 
       - name: Install required Ansible collection
-        run: ./scripts/bootstrap.sh
+        run: bash ./scripts/bootstrap.sh
 
       - name: Run repository lint checks
         run: python scripts/lint.py
