@@ -72,5 +72,16 @@
           + ((proxmox_ldap_include_password | bool) | ternary(['--password', proxmox_ldap_bind_password], []))
         ) | to_yaml
       }}
+    proxmox_ldap_realm_cmd_display_yaml: |
+      {% set display = [] %}
+      {% for arg in (proxmox_ldap_realm_cmd_yaml | from_yaml) %}
+      {%   if (proxmox_ldap_include_password | bool) and (arg == proxmox_ldap_bind_password) %}
+      {%     set _ = display.append('********') %}
+      {%   else %}
+      {%     set _ = display.append(arg) %}
+      {%   endif %}
+      {% endfor %}
+      {{ display | to_yaml }}
   ansible.builtin.set_fact:
     proxmox_ldap_realm_cmd: "{{ proxmox_ldap_realm_cmd_yaml | from_yaml }}"
+    proxmox_ldap_realm_cmd_display: "{{ proxmox_ldap_realm_cmd_display_yaml | from_yaml }}"

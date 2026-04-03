@@ -4,5 +4,43 @@
     argv: "{{ proxmox_ldap_realm_cmd }}"
   register: proxmox_ldap_realm_change
   when: proxmox_ldap_needs_change | bool
-  changed_when: true
+  changed_when: proxmox_ldap_realm_change.rc == 0
+  failed_when: false
   no_log: true
+
+- name: Expose sanitized Proxmox LDAP realm failure details
+  vars:
+    proxmox_ldap_realm_stdout_safe: >-
+      {{
+        (
+          proxmox_ldap_realm_change.stdout | default('')
+        )
+        if (proxmox_ldap_bind_password | default('') | length == 0)
+        else
+        (
+          proxmox_ldap_realm_change.stdout | default('')
+          | replace(proxmox_ldap_bind_password, '********')
+        )
+      }}
+    proxmox_ldap_realm_stderr_safe: >-
+      {{
+        (
+          proxmox_ldap_realm_change.stderr | default('')
+        )
+        if (proxmox_ldap_bind_password | default('') | length == 0)
+        else
+        (
+          proxmox_ldap_realm_change.stderr | default('')
+          | replace(proxmox_ldap_bind_password, '********')
+        )
+      }}
+  ansible.builtin.fail:
+    msg: >-
+      Proxmox LDAP realm configuration failed on {{ inventory_hostname }}.
+      Command: {{ proxmox_ldap_realm_cmd_display | join(' ') }}.
+      rc={{ proxmox_ldap_realm_change.rc }}.
+      stdout={{ proxmox_ldap_realm_stdout_safe | trim | default('<empty>', true) }}.
+      stderr={{ proxmox_ldap_realm_stderr_safe | trim | default('<empty>', true) }}.
+  when:
+    - proxmox_ldap_needs_change | bool
+    - proxmox_ldap_realm_change.rc != 0
