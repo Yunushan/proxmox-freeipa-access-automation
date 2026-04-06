@@ -1,0 +1,56 @@
+---
+- name: Ensure FreeIPA sudo rules are present
+  freeipa.ansible_freeipa.ipasudorule:
+    ipaadmin_principal: "{{ freeipa_admin_principal }}"
+    ipaadmin_password: "{{ freeipa_admin_password }}"
+    ipaapi_context: "{{ freeipa_api_context }}"
+    name: "{{ item.name }}"
+    description: "{{ item.description | default(omit) }}"
+    usercategory: "{{ item.usercategory | default(omit) }}"
+    hostcategory: "{{ item.hostcategory | default(omit) }}"
+    cmdcategory: "{{ item.cmdcategory | default(omit) }}"
+    runasusercategory: "{{ item.runasusercategory | default(omit) }}"
+    runasgroupcategory: "{{ item.runasgroupcategory | default(omit) }}"
+    nomembers: "{{ item.nomembers | default(omit) }}"
+    host: "{{ item.host | default(omit) }}"
+    hostgroup: "{{ item.hostgroup | default(omit) }}"
+    hostmask: "{{ item.hostmask | default(omit) }}"
+    user: "{{ item.user | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
+    allow_sudocmd: "{{ item.allow_sudocmd | default(omit) }}"
+    deny_sudocmd: "{{ item.deny_sudocmd | default(omit) }}"
+    allow_sudocmdgroup: "{{ item.allow_sudocmdgroup | default(omit) }}"
+    deny_sudocmdgroup: "{{ item.deny_sudocmdgroup | default(omit) }}"
+    sudooption: "{{ item.sudooption | default(omit) }}"
+    order: "{{ item.order | default(omit) }}"
+    runasuser: "{{ item.runasuser | default(omit) }}"
+    runasgroup: "{{ item.runasgroup | default(omit) }}"
+    action: "{{ item.action | default('sudorule') }}"
+    state: >-
+      {{
+        (
+          item.action | default('sudorule') == 'sudorule'
+          and item.state | default('enabled') in ['enabled', 'disabled']
+        ) | ternary('present', item.state | default('present'))
+      }}
+  loop: "{{ freeipa_sudo_rules }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+
+- name: Ensure FreeIPA sudo rules are enabled or disabled as requested
+  freeipa.ansible_freeipa.ipasudorule:
+    ipaadmin_principal: "{{ freeipa_admin_principal }}"
+    ipaadmin_password: "{{ freeipa_admin_password }}"
+    ipaapi_context: "{{ freeipa_api_context }}"
+    name: "{{ item.name }}"
+    action: "{{ item.action | default('sudorule') }}"
+    state: "{{ item.state | default('enabled') }}"
+  loop: "{{ freeipa_sudo_rules }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - not ansible_check_mode
+    - item.action | default('sudorule') == 'sudorule'
+    - item.state | default('enabled') in ['enabled', 'disabled']
+  no_log: true

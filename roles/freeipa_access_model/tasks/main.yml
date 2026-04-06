@@ -10,3 +10,6 @@
 
 - name: Manage FreeIPA HBAC rules
   ansible.builtin.include_tasks: hbac.yml
+
+- name: Manage FreeIPA sudo rules
+  ansible.builtin.include_tasks: sudo.yml

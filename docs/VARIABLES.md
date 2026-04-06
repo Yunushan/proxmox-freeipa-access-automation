@@ -6,7 +6,7 @@ This repository splits environment variables by domain under `inventories/<env>/
 
 - `10-features.yml`: top-level feature toggles
 - `15-rollout.yml`: rollout serial and failure-budget settings
-- `20-freeipa.yml`: FreeIPA admin/API values, groups, hostgroups, and HBAC
+- `20-freeipa.yml`: FreeIPA admin/API values, groups, hostgroups, HBAC, and sudo rules
 - `30-linux-clients.yml`: Linux enrollment, manual client definitions, and Proxmox discovery
 - `40-proxmox-ldap.yml`: Proxmox LDAP realm configuration
 - `50-proxmox-sync.yml`: recurring Proxmox realm-sync timer settings
@@ -63,3 +63,10 @@ Linux enrollment naming rules:
 - `linux_ipa_servers` contains IPA server hostnames, for example `ipa01.example.com`
 - do not set `ipaclient_domain` to one of the IPA server hostnames
 - use YAML list syntax for `linux_ipa_servers` when possible, even though the role also normalizes comma-separated strings
+
+## FreeIPA access model
+
+- `freeipa_user_groups`: user groups created in FreeIPA
+- `freeipa_hostgroups`: hostgroups built from declarative inventory groups or hostnames
+- `freeipa_hbac_rules`: login and service-access rules such as SSH access
+- `freeipa_sudo_rules`: sudo authorization rules evaluated by IPA-enrolled Linux clients

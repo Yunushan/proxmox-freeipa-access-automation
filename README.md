@@ -26,7 +26,7 @@
 
 </div>
 
-This repository treats **FreeIPA as the source of truth** for identity and access. Proxmox consumes that directory through an LDAP realm, Linux guests join FreeIPA through the upstream `ipaclient` role, and access stays centralized through synced groups and HBAC instead of local account sprawl.
+This repository treats **FreeIPA as the source of truth** for identity and access. Proxmox consumes that directory through an LDAP realm, Linux guests join FreeIPA through the upstream `ipaclient` role, and access stays centralized through synced groups, HBAC, and sudo rules instead of local account sprawl.
 
 > [!IMPORTANT]
 > This project does **not** use FreeRADIUS as the identity source, does **not** create local users inside every VM, and does **not** try to manage every possible Proxmox permission edge case.
@@ -46,11 +46,11 @@ This is a good fit when you want onboarding and offboarding to be mostly:
 1. create or update users and groups in FreeIPA
 2. sync those identities into Proxmox
 3. apply Proxmox roles and ACLs from synced groups
-4. allow Linux guest access through FreeIPA login plus HBAC
+4. allow Linux guest access through FreeIPA login, HBAC, and sudo rules
 
 ## What You Get
 
-- FreeIPA user group, hostgroup, and HBAC rule management
+- FreeIPA user group, hostgroup, HBAC, and sudo rule management
 - Proxmox LDAP realm configuration against FreeIPA
 - recurring Proxmox realm sync from one designated cluster node
 - Proxmox RBAC bindings for synced directory groups
@@ -441,7 +441,7 @@ Key variable families:
 
 | Area | Variables |
 | --- | --- |
-| FreeIPA access model | `freeipa_user_groups`, `freeipa_hostgroups`, `freeipa_hbac_rules` |
+| FreeIPA access model | `freeipa_user_groups`, `freeipa_hostgroups`, `freeipa_hbac_rules`, `freeipa_sudo_rules` |
 | Rollout controls | `freeipa_access_serial`, `freeipa_access_max_fail_percentage`, `proxmox_rollout_serial`, `proxmox_rollout_max_fail_percentage`, `linux_freeipa_enroll_serial`, `linux_freeipa_enroll_max_fail_percentage` |
 | Proxmox LDAP realm | `proxmox_ldap_realm_id`, `proxmox_ldap_server1`, `proxmox_ldap_base_dn`, `proxmox_ldap_group_dn`, `proxmox_ldap_bind_dn`, `proxmox_ldap_bind_password`, `proxmox_ldap_sync_attributes`, `proxmox_ldap_sync_defaults` |
 | Proxmox RBAC | `proxmox_custom_roles`, `proxmox_acl_bindings` |
@@ -456,6 +456,7 @@ A simple pattern that scales well:
 - FreeIPA user group `linux-ssh-admins`
 - FreeIPA hostgroup `linux-all`
 - HBAC rule `allow-linux-ssh-admins`
+- Sudo rule `allow-linux-ssh-admins-sudo`
 - Proxmox ACL binding for synced group `proxmox-admins-ipa`
 
 Remember that Proxmox LDAP sync creates synced groups with the suffix:
@@ -512,6 +513,7 @@ After a successful rollout, verify the resulting state instead of assuming every
 - confirm the expected user groups exist
 - confirm the expected hostgroups exist
 - confirm the expected HBAC rules exist and are enabled
+- confirm the expected sudo rules exist and are enabled
 
 ### In Proxmox
 
@@ -523,6 +525,7 @@ After a successful rollout, verify the resulting state instead of assuming every
 
 - confirm an allowed IPA user can log in
 - confirm a disallowed user is blocked by HBAC
+- confirm an allowed IPA admin can run `sudo -l`
 - confirm a home directory is created on first login if `linux_ipaclient_mkhomedir` is enabled
 
 ## Repository Layout
@@ -664,7 +667,6 @@ The PowerShell playbook wrapper now also supports common operator options direct
 
 Common follow-up improvements you may want later:
 
-- FreeIPA sudo rules
 - Packer image pipeline for IPA-ready Linux templates
 - AWX job templates and schedules
 - separate Proxmox tenant and pool models

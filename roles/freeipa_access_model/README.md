@@ -9,6 +9,7 @@ Manages the declarative FreeIPA access model used by this repository.
 - resolve hostgroup members to final hostnames
 - ensure hostgroups exist
 - ensure HBAC rules exist and are enabled or disabled as requested
+- ensure sudo rules exist and are enabled or disabled as requested
 
 ## Key Variables
 
@@ -18,6 +19,7 @@ Manages the declarative FreeIPA access model used by this repository.
 - `freeipa_user_groups`
 - `freeipa_hostgroups`
 - `freeipa_hbac_rules`
+- `freeipa_sudo_rules`
 
 ## Notes
 

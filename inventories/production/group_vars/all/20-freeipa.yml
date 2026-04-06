@@ -13,7 +13,7 @@ freeipa_user_groups:
   - name: proxmox-admins
     description: Full Proxmox administrators
   - name: linux-ssh-admins
-    description: Linux SSH administrators
+    description: Linux administrators with SSH access and sudo rights
 
 freeipa_hostgroups:
   - name: linux-all
@@ -30,4 +30,16 @@ freeipa_hbac_rules:
       - linux-all
     hbacsvc:
       - sshd
+    state: enabled
+
+freeipa_sudo_rules:
+  - name: allow-linux-ssh-admins-sudo
+    description: Allow linux-ssh-admins to run any command via sudo on all Linux IPA clients
+    group:
+      - linux-ssh-admins
+    hostgroup:
+      - linux-all
+    cmdcategory: all
+    runasusercategory: all
+    runasgroupcategory: all
     state: enabled
