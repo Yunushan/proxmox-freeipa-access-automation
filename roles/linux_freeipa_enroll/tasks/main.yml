@@ -394,7 +394,12 @@
           | regex_replace('\\..*$', '')
         )
       }}
-    linux_freeipa_enroll_primary_ipv4_to_verify: "{{ ansible_default_ipv4.address | default('', true) | string | trim }}"
+    linux_freeipa_enroll_primary_ipv4_to_verify: >-
+      {{
+        ansible_facts.get('default_ipv4', {}).get('address', '')
+        | string
+        | trim
+      }}
   changed_when: false
 
 - name: Repair authoritative DNS for the Linux guest enrollment hostname

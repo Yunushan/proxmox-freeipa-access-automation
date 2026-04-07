@@ -197,6 +197,28 @@
       }}
   changed_when: false
 
+- name: Determine whether authoritative reverse DNS repair is available for the Linux guest
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_authoritative_dns_reverse_zone_available: >-
+      {{
+        (
+          linux_freeipa_enroll_authoritative_dns_reverse_zone_name
+          | default('', true)
+          | string
+          | trim
+          | length > 0
+        )
+        and
+        (
+          linux_freeipa_enroll_authoritative_dns_reverse_record_name
+          | default('', true)
+          | string
+          | trim
+          | length > 0
+        )
+      }}
+  changed_when: false
+
 - name: Derive Linux guest authoritative DNS repair actions
   ansible.builtin.set_fact:
     linux_freeipa_enroll_authoritative_dns_wrong_a: >-
@@ -217,36 +239,39 @@
       }}
     linux_freeipa_enroll_authoritative_dns_ptr_needs_reset: >-
       {{
-        (
-          linux_freeipa_enroll_authoritative_dns_current_ptr
-          | length > 0
-        )
+        (linux_freeipa_enroll_authoritative_dns_reverse_zone_available | bool)
         and
         (
-          (linux_freeipa_enroll_hostname_to_verify | lower)
-          not in linux_freeipa_enroll_authoritative_dns_current_ptr
-          or
           (
             linux_freeipa_enroll_authoritative_dns_current_ptr
-            | reject('equalto', linux_freeipa_enroll_hostname_to_verify | lower)
-            | list
-            | length
-          ) > 0
+            | length > 0
+          )
+          and
+          (
+            (linux_freeipa_enroll_hostname_to_verify | lower)
+            not in linux_freeipa_enroll_authoritative_dns_current_ptr
+            or
+            (
+              linux_freeipa_enroll_authoritative_dns_current_ptr
+              | reject('equalto', linux_freeipa_enroll_hostname_to_verify | lower)
+              | list
+              | length
+            ) > 0
+          )
         )
       }}
   changed_when: false
 
-- name: Assert authoritative reverse DNS zone discovery succeeded for the Linux guest
-  ansible.builtin.assert:
-    that:
-      - linux_freeipa_enroll_authoritative_dns_reverse_zone_name | length > 0
-      - linux_freeipa_enroll_authoritative_dns_reverse_record_name | length > 0
-    fail_msg: >-
-      Linux guest {{ inventory_hostname }} could not determine the authoritative reverse DNS zone for
+- name: Note when authoritative reverse DNS repair is unavailable for the Linux guest
+  ansible.builtin.debug:
+    msg: >-
+      Linux guest {{ inventory_hostname }} could not determine an authoritative reverse DNS zone for
       {{ linux_freeipa_enroll_primary_ipv4_to_verify }} by querying
       {{ linux_freeipa_enroll_effective_authoritative_dns_query_server }} on
       {{ linux_freeipa_enroll_authoritative_dns_delegate_target }}.
-      Ensure the FreeIPA DNS server is authoritative for the reverse zone before automatic PTR repair.
+      The enrollment role will still repair forward A and link-local AAAA records, but PTR repair is being skipped.
+  changed_when: false
+  when: not (linux_freeipa_enroll_authoritative_dns_reverse_zone_available | bool)
 
 - name: Remove stale authoritative A record values for the Linux guest
   freeipa.ansible_freeipa.ipadnsrecord:
@@ -294,4 +319,17 @@
       - "{{ linux_freeipa_enroll_primary_ipv4_to_verify }}"
     a_create_reverse: true
   delegate_to: "{{ linux_freeipa_enroll_authoritative_dns_delegate_target }}"
+  when: linux_freeipa_enroll_authoritative_dns_reverse_zone_available | bool
+  no_log: true
+
+- name: Ensure authoritative A records exist for the Linux guest when PTR repair is unavailable
+  freeipa.ansible_freeipa.ipadnsrecord:
+    ipaadmin_principal: "{{ linux_freeipa_enroll_effective_ipaadmin_principal }}"
+    ipaadmin_password: "{{ linux_freeipa_enroll_effective_ipaadmin_password }}"
+    zone_name: "{{ linux_freeipa_enroll_authoritative_dns_zone_name }}"
+    name: "{{ linux_freeipa_enroll_authoritative_dns_record_name }}"
+    a_rec:
+      - "{{ linux_freeipa_enroll_primary_ipv4_to_verify }}"
+  delegate_to: "{{ linux_freeipa_enroll_authoritative_dns_delegate_target }}"
+  when: not (linux_freeipa_enroll_authoritative_dns_reverse_zone_available | bool)
   no_log: true

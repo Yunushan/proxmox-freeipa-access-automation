@@ -59,7 +59,7 @@ Relevant Linux enrollment hostname controls:
 - `linux_freeipa_enroll_join_retry_delay`: seconds to wait between join retries after a JSON-RPC timeout; defaults to `15`
 - `linux_freeipa_enroll_success_group`: runtime inventory group that collects only the Linux guests that completed FreeIPA enrollment successfully; defaults to `linux_ipa_clients_enrolled_runtime`
 - `linux_freeipa_enroll_merge_inventory_ipa_servers`: when `true`, Linux enrollment appends the `ipa_servers` inventory hostnames to `linux_ipa_servers` before resolution, reachability checks, and the upstream client join; defaults to `true`
-- `linux_freeipa_enroll_manage_authoritative_dns`: when `true`, Linux enrollment repairs the specific guest A record, resets a mismatched PTR, and removes link-local AAAA records in FreeIPA DNS before hostname validation and join attempts; defaults to `false`
+- `linux_freeipa_enroll_manage_authoritative_dns`: when `true`, Linux enrollment repairs the specific guest A record, resets a mismatched PTR when the reverse zone is hosted in FreeIPA DNS, and removes link-local AAAA records before hostname validation and join attempts; defaults to `false`
 - `linux_freeipa_enroll_authoritative_dns_delegate_host`: optional inventory host used to execute authoritative FreeIPA DNS repair tasks; defaults to the first host in `ipa_servers`
 - `linux_freeipa_enroll_authoritative_dns_query_server`: DNS server IP used by the authoritative DNS repair logic when it queries FreeIPA DNS directly; defaults to `127.0.0.1` on the delegated IPA host
 - `linux_freeipa_enroll_authoritative_dns_remove_link_local_aaaa`: when `true`, authoritative DNS repair removes `fe80::/10` AAAA records for Linux enrollment hosts; defaults to `true`
