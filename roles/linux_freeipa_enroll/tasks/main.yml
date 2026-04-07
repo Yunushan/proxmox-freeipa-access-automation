@@ -386,18 +386,40 @@
   failed_when: false
   check_mode: false
 
-- name: Assert the Linux guest enrollment hostname resolves to a non-loopback address
+- name: Normalize resolved addresses for the Linux guest enrollment hostname
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_hostname_resolved_addresses: >-
+      {{
+        linux_freeipa_enroll_hostname_resolution.stdout_lines
+        | default([])
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | map('regex_replace', '\\s+.*$', '')
+        | list
+      }}
+  changed_when: false
+
+- name: Assert the Linux guest enrollment hostname resolves to usable non-link-local addresses
+  vars:
+    linux_freeipa_enroll_hostname_bad_resolution_pattern: '^(127\\.|::1$|169\\.254\\.|fe[89ab][0-9a-f]:)'
   ansible.builtin.assert:
     that:
       - linux_freeipa_enroll_hostname_resolution.rc == 0
       - linux_freeipa_enroll_hostname_resolution.stdout | default('') | trim | length > 0
-      - (linux_freeipa_enroll_hostname_resolution.stdout | trim | split() | first) not in ['127.0.0.1', '::1']
-      - not ((linux_freeipa_enroll_hostname_resolution.stdout | trim | split() | first) is match('^127\\.'))
+      - linux_freeipa_enroll_hostname_resolved_addresses | length > 0
+      - >-
+        (
+          linux_freeipa_enroll_hostname_resolved_addresses
+          | select('match', linux_freeipa_enroll_hostname_bad_resolution_pattern)
+          | list
+          | length
+        ) == 0
     fail_msg: >-
       Linux guest {{ inventory_hostname }} resolves its enrollment hostname {{ linux_freeipa_enroll_hostname_to_verify }}
-      to {{ linux_freeipa_enroll_hostname_resolution.stdout | default('an unresolved value') | trim | default('an unresolved value', true) }}.
-      The guest hostname must resolve to the guest's real non-loopback address, not 127.0.0.1 or ::1.
-      Fix DNS or /etc/hosts on the guest before IPA enrollment.
+      to {{ linux_freeipa_enroll_hostname_resolved_addresses | default([]) | join(', ') | default('an unresolved value', true) }}.
+      The guest hostname must not resolve to loopback or link-local addresses such as 127.0.0.1, ::1,
+      169.254.0.0/16, or fe80::/10. Fix DNS or /etc/hosts on the guest before IPA enrollment.
 
 - name: Skip Linux IPA enrollment in check mode
   ansible.builtin.debug:

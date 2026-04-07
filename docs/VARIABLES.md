@@ -89,6 +89,7 @@ Linux enrollment naming rules:
 - `linux_ipa_servers` contains IPA server hostnames, for example `ipa01.example.com`
 - do not set `ipaclient_domain` to one of the IPA server hostnames
 - use YAML list syntax for `linux_ipa_servers` when possible, even though the role also normalizes comma-separated strings
+- the guest FQDN used for Linux enrollment must resolve to a real guest address, not loopback or link-local values such as `127.0.0.1`, `::1`, `169.254.0.0/16`, or `fe80::/10`
 
 ## FreeIPA access model
 
