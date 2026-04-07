@@ -1,0 +1,293 @@
+---
+- name: Prepare Linux guest authoritative DNS repair settings
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_authoritative_dns_delegate_target: >-
+      {{
+        (
+          linux_freeipa_enroll_effective_authoritative_dns_delegate_host
+          | default('', true)
+          | string
+          | trim
+        )
+        if (
+          linux_freeipa_enroll_effective_authoritative_dns_delegate_host
+          | default('', true)
+          | string
+          | trim
+          | length > 0
+        )
+        else (
+          groups['ipa_servers']
+          | default([])
+          | first
+          | default('', true)
+          | string
+          | trim
+        )
+      }}
+    linux_freeipa_enroll_authoritative_dns_zone_name: "{{ linux_freeipa_enroll_effective_domain_normalized }}"
+    linux_freeipa_enroll_authoritative_dns_record_name: >-
+      {{
+        (
+          linux_freeipa_enroll_hostname_to_verify[
+            : -1 * ((linux_freeipa_enroll_effective_domain_normalized | length) + 1)
+          ]
+        )
+        if (
+          linux_freeipa_enroll_hostname_to_verify
+          | default('', true)
+          | string
+          | trim
+          | lower
+        ).endswith('.' ~ linux_freeipa_enroll_effective_domain_normalized)
+        else (
+          linux_freeipa_enroll_hostname_to_verify
+          | default('', true)
+          | string
+          | trim
+          | lower
+        )
+      }}
+  changed_when: false
+
+- name: Assert Linux guest authoritative DNS repair prerequisites
+  ansible.builtin.assert:
+    that:
+      - linux_freeipa_enroll_authoritative_dns_delegate_target | length > 0
+      - linux_freeipa_enroll_authoritative_dns_zone_name | length > 0
+      - linux_freeipa_enroll_primary_ipv4_to_verify | length > 0
+      - linux_freeipa_enroll_hostname_to_verify | length > 0
+      - linux_freeipa_enroll_hostname_to_verify.endswith('.' ~ linux_freeipa_enroll_authoritative_dns_zone_name)
+      - linux_freeipa_enroll_authoritative_dns_record_name | length > 0
+    fail_msg: >-
+      Linux guest {{ inventory_hostname }} cannot repair authoritative DNS automatically.
+      Ensure the guest enrollment hostname {{ linux_freeipa_enroll_hostname_to_verify | default('unset', true) }}
+      is a host FQDN inside ipaclient_domain {{ linux_freeipa_enroll_authoritative_dns_zone_name | default('unset', true) }},
+      ensure the guest has a primary IPv4 address, and ensure the inventory contains at least one reachable host
+      under ipa_servers or sets linux_freeipa_enroll_authoritative_dns_delegate_host explicitly.
+
+- name: Query authoritative DNS state for the Linux guest enrollment hostname
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - |
+          import json
+          import sys
+          import dns.exception
+          import dns.reversename
+          import dns.resolver
+
+          fqdn = sys.argv[1].rstrip(".")
+          ip_address = sys.argv[2].strip()
+          query_server = sys.argv[3].strip()
+
+          resolver = dns.resolver.Resolver(configure=False)
+          resolver.nameservers = [query_server]
+          resolver.timeout = 3
+          resolver.lifetime = 5
+
+          def query(name, record_type):
+              try:
+                  return [answer.to_text().rstrip(".") for answer in resolver.resolve(name, record_type)]
+              except dns.exception.DNSException:
+                  return []
+
+          reverse_ip = dns.reversename.from_address(ip_address)
+          try:
+              reverse_zone = str(dns.resolver.zone_for_name(reverse_ip)).rstrip(".")
+          except dns.exception.DNSException:
+              reverse_zone = ""
+
+          reverse_name = str(reverse_ip).rstrip(".")
+          if reverse_zone and reverse_name.endswith("." + reverse_zone):
+              reverse_name = reverse_name[: -1 * (len(reverse_zone) + 1)]
+
+          print(json.dumps({
+              "a": query(fqdn, "A"),
+              "aaaa": query(fqdn, "AAAA"),
+              "ptr": query(reverse_ip, "PTR"),
+              "reverse_zone": reverse_zone,
+              "reverse_name": reverse_name,
+          }))
+      - "{{ linux_freeipa_enroll_hostname_to_verify }}"
+      - "{{ linux_freeipa_enroll_primary_ipv4_to_verify }}"
+      - "{{ linux_freeipa_enroll_effective_authoritative_dns_query_server }}"
+  register: linux_freeipa_enroll_authoritative_dns_query
+  changed_when: false
+  delegate_to: "{{ linux_freeipa_enroll_authoritative_dns_delegate_target }}"
+  check_mode: false
+
+- name: Normalize Linux guest authoritative DNS repair data
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_authoritative_dns_snapshot: >-
+      {{
+        linux_freeipa_enroll_authoritative_dns_query.stdout
+        | default('{}', true)
+        | from_json
+      }}
+    linux_freeipa_enroll_authoritative_dns_current_a: >-
+      {{
+        (
+          linux_freeipa_enroll_authoritative_dns_query.stdout
+          | default('{}', true)
+          | from_json
+        ).a
+        | default([])
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
+    linux_freeipa_enroll_authoritative_dns_current_aaaa: >-
+      {{
+        (
+          linux_freeipa_enroll_authoritative_dns_query.stdout
+          | default('{}', true)
+          | from_json
+        ).aaaa
+        | default([])
+        | map('string')
+        | map('trim')
+        | map('lower')
+        | reject('equalto', '')
+        | list
+      }}
+    linux_freeipa_enroll_authoritative_dns_current_ptr: >-
+      {{
+        (
+          linux_freeipa_enroll_authoritative_dns_query.stdout
+          | default('{}', true)
+          | from_json
+        ).ptr
+        | default([])
+        | map('string')
+        | map('trim')
+        | map('lower')
+        | map('regex_replace', '\\.$', '')
+        | reject('equalto', '')
+        | list
+      }}
+    linux_freeipa_enroll_authoritative_dns_reverse_zone_name: >-
+      {{
+        (
+          linux_freeipa_enroll_authoritative_dns_query.stdout
+          | default('{}', true)
+          | from_json
+        ).reverse_zone
+        | default('', true)
+        | string
+        | trim
+        | lower
+      }}
+    linux_freeipa_enroll_authoritative_dns_reverse_record_name: >-
+      {{
+        (
+          (
+            linux_freeipa_enroll_authoritative_dns_query.stdout
+            | default('{}', true)
+            | from_json
+          ).reverse_name
+          | default('', true)
+          | string
+          | trim
+          | lower
+        )
+        | regex_replace('\\.$', '')
+      }}
+    linux_freeipa_enroll_authoritative_dns_wrong_a: >-
+      {{
+        linux_freeipa_enroll_authoritative_dns_current_a
+        | reject('equalto', linux_freeipa_enroll_primary_ipv4_to_verify)
+        | list
+      }}
+    linux_freeipa_enroll_authoritative_dns_bad_aaaa: >-
+      {{
+        (
+          linux_freeipa_enroll_authoritative_dns_current_aaaa
+          | select('match', '^fe[89ab][0-9a-f:]*$')
+          | list
+        )
+        if (linux_freeipa_enroll_effective_authoritative_dns_remove_link_local_aaaa | bool)
+        else []
+      }}
+    linux_freeipa_enroll_authoritative_dns_ptr_needs_reset: >-
+      {{
+        (
+          linux_freeipa_enroll_authoritative_dns_current_ptr
+          | length > 0
+        )
+        and
+        (
+          (linux_freeipa_enroll_hostname_to_verify | lower)
+          not in linux_freeipa_enroll_authoritative_dns_current_ptr
+          or
+          (
+            linux_freeipa_enroll_authoritative_dns_current_ptr
+            | reject('equalto', linux_freeipa_enroll_hostname_to_verify | lower)
+            | list
+            | length
+          ) > 0
+        )
+      }}
+  changed_when: false
+
+- name: Assert authoritative reverse DNS zone discovery succeeded for the Linux guest
+  ansible.builtin.assert:
+    that:
+      - linux_freeipa_enroll_authoritative_dns_reverse_zone_name | length > 0
+      - linux_freeipa_enroll_authoritative_dns_reverse_record_name | length > 0
+    fail_msg: >-
+      Linux guest {{ inventory_hostname }} could not determine the authoritative reverse DNS zone for
+      {{ linux_freeipa_enroll_primary_ipv4_to_verify }} by querying
+      {{ linux_freeipa_enroll_effective_authoritative_dns_query_server }} on
+      {{ linux_freeipa_enroll_authoritative_dns_delegate_target }}.
+      Ensure the FreeIPA DNS server is authoritative for the reverse zone before automatic PTR repair.
+
+- name: Remove stale authoritative A record values for the Linux guest
+  freeipa.ansible_freeipa.ipadnsrecord:
+    ipaadmin_principal: "{{ linux_freeipa_enroll_effective_ipaadmin_principal }}"
+    ipaadmin_password: "{{ linux_freeipa_enroll_effective_ipaadmin_password }}"
+    zone_name: "{{ linux_freeipa_enroll_authoritative_dns_zone_name }}"
+    name: "{{ linux_freeipa_enroll_authoritative_dns_record_name }}"
+    a_rec: "{{ linux_freeipa_enroll_authoritative_dns_wrong_a }}"
+    state: absent
+  delegate_to: "{{ linux_freeipa_enroll_authoritative_dns_delegate_target }}"
+  when: linux_freeipa_enroll_authoritative_dns_wrong_a | length > 0
+  no_log: true
+
+- name: Remove link-local authoritative AAAA record values for the Linux guest
+  freeipa.ansible_freeipa.ipadnsrecord:
+    ipaadmin_principal: "{{ linux_freeipa_enroll_effective_ipaadmin_principal }}"
+    ipaadmin_password: "{{ linux_freeipa_enroll_effective_ipaadmin_password }}"
+    zone_name: "{{ linux_freeipa_enroll_authoritative_dns_zone_name }}"
+    name: "{{ linux_freeipa_enroll_authoritative_dns_record_name }}"
+    aaaa_rec: "{{ linux_freeipa_enroll_authoritative_dns_bad_aaaa }}"
+    state: absent
+  delegate_to: "{{ linux_freeipa_enroll_authoritative_dns_delegate_target }}"
+  when: linux_freeipa_enroll_authoritative_dns_bad_aaaa | length > 0
+  no_log: true
+
+- name: Clear mismatched authoritative PTR records for the Linux guest primary IPv4
+  freeipa.ansible_freeipa.ipadnsrecord:
+    ipaadmin_principal: "{{ linux_freeipa_enroll_effective_ipaadmin_principal }}"
+    ipaadmin_password: "{{ linux_freeipa_enroll_effective_ipaadmin_password }}"
+    zone_name: "{{ linux_freeipa_enroll_authoritative_dns_reverse_zone_name }}"
+    name: "{{ linux_freeipa_enroll_authoritative_dns_reverse_record_name }}"
+    del_all: true
+    state: absent
+  delegate_to: "{{ linux_freeipa_enroll_authoritative_dns_delegate_target }}"
+  when: linux_freeipa_enroll_authoritative_dns_ptr_needs_reset | bool
+  no_log: true
+
+- name: Ensure authoritative A and PTR records exist for the Linux guest
+  freeipa.ansible_freeipa.ipadnsrecord:
+    ipaadmin_principal: "{{ linux_freeipa_enroll_effective_ipaadmin_principal }}"
+    ipaadmin_password: "{{ linux_freeipa_enroll_effective_ipaadmin_password }}"
+    zone_name: "{{ linux_freeipa_enroll_authoritative_dns_zone_name }}"
+    name: "{{ linux_freeipa_enroll_authoritative_dns_record_name }}"
+    a_rec:
+      - "{{ linux_freeipa_enroll_primary_ipv4_to_verify }}"
+    a_create_reverse: true
+  delegate_to: "{{ linux_freeipa_enroll_authoritative_dns_delegate_target }}"
+  no_log: true

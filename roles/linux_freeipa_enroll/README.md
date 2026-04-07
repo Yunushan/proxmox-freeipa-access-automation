@@ -15,6 +15,11 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - `linux_freeipa_enroll_join_attempts`
 - `linux_freeipa_enroll_join_retry_delay`
 - `linux_freeipa_enroll_merge_inventory_ipa_servers`
+- `linux_freeipa_enroll_manage_authoritative_dns`
+- `linux_freeipa_enroll_authoritative_dns_delegate_host`
+- `linux_freeipa_enroll_authoritative_dns_query_server`
+- `linux_freeipa_enroll_authoritative_dns_remove_link_local_aaaa`
+- `linux_freeipa_enroll_pin_local_hostname_in_etc_hosts`
 - `linux_ipa_servers`
 - `linux_ipaadmin_principal`
 - `linux_ipaadmin_password`
@@ -35,6 +40,8 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - `ipaclient_domain` must be the shared IPA DNS domain such as `example.com`, not an IPA server hostname such as `ipa01.example.com`.
 - `linux_ipa_servers` should preferably be a YAML list of IPA server FQDNs. Comma-separated strings are normalized, but list syntax is the preferred form.
 - When DNS is not ready yet, the role can manage a dedicated `/etc/hosts` block from `linux_ipa_etc_hosts_entries` before IPA connectivity checks run.
+- `linux_freeipa_enroll_manage_authoritative_dns` can also repair the specific host A, PTR, and link-local AAAA records in FreeIPA DNS before enrollment. It is disabled by default because it mutates authoritative DNS data.
+- `linux_freeipa_enroll_pin_local_hostname_in_etc_hosts` defaults to `true`, so the role also pins the guest enrollment FQDN to the guest primary IPv4 in `/etc/hosts` before hostname verification and join attempts.
 - The guest FQDN used for enrollment must not resolve to loopback or link-local addresses such as `127.0.0.1`, `::1`, `169.254.0.0/16`, or `fe80::/10`.
 - The guest primary IPv4 address should also reverse-resolve back to that same FQDN before enrollment.
 - The upstream collection must be installed from `requirements.yml` before execution.

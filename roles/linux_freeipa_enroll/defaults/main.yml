@@ -7,6 +7,11 @@ linux_freeipa_enroll_join_attempts: 3
 linux_freeipa_enroll_join_retry_delay: 15
 linux_freeipa_enroll_merge_inventory_ipa_servers: true
 linux_freeipa_enroll_manage_hostname: false
+linux_freeipa_enroll_manage_authoritative_dns: false
+linux_freeipa_enroll_authoritative_dns_delegate_host: ""
+linux_freeipa_enroll_authoritative_dns_query_server: 127.0.0.1
+linux_freeipa_enroll_authoritative_dns_remove_link_local_aaaa: true
+linux_freeipa_enroll_pin_local_hostname_in_etc_hosts: true
 linux_ipa_servers: []
 linux_ipaadmin_principal: "{{ freeipa_admin_principal }}"
 linux_ipaadmin_password: "{{ freeipa_admin_password }}"

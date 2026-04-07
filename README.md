@@ -439,6 +439,7 @@ Notes:
 - the guest still needs a final hostname, either already configured inside the VM or provided with `ipa_hostname` through a manual definition
 - the guest's real system hostname must also be valid for enrollment; placeholder values such as `localhost.localdomain` must be replaced on the VM before running `linux-clients` or `site`
 - when guests use short hostnames such as `app-server-01`, you can set `linux_ipa_identity_hostname_suffix` and optionally `linux_freeipa_enroll_manage_hostname: true` so the project resolves and applies a full hostname such as `app-server-01.example.net` before enrollment
+- when FreeIPA DNS is authoritative for your guest hostnames, you can set `linux_freeipa_enroll_manage_authoritative_dns: true` so the project repairs the specific guest A and PTR records and removes link-local `fe80::/10` AAAA records before enrollment
 - when DNS is not ready yet, you can set `linux_ipa_manage_etc_hosts: true` and provide `linux_ipa_etc_hosts_entries` so the role adds a managed `/etc/hosts` bootstrap block for IPA servers and guest FQDNs before enrollment checks
 - `guest_qemu_agent_install_enabled` installs QEMU Guest Agent on guests that are already reachable over SSH or WinRM so later Proxmox agent-dependent workflows can use it
 - `linux_ipa_ssh_host_key_policy` defaults to `accept_new` for Linux guest connections so newly discovered VMs can be contacted without disabling host key checking entirely; changed host keys still fail and require operator review

@@ -47,6 +47,10 @@
     linux_freeipa_enroll_effective_no_dns_lookup: "{{ linux_ipaclient_no_dns_lookup }}"
     linux_freeipa_enroll_effective_no_sudo: "{{ linux_ipaclient_no_sudo }}"
     linux_freeipa_enroll_effective_permit: "{{ linux_ipasssd_permit }}"
+    linux_freeipa_enroll_effective_manage_authoritative_dns: "{{ linux_freeipa_enroll_manage_authoritative_dns }}"
+    linux_freeipa_enroll_effective_authoritative_dns_delegate_host: "{{ linux_freeipa_enroll_authoritative_dns_delegate_host }}"
+    linux_freeipa_enroll_effective_authoritative_dns_query_server: "{{ linux_freeipa_enroll_authoritative_dns_query_server }}"
+    linux_freeipa_enroll_effective_authoritative_dns_remove_link_local_aaaa: "{{ linux_freeipa_enroll_authoritative_dns_remove_link_local_aaaa }}"
     linux_freeipa_enroll_effective_install_packages: "{{ linux_ipaclient_install_packages }}"
     linux_freeipa_enroll_effective_configure_dns_resolver: "{{ linux_ipaclient_configure_dns_resolver }}"
     linux_freeipa_enroll_effective_dns_servers: "{{ linux_ipaclient_dns_servers }}"
@@ -373,7 +377,42 @@
           )
         )
       }}
+    linux_freeipa_enroll_hostname_short_to_verify: >-
+      {{
+        (
+          (
+            linux_freeipa_enroll_target_hostname
+            if (linux_freeipa_enroll_target_hostname | length > 0)
+            else (
+              linux_freeipa_enroll_current_fqdn.stdout
+              | default('', true)
+              | string
+              | trim
+              | lower
+            )
+          )
+          | regex_replace('\\..*$', '')
+        )
+      }}
+    linux_freeipa_enroll_primary_ipv4_to_verify: "{{ ansible_default_ipv4.address | default('', true) | string | trim }}"
   changed_when: false
+
+- name: Repair authoritative DNS for the Linux guest enrollment hostname
+  ansible.builtin.include_tasks: authoritative-dns.yml
+  when: linux_freeipa_enroll_effective_manage_authoritative_dns | bool
+
+- name: Pin the Linux guest enrollment hostname to the guest primary IPv4 in /etc/hosts
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    create: true
+    mode: "0644"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: FreeIPA local hostname pin"
+    block: |
+      {{ linux_freeipa_enroll_primary_ipv4_to_verify }} {{ linux_freeipa_enroll_hostname_to_verify }}{% if linux_freeipa_enroll_hostname_short_to_verify | length > 0 and linux_freeipa_enroll_hostname_short_to_verify != linux_freeipa_enroll_hostname_to_verify %} {{ linux_freeipa_enroll_hostname_short_to_verify }}{% endif %}
+  when:
+    - linux_freeipa_enroll_pin_local_hostname_in_etc_hosts | bool
+    - linux_freeipa_enroll_primary_ipv4_to_verify | length > 0
+    - linux_freeipa_enroll_hostname_to_verify | length > 0
 
 - name: Resolve the Linux guest enrollment hostname locally on the guest
   ansible.builtin.command:
@@ -420,11 +459,6 @@
       to {{ linux_freeipa_enroll_hostname_resolved_addresses | default([]) | join(', ') | default('an unresolved value', true) }}.
       The guest hostname must not resolve to loopback or link-local addresses such as 127.0.0.1, ::1,
       169.254.0.0/16, or fe80::/10. Fix DNS or /etc/hosts on the guest before IPA enrollment.
-
-- name: Prepare the Linux guest primary IPv4 address for reverse DNS verification
-  ansible.builtin.set_fact:
-    linux_freeipa_enroll_primary_ipv4_to_verify: "{{ ansible_default_ipv4.address | default('', true) | string | trim }}"
-  changed_when: false
 
 - name: Resolve the Linux guest primary IPv4 address back to a hostname
   ansible.builtin.command:
