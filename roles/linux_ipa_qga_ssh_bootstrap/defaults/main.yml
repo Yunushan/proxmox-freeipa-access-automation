@@ -6,6 +6,6 @@ linux_ipa_qga_ssh_bootstrap_public_key_file: "{{ lookup('ansible.builtin.env', '
 linux_ipa_qga_ssh_bootstrap_private_key_file: "{{ linux_ipa_qga_ssh_bootstrap_public_key_file | regex_replace('\\.pub$', '') }}"
 linux_ipa_qga_ssh_bootstrap_install_sudo: true
 linux_ipa_qga_ssh_bootstrap_timeout: 180
-linux_ipa_qga_ssh_bootstrap_qm_path: qm
+linux_ipa_qga_ssh_bootstrap_qm_path: /usr/sbin/qm
 linux_ipa_qga_ssh_bootstrap_delegate_python_interpreter: /usr/bin/python3
 linux_ipa_runtime_group: linux_ipa_clients_runtime

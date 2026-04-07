@@ -443,6 +443,7 @@ Notes:
 - `guest_qemu_agent_install_enabled` installs QEMU Guest Agent on guests that are already reachable over SSH or WinRM so later Proxmox agent-dependent workflows can use it
 - `linux_ipa_ssh_host_key_policy` defaults to `accept_new` for Linux guest connections so newly discovered VMs can be contacted without disabling host key checking entirely; changed host keys still fail and require operator review
 - `linux_ipa_qga_ssh_bootstrap_enabled` is the preferred no-reboot bootstrap path for Proxmox-backed guests because it can create a dedicated key-only automation user through the QEMU Guest Agent before any SSH login exists
+- `linux_ipa_qga_ssh_bootstrap_qm_path` defaults to `/usr/sbin/qm`; override it only if your Proxmox host exposes `qm` somewhere else
 - `linux_ipa_ssh_bootstrap_enabled` optionally installs the controller SSH public key onto Linux guests before hostname resolution and enrollment; for first-touch password logins, set `linux_ipa_ssh_bootstrap_password` in vaulted variables instead of plain inventory
 
 ## Configuration Surface
