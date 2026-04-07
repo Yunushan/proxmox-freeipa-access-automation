@@ -48,6 +48,8 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - When explicit IPA servers are configured, `linux_freeipa_enroll_force_no_dns_lookup_with_explicit_servers` defaults to `true`, so the role forces `ipaclient_no_dns_lookup` and avoids extra discovery behavior during the upstream join.
 - `linux_freeipa_enroll_clear_proxy_environment` defaults to `true`, so the upstream join injects a focused `NO_PROXY` list for the IPA servers and domain instead of relying on whatever global proxy environment the guest happens to have.
 - `linux_freeipa_enroll_preflight_json_probe_enabled` defaults to `true`, so the role probes `https://<ipa-server>/ipa/json` with a short timeout before the upstream join and fails fast on a slow or hung IPA web/API endpoint.
+- When some IPA servers answer that preflight promptly and others do not, the role automatically drops the unhealthy candidates from the upstream join retry plan instead of wasting retries on them.
+- When every configured IPA server fails that preflight and `linux_freeipa_enroll_continue_on_join_timeout` is enabled, the role skips the upstream join retry loop and marks the host timed out immediately with the preflight summary.
 - `linux_freeipa_enroll_collect_join_timeout_diagnostics` defaults to `true`, so a final JSON-RPC timeout also writes a bounded `ipa-join -d` replay log on the guest and includes a short diagnostics summary in the final failure or timeout note.
 - `ipaclient_domain` must be the shared IPA DNS domain such as `example.com`, not an IPA server hostname such as `ipa01.example.com`.
 - `linux_ipa_servers` should preferably be a YAML list of IPA server FQDNs. Comma-separated strings are normalized, but list syntax is the preferred form.

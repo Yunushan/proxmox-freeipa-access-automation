@@ -360,22 +360,108 @@
     - linux_freeipa_enroll_preflight_json_probe_enabled | bool
     - linux_freeipa_enroll_effective_servers_normalized | length > 0
 
-- name: Assert the FreeIPA JSON endpoint responds promptly on configured IPA servers
-  ansible.builtin.assert:
-    that:
-      - not (item.failed | default(false))
-      - item.status | default(0) | int in [200, 401, 302, 303]
-    fail_msg: >-
-      Linux guest {{ inventory_hostname }} reached {{ item.item }}:443 but the FreeIPA web/API endpoint
-      did not return a timely HTTP response from https://{{ item.item }}/ipa/json within
-      {{ linux_freeipa_enroll_preflight_json_probe_timeout | int }} seconds.
-      Result: {{ item.msg | default('unknown probe failure') }}.
-      This usually indicates a proxy, TLS, web-tier, or IPA API responsiveness problem rather than
-      a basic network reachability issue.
-  loop: "{{ linux_freeipa_enroll_json_probe.results | default([]) }}"
-  loop_control:
-    label: "{{ item.item }}"
+- name: Classify FreeIPA JSON preflight probe results for the Linux guest
+  vars:
+    linux_freeipa_enroll_json_probe_classified_yaml: |
+      {% set classified = {'healthy': [], 'failed': []} %}
+      {% for result in linux_freeipa_enroll_json_probe.results | default([]) %}
+      {%   set ok = (not (result.failed | default(false))) and ((result.status | default(0) | int) in [200, 401, 302, 303]) %}
+      {%   if ok %}
+      {%     set _ = classified.healthy.append(result.item | default('unknown') | string | trim | lower) %}
+      {%   else %}
+      {%     set _ = classified.failed.append({
+             'server': result.item | default('unknown') | string | trim | lower,
+             'status': result.status | default('unknown'),
+             'elapsed': result.elapsed | default('unknown'),
+             'msg': result.msg | default('unknown probe failure') | string | trim
+           }) %}
+      {%   endif %}
+      {% endfor %}
+      {{ classified | to_yaml }}
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_json_probe_classified: "{{ linux_freeipa_enroll_json_probe_classified_yaml | from_yaml }}"
+  changed_when: false
   when: linux_freeipa_enroll_preflight_json_probe_enabled | bool
+
+- name: Summarize FreeIPA JSON preflight probe behavior for the Linux guest
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_json_probe_healthy_candidates: >-
+      {{
+        linux_freeipa_enroll_json_probe_classified.healthy
+        | default([])
+        | list
+      }}
+    linux_freeipa_enroll_json_probe_failed_results: >-
+      {{
+        linux_freeipa_enroll_json_probe_classified.failed
+        | default([])
+        | list
+      }}
+    linux_freeipa_enroll_json_probe_all_failed: >-
+      {{
+        (
+          linux_freeipa_enroll_effective_servers_normalized | length > 0
+        )
+        and
+        (
+          linux_freeipa_enroll_json_probe_classified.healthy
+          | default([])
+          | length
+        ) == 0
+      }}
+    linux_freeipa_enroll_json_probe_failure_summary: >-
+      {%- set failures = [] -%}
+      {%- for result in linux_freeipa_enroll_json_probe_classified.failed | default([]) -%}
+      {%-   set _ = failures.append(
+             (result.server | default('unknown'))
+             ~ ' status=' ~ (result.status | string)
+             ~ ' elapsed=' ~ (result.elapsed | string) ~ 's'
+             ~ ' msg=' ~ (result.msg | default('unknown probe failure') | regex_replace('\\s+', ' '))
+           ) -%}
+      {%- endfor -%}
+      {{ failures | join(' ; ') }}
+  changed_when: false
+  when: linux_freeipa_enroll_preflight_json_probe_enabled | bool
+
+- name: Note when Linux IPA enrollment is excluding unhealthy IPA API candidates
+  ansible.builtin.debug:
+    msg: >-
+      Linux IPA enrollment is excluding these IPA server candidates for {{ inventory_hostname }}
+      because their FreeIPA JSON preflight probe did not return promptly:
+      {{ linux_freeipa_enroll_json_probe_failed_results | map(attribute='server') | list | join(', ') }}.
+      The join will continue with the responsive candidates:
+      {{ linux_freeipa_enroll_json_probe_healthy_candidates | join(', ') }}.
+  changed_when: false
+  when:
+    - linux_freeipa_enroll_preflight_json_probe_enabled | bool
+    - linux_freeipa_enroll_json_probe_failed_results | default([]) | length > 0
+    - linux_freeipa_enroll_json_probe_healthy_candidates | default([]) | length > 0
+
+- name: Fail when every FreeIPA JSON preflight probe is unhealthy and timeout continuation is disabled
+  ansible.builtin.fail:
+    msg: >-
+      Linux guest {{ inventory_hostname }} reached the configured IPA servers on TCP 443, but every FreeIPA JSON
+      preflight probe timed out or failed within {{ linux_freeipa_enroll_preflight_json_probe_timeout | int }} seconds.
+      Summary: {{ linux_freeipa_enroll_json_probe_failure_summary | default('unknown probe failure') }}.
+      This usually indicates a proxy, TLS, web-tier, or IPA API responsiveness problem rather than a basic
+      network reachability issue.
+  when:
+    - linux_freeipa_enroll_preflight_json_probe_enabled | bool
+    - linux_freeipa_enroll_json_probe_all_failed | default(false) | bool
+    - not (linux_freeipa_enroll_continue_on_join_timeout | bool)
+
+- name: Note when every FreeIPA JSON preflight probe is unhealthy and timeout continuation is enabled
+  ansible.builtin.debug:
+    msg: >-
+      Linux guest {{ inventory_hostname }} reached the configured IPA servers on TCP 443, but every FreeIPA JSON
+      preflight probe timed out or failed within {{ linux_freeipa_enroll_preflight_json_probe_timeout | int }} seconds.
+      Summary: {{ linux_freeipa_enroll_json_probe_failure_summary | default('unknown probe failure') }}.
+      The repository will skip the expensive upstream join retries and mark this host as timed out immediately.
+  changed_when: false
+  when:
+    - linux_freeipa_enroll_preflight_json_probe_enabled | bool
+    - linux_freeipa_enroll_json_probe_all_failed | default(false) | bool
+    - linux_freeipa_enroll_continue_on_join_timeout | bool
 
 - name: Read current Linux guest FQDN before IPA enrollment
   ansible.builtin.command: hostname -f
@@ -678,11 +764,41 @@
     linux_freeipa_enroll_join_timeout_diagnostics_log_path: ""
     linux_freeipa_enroll_join_server_candidates: >-
       {{
-        linux_freeipa_enroll_effective_servers_normalized
+        (
+          linux_freeipa_enroll_json_probe_healthy_candidates
+          if (
+            (linux_freeipa_enroll_preflight_json_probe_enabled | bool)
+            and (linux_freeipa_enroll_json_probe_healthy_candidates | default([]) | length > 0)
+          )
+          else linux_freeipa_enroll_effective_servers_normalized
+        )
         if (linux_freeipa_enroll_effective_servers_normalized | length > 0)
         else ['__auto__']
       }}
   when: not ansible_check_mode
+
+- name: Mark Linux IPA enrollment as timed out before upstream join retries when every IPA API preflight probe failed
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_join_timed_out: true
+    linux_freeipa_enroll_join_last_error: >-
+      FreeIPA JSON preflight probes timed out or failed against all configured IPA servers within
+      {{ linux_freeipa_enroll_preflight_json_probe_timeout | int }} seconds.
+    linux_freeipa_enroll_join_last_error_is_timeout: true
+    linux_freeipa_enroll_join_last_server: >-
+      {{
+        (
+          linux_freeipa_enroll_json_probe_failed_results
+          | map(attribute='server')
+          | list
+          | last
+        )
+        | default('', true)
+      }}
+    linux_freeipa_enroll_join_timeout_diagnostics_summary: "{{ linux_freeipa_enroll_json_probe_failure_summary | default('', true) }}"
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_continue_on_join_timeout | bool
+    - linux_freeipa_enroll_json_probe_all_failed | default(false) | bool
 
 - name: Retry Linux host enrollment into FreeIPA across the effective IPA server candidates
   ansible.builtin.include_tasks: join-attempt.yml
@@ -709,6 +825,7 @@
   when:
     - not ansible_check_mode
     - not (linux_freeipa_enroll_join_succeeded | bool)
+    - not (linux_freeipa_enroll_join_timed_out | bool)
 
 - name: Note when Linux IPA enrollment timed out and timeout continuation is enabled
   ansible.builtin.debug:

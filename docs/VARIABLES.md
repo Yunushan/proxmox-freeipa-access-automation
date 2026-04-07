@@ -69,6 +69,8 @@ Relevant Linux enrollment hostname controls:
 - `linux_freeipa_enroll_clear_proxy_environment`: when `true`, Linux enrollment injects a focused `NO_PROXY` list for the upstream FreeIPA client role so IPA server traffic bypasses any broad guest proxy configuration; defaults to `true`
 - `linux_freeipa_enroll_preflight_json_probe_enabled`: when `true`, Linux enrollment probes `https://<ipa-server>/ipa/json` with a short timeout before running the upstream join so slow or hung IPA web/API endpoints fail fast; defaults to `true`
 - `linux_freeipa_enroll_preflight_json_probe_timeout`: timeout in seconds for the fast `https://<ipa-server>/ipa/json` preflight probe; defaults to `15`
+- when some IPA servers fail that preflight while others respond, Linux enrollment automatically drops the unhealthy candidates from the upstream join retry loop
+- when every configured IPA server fails that preflight and `linux_freeipa_enroll_continue_on_join_timeout` is enabled, Linux enrollment skips the upstream join retry loop and marks the host timed out immediately with the preflight summary
 - `linux_freeipa_enroll_manage_authoritative_dns`: when `true`, Linux enrollment repairs the specific guest A record, resets a mismatched PTR when the reverse zone is hosted in FreeIPA DNS, and removes link-local AAAA records before hostname validation and join attempts; defaults to `false`
 - `linux_freeipa_enroll_authoritative_dns_delegate_host`: optional inventory host used to execute authoritative FreeIPA DNS repair tasks; defaults to the first host in `ipa_servers`
 - `linux_freeipa_enroll_authoritative_dns_query_server`: DNS server IP used by the authoritative DNS repair logic when it queries FreeIPA DNS directly; defaults to `127.0.0.1` on the delegated IPA host
