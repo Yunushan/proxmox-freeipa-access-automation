@@ -1,0 +1,61 @@
+---
+- name: Join Linux host to FreeIPA on the current attempt
+  block:
+    - name: Run the upstream FreeIPA client role
+      ansible.builtin.include_role:
+        name: freeipa.ansible_freeipa.ipaclient
+      vars:
+        state: present
+        ipaadmin_principal: "{{ linux_freeipa_enroll_effective_ipaadmin_principal }}"
+        ipaadmin_password: "{{ linux_freeipa_enroll_effective_ipaadmin_password }}"
+        ipaclient_hostname: "{{ linux_freeipa_enroll_target_hostname if (linux_freeipa_enroll_target_hostname | length > 0) else omit }}"
+        ipaclient_domain: "{{ linux_freeipa_enroll_effective_domain }}"
+        ipaclient_realm: "{{ linux_freeipa_enroll_effective_realm }}"
+        ipaclient_servers: "{{ linux_freeipa_enroll_effective_servers_normalized if (linux_freeipa_enroll_effective_servers_normalized | length > 0) else omit }}"
+        ipaclient_mkhomedir: "{{ linux_freeipa_enroll_effective_mkhomedir }}"
+        ipaclient_force_join: "{{ linux_freeipa_enroll_effective_force_join }}"
+        ipaclient_kinit_attempts: "{{ linux_ipaclient_kinit_attempts }}"
+        ipaclient_no_dns_lookup: "{{ linux_freeipa_enroll_effective_no_dns_lookup }}"
+        ipaclient_no_sudo: "{{ linux_freeipa_enroll_effective_no_sudo }}"
+        ipasssd_permit: "{{ linux_freeipa_enroll_effective_permit }}"
+        ipaclient_install_packages: "{{ linux_freeipa_enroll_effective_install_packages }}"
+        ipaclient_configure_dns_resolver: "{{ linux_freeipa_enroll_effective_configure_dns_resolver }}"
+        ipaclient_dns_servers: "{{ linux_freeipa_enroll_effective_dns_servers if (linux_freeipa_enroll_effective_dns_servers | length > 0) else omit }}"
+      no_log: true
+
+    - name: Mark the current Linux IPA enrollment join attempt as successful
+      ansible.builtin.set_fact:
+        linux_freeipa_enroll_join_succeeded: true
+        linux_freeipa_enroll_join_last_error: ""
+        linux_freeipa_enroll_join_last_error_is_timeout: false
+
+  rescue:
+    - name: Capture the current Linux IPA enrollment join failure
+      ansible.builtin.set_fact:
+        linux_freeipa_enroll_join_last_error: "{{ ansible_failed_result.msg | default('Unknown FreeIPA client join failure') }}"
+        linux_freeipa_enroll_join_last_error_is_timeout: >-
+          {{
+            'JSON-RPC call failed: Timeout was reached'
+            in (ansible_failed_result.msg | default(''))
+          }}
+
+    - name: Fail immediately for non-timeout Linux IPA enrollment errors
+      ansible.builtin.fail:
+        msg: "{{ linux_freeipa_enroll_join_last_error }}"
+      when: not (linux_freeipa_enroll_join_last_error_is_timeout | bool)
+
+    - name: Fail after the final Linux IPA enrollment timeout
+      ansible.builtin.fail:
+        msg: >-
+          Joining realm failed after {{ linux_freeipa_enroll_join_attempts | int }} attempts.
+          Last error: {{ linux_freeipa_enroll_join_last_error }}
+      when:
+        - linux_freeipa_enroll_join_last_error_is_timeout | bool
+        - linux_freeipa_enroll_join_attempt | int >= linux_freeipa_enroll_join_attempts | int
+
+    - name: Wait before retrying Linux IPA enrollment after a timeout
+      ansible.builtin.pause:
+        seconds: "{{ linux_freeipa_enroll_join_retry_delay | int }}"
+      when:
+        - linux_freeipa_enroll_join_last_error_is_timeout | bool
+        - linux_freeipa_enroll_join_attempt | int < linux_freeipa_enroll_join_attempts | int

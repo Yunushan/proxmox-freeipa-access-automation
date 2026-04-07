@@ -55,6 +55,9 @@ Relevant Linux enrollment hostname controls:
 
 - `linux_ipa_identity_hostname_suffix`: optional suffix used to turn short hostnames such as `app-server-01` into FQDNs such as `app-server-01.example.net`
 - `linux_freeipa_enroll_manage_hostname`: when `true`, the Linux enrollment role updates the guest system hostname to the resolved FQDN before IPA enrollment
+- `linux_freeipa_enroll_join_attempts`: number of times the repository retries the upstream FreeIPA client join when it fails with a JSON-RPC timeout; defaults to `3`
+- `linux_freeipa_enroll_join_retry_delay`: seconds to wait between join retries after a JSON-RPC timeout; defaults to `15`
+- `linux_freeipa_enroll_success_group`: runtime inventory group that collects only the Linux guests that completed FreeIPA enrollment successfully; defaults to `linux_ipa_clients_enrolled_runtime`
 - `linux_ipa_manage_etc_hosts`: when `true`, the Linux enrollment role manages a bootstrap block in `/etc/hosts` before IPA connectivity and hostname verification
 - `linux_ipa_etc_hosts_entries`: list of `{ ip, names }` mappings for `/etc/hosts`, useful when IPA DNS is not reachable yet or when a guest FQDN must be pinned locally during bootstrap
 - `guest_qemu_agent_install_enabled`: when `true`, reachable Linux enrollment targets and optional `windows_qemu_guest_agent_clients` hosts install and start QEMU Guest Agent before later bootstrap steps
@@ -75,6 +78,7 @@ Relevant Linux enrollment hostname controls:
 - `linux_ipa_ssh_bootstrap_password`: optional shared first-touch password used as a fallback `ansible_password` for runtime Linux guests during SSH key bootstrap; keep this in vaulted variables when used
 - `linux_ipa_ssh_bootstrap_public_key_file`: controller SSH public key path installed onto Linux guests during SSH bootstrap
 - `linux_ipa_ssh_bootstrap_private_key_file`: controller SSH private key path preferred for subsequent Linux guest plays after SSH bootstrap
+- `linux_ipaclient_kinit_attempts`: value passed to the upstream `ipaclient_kinit_attempts` setting so host Kerberos ticket acquisition is retried more aggressively during Linux IPA enrollment; defaults to `10`
 - `linux_sssd_refresh_enabled`: when `true`, the `freeipa.yml` and `site.yml` workflows clear SSSD caches and restart `sssd` on managed Linux clients after FreeIPA access-model changes so new sudo and HBAC policy is visible immediately
 - `linux_ipa_proxmox_discovery_vmids`: optional VMID filter list for Proxmox discovery, mainly useful for event-driven runs such as the Proxmox hook/webhook workflow
 
