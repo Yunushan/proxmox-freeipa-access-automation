@@ -16,6 +16,7 @@ Manages the declarative FreeIPA access model used by this repository.
 - `freeipa_access_model_enabled`
 - `freeipa_admin_principal`
 - `freeipa_admin_password`
+- `freeipa_access_model_manage_inventory_group_host_membership`
 - `freeipa_user_groups`
 - `freeipa_hostgroups`
 - `freeipa_hbac_rules`
@@ -25,3 +26,4 @@ Manages the declarative FreeIPA access model used by this repository.
 
 - Hostgroup members should resolve to final FQDNs before this role runs.
 - Combined playbooks can derive those hostnames from Linux guest preparation and identity resolution.
+- Set `freeipa_access_model_manage_inventory_group_host_membership: false` when a workflow must create hostgroups before the inventory-backed Linux guests are enrolled into FreeIPA. The repository's combined `site` workflow then adds those hosts afterward through `freeipa_runtime_hostgroup_membership`.

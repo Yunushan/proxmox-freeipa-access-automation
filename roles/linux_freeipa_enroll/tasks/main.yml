@@ -388,3 +388,13 @@
     ipaclient_dns_servers: "{{ linux_freeipa_enroll_effective_dns_servers if (linux_freeipa_enroll_effective_dns_servers | length > 0) else omit }}"
   when: not ansible_check_mode
   no_log: true
+
+- name: Mark Linux guest as successfully enrolled for later FreeIPA hostgroup updates
+  ansible.builtin.add_host:
+    name: "{{ inventory_hostname }}"
+    groups: "{{ linux_freeipa_enroll_success_group }}"
+    freeipa_hostgroup_hostname: "{{ freeipa_hostgroup_hostname | default(omit) }}"
+    ipa_hostname: "{{ ipa_hostname | default(omit) }}"
+  delegate_to: localhost
+  changed_when: false
+  when: not ansible_check_mode

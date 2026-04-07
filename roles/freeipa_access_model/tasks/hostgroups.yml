@@ -8,7 +8,13 @@
     freeipa_access_model_hostgroups_resolved: "{{ freeipa_access_model_hostgroups_resolved + [item | combine({'resolved_hosts': (freeipa_hostgroup_resolved_hosts_yaml | from_yaml), 'unresolved_hosts': (freeipa_hostgroup_unresolved_hosts_yaml | from_yaml)})] }}"
   vars:
     freeipa_hostgroup_resolved_hosts_yaml: |
-      {% set members = item.host | default([]) | list %}
+      {% set members = [] %}
+      {% for explicit_host in item.host | default([]) | list %}
+      {%   set explicit_candidate = explicit_host | string | trim | lower %}
+      {%   if explicit_candidate | length > 0 %}
+      {%     set _ = members.append(explicit_candidate) %}
+      {%   endif %}
+      {% endfor %}
       {% for group_name in item.inventory_groups | default([]) %}
       {%   for group_host in groups[group_name] | default([]) %}
       {%     set explicit_hostname = hostvars[group_host].freeipa_hostgroup_hostname
@@ -18,9 +24,10 @@
             | trim
             | lower %}
       {%     set inventory_candidate = group_host | string | trim | lower %}
-      {%     if explicit_hostname | length > 0 %}
+      {%     if freeipa_access_model_manage_inventory_group_host_membership | bool and explicit_hostname | length > 0 %}
       {%       set _ = members.append(explicit_hostname) %}
-      {%     elif inventory_candidate is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$')
+      {%     elif freeipa_access_model_manage_inventory_group_host_membership | bool
+              and inventory_candidate is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$')
               and not (inventory_candidate is match('^[0-9.]+$')) %}
       {%       set _ = members.append(inventory_candidate) %}
       {%     endif %}
