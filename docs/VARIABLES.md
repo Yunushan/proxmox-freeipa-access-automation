@@ -58,6 +58,8 @@ Relevant Linux enrollment hostname controls:
 - `linux_freeipa_enroll_join_attempts`: number of times the repository retries the upstream FreeIPA client join when it fails with a JSON-RPC timeout; defaults to `3`
 - `linux_freeipa_enroll_join_retry_delay`: seconds to wait between join retries after a JSON-RPC timeout; defaults to `15`
 - `linux_freeipa_enroll_success_group`: runtime inventory group that collects only the Linux guests that completed FreeIPA enrollment successfully; defaults to `linux_ipa_clients_enrolled_runtime`
+- `linux_freeipa_enroll_timeout_group`: runtime inventory group that collects Linux guests that exhausted all join retries and were allowed to continue in timed-out state; defaults to `linux_ipa_clients_enroll_timeout_runtime`
+- `linux_freeipa_enroll_continue_on_join_timeout`: when `true`, Linux enrollment warns and continues after the final JSON-RPC join timeout instead of failing the workflow; timed-out guests are excluded from the success group and added to `linux_freeipa_enroll_timeout_group`; defaults to `false`
 - `linux_freeipa_enroll_merge_inventory_ipa_servers`: when `true`, Linux enrollment appends the `ipa_servers` inventory hostnames to `linux_ipa_servers` before resolution, reachability checks, and the upstream client join; defaults to `true`
 - `linux_freeipa_enroll_manage_authoritative_dns`: when `true`, Linux enrollment repairs the specific guest A record, resets a mismatched PTR when the reverse zone is hosted in FreeIPA DNS, and removes link-local AAAA records before hostname validation and join attempts; defaults to `false`
 - `linux_freeipa_enroll_authoritative_dns_delegate_host`: optional inventory host used to execute authoritative FreeIPA DNS repair tasks; defaults to the first host in `ipa_servers`
