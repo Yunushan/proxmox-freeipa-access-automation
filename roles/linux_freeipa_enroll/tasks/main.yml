@@ -421,6 +421,58 @@
       The guest hostname must not resolve to loopback or link-local addresses such as 127.0.0.1, ::1,
       169.254.0.0/16, or fe80::/10. Fix DNS or /etc/hosts on the guest before IPA enrollment.
 
+- name: Prepare the Linux guest primary IPv4 address for reverse DNS verification
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_primary_ipv4_to_verify: "{{ ansible_default_ipv4.address | default('', true) | string | trim }}"
+  changed_when: false
+
+- name: Resolve the Linux guest primary IPv4 address back to a hostname
+  ansible.builtin.command:
+    argv:
+      - getent
+      - hosts
+      - "{{ linux_freeipa_enroll_primary_ipv4_to_verify }}"
+  register: linux_freeipa_enroll_primary_ipv4_reverse_resolution
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: linux_freeipa_enroll_primary_ipv4_to_verify | length > 0
+
+- name: Normalize reverse DNS names for the Linux guest primary IPv4 address
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_primary_ipv4_reverse_names: >-
+      {{
+        (
+          linux_freeipa_enroll_primary_ipv4_reverse_resolution.stdout
+          | default('', true)
+          | string
+          | trim
+          | split()
+        )[1:]
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | map('lower')
+        | list
+      }}
+  changed_when: false
+  when: linux_freeipa_enroll_primary_ipv4_to_verify | length > 0
+
+- name: Assert the Linux guest primary IPv4 reverse DNS matches the enrollment hostname
+  ansible.builtin.assert:
+    that:
+      - linux_freeipa_enroll_primary_ipv4_reverse_resolution.rc == 0
+      - linux_freeipa_enroll_primary_ipv4_reverse_resolution.stdout | default('') | trim | length > 0
+      - linux_freeipa_enroll_primary_ipv4_reverse_names | length > 0
+      - linux_freeipa_enroll_hostname_to_verify in linux_freeipa_enroll_primary_ipv4_reverse_names
+    fail_msg: >-
+      Linux guest {{ inventory_hostname }} has primary IPv4 address {{ linux_freeipa_enroll_primary_ipv4_to_verify }}
+      but reverse DNS resolves it to
+      {{ linux_freeipa_enroll_primary_ipv4_reverse_names | default([]) | join(', ') | default('an unresolved value', true) }}
+      instead of {{ linux_freeipa_enroll_hostname_to_verify }}.
+      Fix the PTR record so the guest primary IP maps back to the same FQDN used for IPA enrollment.
+  when: linux_freeipa_enroll_primary_ipv4_to_verify | length > 0
+
 - name: Skip Linux IPA enrollment in check mode
   ansible.builtin.debug:
     msg: >-
