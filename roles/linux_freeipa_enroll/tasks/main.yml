@@ -419,11 +419,21 @@
     - linux_freeipa_enroll_primary_ipv4_to_verify | length > 0
     - linux_freeipa_enroll_hostname_to_verify | length > 0
 
+- name: Choose the Linux guest hostname resolution lookup mode
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_hostname_resolution_database: >-
+      {{
+        'ahostsv4'
+        if (linux_freeipa_enroll_primary_ipv4_to_verify | length > 0)
+        else 'hosts'
+      }}
+  changed_when: false
+
 - name: Resolve the Linux guest enrollment hostname locally on the guest
   ansible.builtin.command:
     argv:
       - getent
-      - hosts
+      - "{{ linux_freeipa_enroll_hostname_resolution_database }}"
       - "{{ linux_freeipa_enroll_hostname_to_verify }}"
   register: linux_freeipa_enroll_hostname_resolution
   changed_when: false
@@ -440,6 +450,7 @@
         | map('trim')
         | reject('equalto', '')
         | map('regex_replace', '\\s+.*$', '')
+        | unique
         | list
       }}
   changed_when: false
@@ -454,6 +465,15 @@
       - linux_freeipa_enroll_hostname_resolved_addresses | length > 0
       - >-
         (
+          (linux_freeipa_enroll_primary_ipv4_to_verify | length == 0)
+          or
+          (
+            linux_freeipa_enroll_primary_ipv4_to_verify
+            in linux_freeipa_enroll_hostname_resolved_addresses
+          )
+        )
+      - >-
+        (
           linux_freeipa_enroll_hostname_resolved_addresses
           | select('match', linux_freeipa_enroll_hostname_bad_resolution_pattern)
           | list
@@ -461,9 +481,11 @@
         ) == 0
     fail_msg: >-
       Linux guest {{ inventory_hostname }} resolves its enrollment hostname {{ linux_freeipa_enroll_hostname_to_verify }}
-      to {{ linux_freeipa_enroll_hostname_resolved_addresses | default([]) | join(', ') | default('an unresolved value', true) }}.
-      The guest hostname must not resolve to loopback or link-local addresses such as 127.0.0.1, ::1,
-      169.254.0.0/16, or fe80::/10. Fix DNS or /etc/hosts on the guest before IPA enrollment.
+      through getent {{ linux_freeipa_enroll_hostname_resolution_database }} as
+      {{ linux_freeipa_enroll_hostname_resolved_addresses | default([]) | join(', ') | default('an unresolved value', true) }}.
+      The guest hostname must resolve to the guest primary IPv4 when available and must not resolve to loopback or
+      link-local addresses such as 127.0.0.1, ::1, 169.254.0.0/16, or fe80::/10. Fix DNS or /etc/hosts on the guest
+      before IPA enrollment.
 
 - name: Resolve the Linux guest primary IPv4 address back to a hostname
   ansible.builtin.command:
