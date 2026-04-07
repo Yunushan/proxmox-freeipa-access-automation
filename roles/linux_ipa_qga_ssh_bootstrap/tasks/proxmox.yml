@@ -260,7 +260,7 @@
     that:
       - item.rc == 0
       - item.stdout | default('') | trim | length > 0
-      - (item.stdout | from_json).exited | default(false)
+      - ((item.stdout | from_json).exited | default(0) | int) != 0
       - ((item.stdout | from_json).exitcode | default(1) | int) == 0
     fail_msg: >-
       Linux QGA SSH bootstrap failed for {{ item.item }}.
