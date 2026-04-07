@@ -19,6 +19,8 @@ This repository includes an optional Proxmox hook and controller-side webhook so
 - Proxmox hookscript phases cover start, stop, and migrate events. There is no standalone VM `create` phase, so newly created VMs are handled on their first `post-start` event.
 - Migration hooks run on both the source and target nodes. Store the hookscript on snippet storage that is available on every node that might execute it.
 - Event-driven discovery still relies on the same prerequisites as normal discovery: the VM must be running, the QEMU guest agent must report a usable IP, and the guest must be reachable over SSH for enrollment.
+- When `linux_ipa_qga_ssh_bootstrap_enabled` is true and the guest agent is already active, event-driven runs can create the automation SSH user and key access without a reboot or a temporary SSH password.
+- If you enable `linux_ipa_ssh_bootstrap_enabled`, event-driven runs can also install the controller SSH public key automatically, but they still need an initial password-capable login path such as host `ansible_password` values or a shared vaulted `linux_ipa_ssh_bootstrap_password`.
 - The event playbook filters discovery by VMID, not by node. That avoids missing the VM when Proxmox emits `post-migrate` hooks from both source and target nodes.
 
 ## Setup

@@ -1,0 +1,22 @@
+---
+- name: Bootstrap Linux SSH access through the Proxmox guest agent
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - linux
+    - linux_enroll
+    - inventory
+    - discovery
+    - qga_bootstrap
+  tasks:
+    - name: Bootstrap Linux guest SSH access through the Proxmox guest agent
+      ansible.builtin.include_role:
+        name: linux_ipa_qga_ssh_bootstrap
+      when: linux_ipa_qga_ssh_bootstrap_enabled | bool
+      tags:
+        - linux
+        - linux_enroll
+        - inventory
+        - discovery
+        - qga_bootstrap

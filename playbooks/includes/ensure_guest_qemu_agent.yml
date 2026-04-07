@@ -1,0 +1,39 @@
+---
+- name: Ensure QEMU Guest Agent on reachable Linux enrollment targets
+  hosts: linux_ipa_clients_runtime
+  become: true
+  gather_facts: false
+  ignore_unreachable: true
+  serial: "{{ linux_freeipa_enroll_serial | default(10) | int }}"
+  max_fail_percentage: "{{ linux_freeipa_enroll_max_fail_percentage | default(0) | int }}"
+  tags:
+    - linux
+    - linux_enroll
+    - inventory
+    - qga_install
+  roles:
+    - role: guest_qemu_agent_install
+      when: guest_qemu_agent_install_enabled | bool
+      tags:
+        - linux
+        - linux_enroll
+        - inventory
+        - qga_install
+
+- name: Ensure QEMU Guest Agent on reachable Windows guest targets
+  hosts: windows_qemu_guest_agent_clients
+  gather_facts: false
+  ignore_unreachable: true
+  serial: "{{ linux_freeipa_enroll_serial | default(10) | int }}"
+  max_fail_percentage: "{{ linux_freeipa_enroll_max_fail_percentage | default(0) | int }}"
+  tags:
+    - windows
+    - inventory
+    - qga_install
+  roles:
+    - role: guest_qemu_agent_install
+      when: guest_qemu_agent_install_enabled | bool
+      tags:
+        - windows
+        - inventory
+        - qga_install

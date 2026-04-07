@@ -1,0 +1,46 @@
+---
+- name: Detect whether the current guest-agent installation target is Windows
+  ansible.builtin.set_fact:
+    guest_qemu_agent_install_is_windows: >-
+      {{
+        (ansible_connection | default('ssh')) in ['winrm', 'psrp']
+        or (ansible_shell_type | default('sh')) in ['cmd', 'powershell']
+        or (ansible_os_family | default('')) == 'Windows'
+      }}
+
+- name: Install and enable QEMU Guest Agent on Linux guests
+  when: not guest_qemu_agent_install_is_windows
+  block:
+    - name: Ensure the Linux QEMU Guest Agent package is installed
+      ansible.builtin.package:
+        name: "{{ guest_qemu_agent_install_linux_package_name }}"
+        state: present
+
+    - name: Ensure the Linux QEMU Guest Agent service is enabled and running
+      ansible.builtin.service:
+        name: "{{ guest_qemu_agent_install_linux_service_name }}"
+        enabled: true
+        state: started
+
+- name: Install and enable QEMU Guest Agent on Windows guests
+  when: guest_qemu_agent_install_is_windows
+  block:
+    - name: Assert the Windows QEMU Guest Agent package path is configured
+      ansible.builtin.assert:
+        that:
+          - guest_qemu_agent_install_windows_package_path | default('') | trim | length > 0
+        fail_msg: >-
+          guest_qemu_agent_install_windows_package_path must point to a reachable
+          MSI path or URL for Windows QEMU Guest Agent installation.
+
+    - name: Ensure the Windows QEMU Guest Agent package is installed
+      ansible.windows.win_package:
+        path: "{{ guest_qemu_agent_install_windows_package_path }}"
+        arguments: "{{ guest_qemu_agent_install_windows_package_arguments }}"
+        state: present
+
+    - name: Ensure the Windows QEMU Guest Agent service is enabled and running
+      ansible.windows.win_service:
+        name: "{{ guest_qemu_agent_install_windows_service_name }}"
+        start_mode: auto
+        state: started

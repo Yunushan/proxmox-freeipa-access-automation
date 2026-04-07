@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  author: Repository maintainers
+  description: Bootstrap Linux guest SSH access through the Proxmox QEMU Guest Agent.
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

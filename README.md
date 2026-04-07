@@ -56,6 +56,9 @@ This is a good fit when you want onboarding and offboarding to be mostly:
 - recurring Proxmox realm sync from one designated cluster node
 - Proxmox RBAC bindings for synced directory groups
 - Linux guest enrollment into FreeIPA with static inventory, IP-only targets, or Proxmox VM discovery
+- optional no-reboot SSH bootstrap through the Proxmox QEMU Guest Agent
+- optional SSH or WinRM fallback installation of QEMU Guest Agent for reachable guests
+- optional first-touch SSH public-key bootstrap for Linux guests
 - automatic SSSD cache refresh on managed Linux clients after FreeIPA access-model changes
 - optional event-driven Linux onboarding from Proxmox VM hook and webhook triggers
 
@@ -89,6 +92,9 @@ For the longer design explanation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.
 - Ansible Core 2.14+
 - SSH reachability to your Proxmox primary node, IPA server, and Linux clients
 - sudo or root where required
+- when Linux QGA SSH bootstrap is enabled, the Proxmox guest agent must already be active in the guest
+- when guest-agent fallback installation is enabled for Windows, reachable Windows hosts must be placed in `windows_qemu_guest_agent_clients`
+- when Linux SSH bootstrap is enabled, a controller SSH keypair and an initial password-capable login path for the guest account used by Ansible
 
 ### Targets
 
@@ -358,12 +364,13 @@ Proxmox VM hooks do not expose a standalone `create` phase. In practice, new VMs
 
 ## Inventory Model
 
-This repository uses three declared inventory groups plus one generated runtime group:
+This repository uses four declared inventory groups plus one generated runtime group:
 
 - `ipa_servers`: one or more FreeIPA servers
 - `proxmox_primary`: one Proxmox node chosen to own realm configuration and the recurring sync timer
 - `linux_ipa_clients`: the declarative source inventory group for Linux guests
 - `linux_ipa_clients_runtime`: the generated runtime group built from static inventory, manual host definitions, and optional Proxmox discovery
+- `windows_qemu_guest_agent_clients`: optional Windows guest group used only for QEMU Guest Agent installation
 
 You can add your own inventory groups and reference them from FreeIPA hostgroup definitions. When you want the full prepared Linux guest set in FreeIPA hostgroups, reference `linux_ipa_clients_runtime`.
 
@@ -433,6 +440,10 @@ Notes:
 - the guest's real system hostname must also be valid for enrollment; placeholder values such as `localhost.localdomain` must be replaced on the VM before running `linux-clients` or `site`
 - when guests use short hostnames such as `app-server-01`, you can set `linux_ipa_identity_hostname_suffix` and optionally `linux_freeipa_enroll_manage_hostname: true` so the project resolves and applies a full hostname such as `app-server-01.example.net` before enrollment
 - when DNS is not ready yet, you can set `linux_ipa_manage_etc_hosts: true` and provide `linux_ipa_etc_hosts_entries` so the role adds a managed `/etc/hosts` bootstrap block for IPA servers and guest FQDNs before enrollment checks
+- `guest_qemu_agent_install_enabled` installs QEMU Guest Agent on guests that are already reachable over SSH or WinRM so later Proxmox agent-dependent workflows can use it
+- `linux_ipa_ssh_host_key_policy` defaults to `accept_new` for Linux guest connections so newly discovered VMs can be contacted without disabling host key checking entirely; changed host keys still fail and require operator review
+- `linux_ipa_qga_ssh_bootstrap_enabled` is the preferred no-reboot bootstrap path for Proxmox-backed guests because it can create a dedicated key-only automation user through the QEMU Guest Agent before any SSH login exists
+- `linux_ipa_ssh_bootstrap_enabled` optionally installs the controller SSH public key onto Linux guests before hostname resolution and enrollment; for first-touch password logins, set `linux_ipa_ssh_bootstrap_password` in vaulted variables instead of plain inventory
 
 ## Configuration Surface
 
@@ -458,7 +469,7 @@ Key variable families:
 | Rollout controls | `freeipa_access_serial`, `freeipa_access_max_fail_percentage`, `proxmox_rollout_serial`, `proxmox_rollout_max_fail_percentage`, `linux_freeipa_enroll_serial`, `linux_freeipa_enroll_max_fail_percentage` |
 | Proxmox LDAP realm | `proxmox_ldap_realm_id`, `proxmox_ldap_server1`, `proxmox_ldap_base_dn`, `proxmox_ldap_group_dn`, `proxmox_ldap_bind_dn`, `proxmox_ldap_bind_password`, `proxmox_ldap_sync_attributes`, `proxmox_ldap_sync_defaults` |
 | Proxmox RBAC | `proxmox_custom_roles`, `proxmox_acl_bindings` |
-| Linux IPA enrollment | `ipaclient_domain`, `ipaclient_realm`, `linux_ipa_servers`, `linux_ipaclient_mkhomedir`, `linux_ipasssd_permit`, `linux_sssd_refresh_enabled`, `linux_ipa_client_hosts`, `linux_ipa_proxmox_discovery_*` |
+| Linux IPA enrollment | `ipaclient_domain`, `ipaclient_realm`, `linux_ipa_servers`, `linux_ipaclient_mkhomedir`, `linux_ipasssd_permit`, `linux_sssd_refresh_enabled`, `guest_qemu_agent_install_*`, `linux_ipa_client_hosts`, `linux_ipa_qga_ssh_bootstrap_*`, `linux_ipa_ssh_bootstrap_*`, `linux_ipa_proxmox_discovery_*` |
 | Ansible connection secrets | `vault_proxmox_become_password` when `proxmox_primary` uses a sudo-capable non-root SSH user |
 
 ## Example Group Strategy
@@ -490,6 +501,9 @@ proxmox-admins-ipa
 - prefer a dedicated read-only LDAP bind account for Proxmox
 - prefer TLS with certificate verification enabled
 - keep SSH host key checking enabled outside disposable lab environments
+- prefer `linux_ipa_qga_ssh_bootstrap_enabled` over shared temporary passwords when your Proxmox guests already have a working QEMU Guest Agent
+- use `guest_qemu_agent_install_enabled` only for guests that are already reachable; it cannot replace the initial management path
+- if you enable Linux SSH bootstrap, store any shared bootstrap password in vaulted variables and rotate or remove it once key-based access is established
 - do not reuse the IPA admin account as the Proxmox LDAP bind account
 - review `proxmox_ldap_filter` and `proxmox_ldap_group_filter` before production rollout to avoid importing too much
 
@@ -579,6 +593,9 @@ After a successful rollout, verify the resulting state instead of assuming every
 │               └── vault-proxmox.yml.example
 ├── playbooks/
 │   ├── includes/
+│   │   ├── bootstrap_linux_qga_ssh.yml
+│   │   ├── bootstrap_linux_ssh.yml
+│   │   ├── ensure_guest_qemu_agent.yml
 │   │   ├── prepare_linux_event_inventory.yml
 │   │   ├── prepare_linux_inventory.yml
 │   │   └── resolve_linux_hostnames.yml
@@ -591,8 +608,11 @@ After a successful rollout, verify the resulting state instead of assuming every
 ├── roles/
 │   ├── freeipa_access_model/
 │   ├── freeipa_runtime_hostgroup_membership/
+│   ├── guest_qemu_agent_install/
 │   ├── linux_ipa_host_identity/
 │   ├── linux_ipa_inventory_prepare/
+│   ├── linux_ipa_qga_ssh_bootstrap/
+│   ├── linux_ipa_ssh_bootstrap/
 │   ├── linux_freeipa_enroll/
 │   ├── linux_sssd_refresh/
 │   ├── proxmox_linux_vm_discovery/

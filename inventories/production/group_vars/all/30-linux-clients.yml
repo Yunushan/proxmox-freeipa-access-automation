@@ -12,6 +12,12 @@ linux_ipaclient_no_dns_lookup: true
 linux_ipaclient_no_sudo: false
 linux_ipasssd_permit: false
 linux_sssd_refresh_enabled: true
+guest_qemu_agent_install_enabled: false
+linux_ipa_ssh_host_key_policy: accept_new
+linux_ipa_qga_ssh_bootstrap_enabled: false
+linux_ipa_qga_ssh_bootstrap_user: ansible-bootstrap
+linux_ipa_ssh_bootstrap_enabled: false
+linux_ipa_ssh_bootstrap_password: "{{ vault_linux_ipa_ssh_bootstrap_password | default('') }}"
 linux_ipa_identity_hostname_suffix: ""
 linux_freeipa_enroll_manage_hostname: false
 linux_ipaclient_configure_dns_resolver: false
@@ -28,6 +34,28 @@ linux_ipa_client_hosts: []
 # Example short hostnames completed with a shared suffix:
 # linux_ipa_identity_hostname_suffix: example.net
 # linux_freeipa_enroll_manage_hostname: true
+#
+# Linux guest SSH host key policy:
+# strict: require a pre-populated known_hosts entry
+# accept_new: trust first-seen host keys but still fail on changed keys
+# disabled: disable host key checking for Linux guest connections
+#
+# Optional guest-agent installation fallback:
+# guest_qemu_agent_install_enabled installs qemu-guest-agent on Linux guests
+# that are already reachable over SSH, and installs QEMU Guest Agent on hosts
+# in the optional windows_qemu_guest_agent_clients inventory group when they
+# are already reachable over WinRM or Windows SSH.
+#
+# Optional Linux guest SSH key bootstrap:
+# linux_ipa_qga_ssh_bootstrap_enabled: use Proxmox QEMU Guest Agent to create
+# a dedicated key-only automation user inside already running guests without a
+# reboot. This is the preferred path for Proxmox-discovered VMs when QGA works.
+# linux_ipa_qga_ssh_bootstrap_user controls the in-guest automation username.
+#
+# enable linux_ipa_ssh_bootstrap_enabled to install the controller public key
+# onto the SSH user used for Linux guest connections before hostname resolution
+# and enrollment. Keep linux_ipa_ssh_bootstrap_password in vaulted group_vars or
+# host vars when guests need a shared first-touch password.
 #
 # Example /etc/hosts bootstrap entries when IPA DNS is not ready yet:
 # linux_ipa_manage_etc_hosts: true

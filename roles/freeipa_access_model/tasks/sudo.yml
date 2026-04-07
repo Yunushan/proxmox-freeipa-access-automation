@@ -1,9 +1,9 @@
 ---
 - name: Ensure FreeIPA sudo rules are present
   freeipa.ansible_freeipa.ipasudorule:
-    ipaadmin_principal: "{{ freeipa_admin_principal }}"
-    ipaadmin_password: "{{ freeipa_admin_password }}"
-    ipaapi_context: "{{ freeipa_api_context }}"
+    ipaadmin_principal: "{{ freeipa_access_model_admin_principal }}"
+    ipaadmin_password: "{{ freeipa_access_model_admin_password }}"
+    ipaapi_context: "{{ freeipa_access_model_api_context }}"
     name: "{{ item.name }}"
     description: "{{ item.description | default(omit) }}"
     usercategory: "{{ item.usercategory | default(omit) }}"
@@ -33,20 +33,20 @@
           and item.state | default('enabled') in ['enabled', 'disabled']
         ) | ternary('present', item.state | default('present'))
       }}
-  loop: "{{ freeipa_sudo_rules }}"
+  loop: "{{ freeipa_access_model_sudo_rules }}"
   loop_control:
     label: "{{ item.name }}"
   no_log: true
 
 - name: Ensure FreeIPA sudo rules are enabled or disabled as requested
   freeipa.ansible_freeipa.ipasudorule:
-    ipaadmin_principal: "{{ freeipa_admin_principal }}"
-    ipaadmin_password: "{{ freeipa_admin_password }}"
-    ipaapi_context: "{{ freeipa_api_context }}"
+    ipaadmin_principal: "{{ freeipa_access_model_admin_principal }}"
+    ipaadmin_password: "{{ freeipa_access_model_admin_password }}"
+    ipaapi_context: "{{ freeipa_access_model_api_context }}"
     name: "{{ item.name }}"
     action: "{{ item.action | default('sudorule') }}"
     state: "{{ item.state | default('enabled') }}"
-  loop: "{{ freeipa_sudo_rules }}"
+  loop: "{{ freeipa_access_model_sudo_rules }}"
   loop_control:
     label: "{{ item.name }}"
   when:

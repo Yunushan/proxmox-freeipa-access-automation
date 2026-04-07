@@ -1,0 +1,6 @@
+---
+linux_ipa_ssh_bootstrap_enabled: false
+linux_ipa_ssh_bootstrap_password: ""
+linux_ipa_ssh_bootstrap_public_key_file: "{{ lookup('ansible.builtin.env', 'HOME') ~ '/.ssh/id_ed25519.pub' }}"
+linux_ipa_ssh_bootstrap_private_key_file: "{{ linux_ipa_ssh_bootstrap_public_key_file | regex_replace('\\.pub$', '') }}"
+linux_ipa_runtime_group: linux_ipa_clients_runtime

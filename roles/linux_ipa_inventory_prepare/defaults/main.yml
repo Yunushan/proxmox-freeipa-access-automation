@@ -3,3 +3,7 @@ linux_ipa_runtime_group: linux_ipa_clients_runtime
 linux_ipa_inventory_source_groups:
   - linux_ipa_clients
 linux_ipa_client_hosts: []
+linux_ipa_ssh_host_key_policy: accept_new
+linux_ipa_ssh_bootstrap_enabled: false
+linux_ipa_ssh_bootstrap_password: ""
+linux_ipa_qga_ssh_bootstrap_enabled: false

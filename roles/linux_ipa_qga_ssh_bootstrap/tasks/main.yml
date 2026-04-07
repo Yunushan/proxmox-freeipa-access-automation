@@ -1,0 +1,167 @@
+---
+- name: Validate the controller SSH public key file for Linux QGA bootstrap
+  ansible.builtin.stat:
+    path: "{{ linux_ipa_qga_ssh_bootstrap_public_key_file }}"
+  become: false
+  register: linux_ipa_qga_ssh_bootstrap_public_key_stat
+
+- name: Assert the controller SSH public key file exists for Linux QGA bootstrap
+  ansible.builtin.assert:
+    that:
+      - linux_ipa_qga_ssh_bootstrap_public_key_stat.stat.exists
+      - linux_ipa_qga_ssh_bootstrap_public_key_stat.stat.isreg
+    fail_msg: >-
+      linux_ipa_qga_ssh_bootstrap_public_key_file must point to an existing
+      controller SSH public key file before Linux QGA SSH bootstrap can run.
+
+- name: Validate the controller SSH private key file for Linux QGA bootstrap
+  ansible.builtin.stat:
+    path: "{{ linux_ipa_qga_ssh_bootstrap_private_key_file }}"
+  become: false
+  register: linux_ipa_qga_ssh_bootstrap_private_key_stat
+
+- name: Assert the controller SSH private key file exists for Linux QGA bootstrap
+  ansible.builtin.assert:
+    that:
+      - linux_ipa_qga_ssh_bootstrap_private_key_stat.stat.exists
+      - linux_ipa_qga_ssh_bootstrap_private_key_stat.stat.isreg
+    fail_msg: >-
+      linux_ipa_qga_ssh_bootstrap_private_key_file must point to an existing
+      controller private key before Linux QGA SSH bootstrap can run.
+
+- name: Load the controller SSH public key for Linux QGA bootstrap
+  ansible.builtin.set_fact:
+    linux_ipa_qga_ssh_bootstrap_public_key: "{{ lookup('ansible.builtin.file', linux_ipa_qga_ssh_bootstrap_public_key_file) | trim }}"
+
+- name: Assert the controller SSH public key for Linux QGA bootstrap is not empty
+  ansible.builtin.assert:
+    that:
+      - linux_ipa_qga_ssh_bootstrap_public_key | length > 0
+    fail_msg: >-
+      linux_ipa_qga_ssh_bootstrap_public_key_file resolved to an empty SSH public key.
+
+- name: Build the Linux QGA SSH bootstrap target list
+  ansible.builtin.set_fact:
+    linux_ipa_qga_ssh_bootstrap_target_hosts: >-
+      {% set ns = namespace(targets=[]) %}
+      {% for candidate in groups[linux_ipa_runtime_group] | default([]) %}
+      {%   if hostvars[candidate].linux_ipa_proxmox_node_inventory_host is defined
+            and hostvars[candidate].linux_ipa_proxmox_vmid is defined %}
+      {%     set _ = ns.targets.append(candidate) %}
+      {%   endif %}
+      {% endfor %}
+      {{ ns.targets | to_json }}
+
+- name: Normalize the Linux QGA SSH bootstrap target list
+  ansible.builtin.set_fact:
+    linux_ipa_qga_ssh_bootstrap_target_hosts: "{{ linux_ipa_qga_ssh_bootstrap_target_hosts | from_json }}"
+
+- name: Verify the Proxmox guest agent responds for Linux QGA SSH bootstrap targets
+  ansible.builtin.command:
+    argv:
+      - qm
+      - guest
+      - cmd
+      - "{{ hostvars[item].linux_ipa_proxmox_vmid | string }}"
+      - ping
+  delegate_to: "{{ hostvars[item].linux_ipa_proxmox_node_inventory_host }}"
+  register: linux_ipa_qga_ssh_bootstrap_ping_results
+  loop: "{{ linux_ipa_qga_ssh_bootstrap_target_hosts }}"
+  loop_control:
+    label: "{{ item }}"
+  changed_when: false
+  when: linux_ipa_qga_ssh_bootstrap_target_hosts | length > 0
+
+- name: Ensure Linux QGA SSH bootstrap user and key access exist inside Proxmox-backed guests
+  vars:
+    linux_ipa_qga_ssh_bootstrap_public_key_b64: "{{ linux_ipa_qga_ssh_bootstrap_public_key | b64encode }}"
+    linux_ipa_qga_ssh_bootstrap_guest_script: |
+      set -eu
+      bootstrap_user='{{ linux_ipa_qga_ssh_bootstrap_user }}'
+      bootstrap_shell='{{ linux_ipa_qga_ssh_bootstrap_shell }}'
+      bootstrap_pubkey="$(printf '%s' '{{ linux_ipa_qga_ssh_bootstrap_public_key_b64 }}' | base64 -d)"
+
+      if ! id -u "$bootstrap_user" >/dev/null 2>&1; then
+        useradd -m -s "$bootstrap_shell" "$bootstrap_user"
+      fi
+
+      if ! command -v sudo >/dev/null 2>&1; then
+      {% if linux_ipa_qga_ssh_bootstrap_install_sudo | bool %}
+        if command -v dnf >/dev/null 2>&1; then
+          dnf -y install sudo
+        elif command -v yum >/dev/null 2>&1; then
+          yum -y install sudo
+        elif command -v apt-get >/dev/null 2>&1; then
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y sudo
+        else
+          echo "sudo is not installed and no supported package manager was found" >&2
+          exit 1
+        fi
+      {% else %}
+        echo "sudo is not installed and linux_ipa_qga_ssh_bootstrap_install_sudo is false" >&2
+        exit 1
+      {% endif %}
+      fi
+
+      bootstrap_home="$(getent passwd "$bootstrap_user" | cut -d: -f6)"
+      bootstrap_group="$(id -gn "$bootstrap_user")"
+      install -d -m 0700 -o "$bootstrap_user" -g "$bootstrap_group" "$bootstrap_home/.ssh"
+      touch "$bootstrap_home/.ssh/authorized_keys"
+      chown "$bootstrap_user:$bootstrap_group" "$bootstrap_home/.ssh/authorized_keys"
+      chmod 0600 "$bootstrap_home/.ssh/authorized_keys"
+      grep -qxF "$bootstrap_pubkey" "$bootstrap_home/.ssh/authorized_keys" || printf '%s\n' "$bootstrap_pubkey" >> "$bootstrap_home/.ssh/authorized_keys"
+
+      install -d -m 0750 /etc/sudoers.d
+      cat > "/etc/sudoers.d/90-{{ linux_ipa_qga_ssh_bootstrap_user }}" <<'EOF'
+      {{ linux_ipa_qga_ssh_bootstrap_user }} ALL=(ALL) NOPASSWD:ALL
+      EOF
+      chmod 0440 "/etc/sudoers.d/90-{{ linux_ipa_qga_ssh_bootstrap_user }}"
+      visudo -cf "/etc/sudoers.d/90-{{ linux_ipa_qga_ssh_bootstrap_user }}" >/dev/null
+  ansible.builtin.command:
+    argv:
+      - qm
+      - guest
+      - exec
+      - "{{ hostvars[item].linux_ipa_proxmox_vmid | string }}"
+      - --timeout
+      - "{{ linux_ipa_qga_ssh_bootstrap_timeout | int | string }}"
+      - --
+      - /bin/sh
+      - -lc
+      - "{{ linux_ipa_qga_ssh_bootstrap_guest_script }}"
+  delegate_to: "{{ hostvars[item].linux_ipa_proxmox_node_inventory_host }}"
+  register: linux_ipa_qga_ssh_bootstrap_exec_results
+  loop: "{{ linux_ipa_qga_ssh_bootstrap_target_hosts }}"
+  loop_control:
+    label: "{{ item }}"
+  changed_when: false
+  when: linux_ipa_qga_ssh_bootstrap_target_hosts | length > 0
+
+- name: Assert Linux QGA SSH bootstrap guest commands completed successfully
+  ansible.builtin.assert:
+    that:
+      - item.rc == 0
+      - item.stdout | default('') | trim | length > 0
+      - (item.stdout | from_json).exited | default(false)
+      - ((item.stdout | from_json).exitcode | default(1) | int) == 0
+    fail_msg: >-
+      Linux QGA SSH bootstrap failed for {{ item.item }}.
+      Proxmox returned {{ item.stdout | default('no output') | trim | default('no output', true) }}.
+  loop: "{{ linux_ipa_qga_ssh_bootstrap_exec_results.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: linux_ipa_qga_ssh_bootstrap_target_hosts | length > 0
+
+- name: Prefer the Linux QGA SSH bootstrap user for subsequent runtime guest connections
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    groups: "{{ linux_ipa_runtime_group }}"
+    ansible_user: "{{ linux_ipa_qga_ssh_bootstrap_user }}"
+    ansible_become_method: sudo
+    ansible_ssh_private_key_file: "{{ linux_ipa_qga_ssh_bootstrap_private_key_file }}"
+  loop: "{{ linux_ipa_qga_ssh_bootstrap_target_hosts }}"
+  loop_control:
+    label: "{{ item }}"
+  changed_when: false
+  when: linux_ipa_qga_ssh_bootstrap_target_hosts | length > 0

@@ -1,2 +1,3 @@
 ---
 vault_freeipa_admin_password: CHANGE_ME
+vault_linux_ipa_ssh_bootstrap_password: CHANGE_ME_IF_USING_LINUX_SSH_BOOTSTRAP

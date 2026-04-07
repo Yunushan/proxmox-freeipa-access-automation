@@ -1,0 +1,104 @@
+---
+- name: Validate the controller SSH public key file for Linux bootstrap
+  ansible.builtin.stat:
+    path: "{{ linux_ipa_ssh_bootstrap_public_key_file }}"
+  delegate_to: localhost
+  become: false
+  register: linux_ipa_ssh_bootstrap_public_key_stat
+
+- name: Assert the controller SSH public key file exists for Linux bootstrap
+  ansible.builtin.assert:
+    that:
+      - linux_ipa_ssh_bootstrap_public_key_stat.stat.exists
+      - linux_ipa_ssh_bootstrap_public_key_stat.stat.isreg
+    fail_msg: >-
+      linux_ipa_ssh_bootstrap_public_key_file must point to an existing controller
+      SSH public key file before Linux SSH bootstrap can run.
+
+- name: Resolve the effective controller SSH private key file for Linux bootstrap follow-up connections
+  ansible.builtin.set_fact:
+    linux_ipa_ssh_bootstrap_effective_private_key_file: >-
+      {{
+        hostvars[inventory_hostname].ansible_ssh_private_key_file
+        | default(linux_ipa_ssh_bootstrap_private_key_file, true)
+      }}
+
+- name: Validate the controller SSH private key file for Linux bootstrap follow-up connections
+  ansible.builtin.stat:
+    path: "{{ linux_ipa_ssh_bootstrap_effective_private_key_file }}"
+  delegate_to: localhost
+  become: false
+  register: linux_ipa_ssh_bootstrap_private_key_stat
+
+- name: Assert the controller SSH private key file exists for Linux bootstrap follow-up connections
+  ansible.builtin.assert:
+    that:
+      - linux_ipa_ssh_bootstrap_private_key_stat.stat.exists
+      - linux_ipa_ssh_bootstrap_private_key_stat.stat.isreg
+    fail_msg: >-
+      The effective Linux SSH bootstrap private key file must point to an existing
+      controller private key that matches linux_ipa_ssh_bootstrap_public_key_file.
+
+- name: Load the controller SSH public key for Linux bootstrap
+  ansible.builtin.set_fact:
+    linux_ipa_ssh_bootstrap_public_key: "{{ lookup('ansible.builtin.file', linux_ipa_ssh_bootstrap_public_key_file) | trim }}"
+
+- name: Assert the controller SSH public key is not empty
+  ansible.builtin.assert:
+    that:
+      - linux_ipa_ssh_bootstrap_public_key | length > 0
+    fail_msg: >-
+      linux_ipa_ssh_bootstrap_public_key_file resolved to an empty SSH public key.
+
+- name: Resolve the effective Linux SSH bootstrap user
+  ansible.builtin.set_fact:
+    linux_ipa_ssh_bootstrap_effective_user: "{{ ansible_user | default('root') }}"
+
+- name: Read the effective Linux SSH bootstrap user account entry
+  ansible.builtin.command:
+    argv:
+      - getent
+      - passwd
+      - "{{ linux_ipa_ssh_bootstrap_effective_user }}"
+  register: linux_ipa_ssh_bootstrap_passwd_entry
+  changed_when: false
+
+- name: Assert the effective Linux SSH bootstrap user exists locally
+  ansible.builtin.assert:
+    that:
+      - linux_ipa_ssh_bootstrap_passwd_entry.rc == 0
+      - (linux_ipa_ssh_bootstrap_passwd_entry.stdout | default('') | split(':') | length) >= 6
+    fail_msg: >-
+      Could not resolve the Linux SSH bootstrap user {{ linux_ipa_ssh_bootstrap_effective_user }}
+      on {{ inventory_hostname }}.
+
+- name: Resolve the effective Linux SSH bootstrap home directory
+  ansible.builtin.set_fact:
+    linux_ipa_ssh_bootstrap_home: "{{ (linux_ipa_ssh_bootstrap_passwd_entry.stdout | split(':'))[5] }}"
+
+- name: Ensure the Linux SSH bootstrap directory exists
+  ansible.builtin.file:
+    path: "{{ linux_ipa_ssh_bootstrap_home }}/.ssh"
+    state: directory
+    owner: "{{ linux_ipa_ssh_bootstrap_effective_user }}"
+    mode: "0700"
+
+- name: Ensure the controller SSH public key is authorized for the Linux SSH bootstrap user
+  ansible.builtin.lineinfile:
+    path: "{{ linux_ipa_ssh_bootstrap_home }}/.ssh/authorized_keys"
+    line: "{{ linux_ipa_ssh_bootstrap_public_key }}"
+    create: true
+    owner: "{{ linux_ipa_ssh_bootstrap_effective_user }}"
+    mode: "0600"
+    state: present
+
+- name: Prefer the controller SSH private key for subsequent Linux guest connections
+  ansible.builtin.add_host:
+    name: "{{ inventory_hostname }}"
+    groups: "{{ linux_ipa_runtime_group }}"
+    ansible_ssh_private_key_file: >-
+      {{
+        linux_ipa_ssh_bootstrap_effective_private_key_file
+      }}
+  delegate_to: localhost
+  changed_when: false

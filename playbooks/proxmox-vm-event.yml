@@ -7,6 +7,32 @@
     - discovery
     - event
 
+- name: Ensure QEMU Guest Agent on reachable guests for a Proxmox VM event
+  import_playbook: includes/ensure_guest_qemu_agent.yml
+  tags:
+    - linux
+    - windows
+    - inventory
+    - qga_install
+    - event
+
+- name: Bootstrap Linux SSH access through the Proxmox guest agent for a Proxmox VM event
+  import_playbook: includes/bootstrap_linux_qga_ssh.yml
+  tags:
+    - linux
+    - inventory
+    - discovery
+    - qga_bootstrap
+    - event
+
+- name: Bootstrap Linux SSH access for a Proxmox VM event
+  import_playbook: includes/bootstrap_linux_ssh.yml
+  tags:
+    - linux
+    - inventory
+    - ssh_bootstrap
+    - event
+
 - name: Resolve Linux hostnames for a Proxmox VM event
   import_playbook: includes/resolve_linux_hostnames.yml
   tags:

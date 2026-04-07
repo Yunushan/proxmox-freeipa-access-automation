@@ -72,5 +72,6 @@ This is better than creating local guest users via automation because:
 
 ## Windows note
 
-This project leaves Windows out on purpose.
+This project leaves Windows identity and domain-logon management out on purpose.
 For proper Windows domain logon, use Active Directory or an AD trust model where appropriate.
+The repository can optionally install QEMU Guest Agent on reachable Windows guests, but that is only a guest-management helper and not a Windows access-management workflow.

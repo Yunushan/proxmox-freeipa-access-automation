@@ -1,0 +1,19 @@
+---
+- name: Bootstrap controller SSH key access on Linux guests
+  hosts: linux_ipa_clients_runtime
+  gather_facts: false
+  serial: "{{ linux_freeipa_enroll_serial | default(10) | int }}"
+  max_fail_percentage: "{{ linux_freeipa_enroll_max_fail_percentage | default(0) | int }}"
+  tags:
+    - linux
+    - linux_enroll
+    - inventory
+    - ssh_bootstrap
+  roles:
+    - role: linux_ipa_ssh_bootstrap
+      when: linux_ipa_ssh_bootstrap_enabled | bool
+      tags:
+        - linux
+        - linux_enroll
+        - inventory
+        - ssh_bootstrap

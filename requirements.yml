@@ -2,3 +2,4 @@
 collections:
   - name: freeipa.ansible_freeipa
     version: "1.16.0"
+  - name: ansible.windows

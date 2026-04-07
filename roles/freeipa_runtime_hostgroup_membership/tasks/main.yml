@@ -1,7 +1,7 @@
 ---
 - name: Build event-target Linux hostnames for FreeIPA hostgroup updates
   vars:
-    freeipa_runtime_hostgroup_target_hosts_yaml: |
+    freeipa_runtime_hostgroup_membership_target_hosts_yaml: |
       {% set hosts = [] %}
       {% for runtime_host in groups[freeipa_runtime_hostgroup_membership_inventory_group] | default([]) %}
       {%   set resolved = hostvars[runtime_host].freeipa_hostgroup_hostname
@@ -16,45 +16,45 @@
       {% endfor %}
       {{ hosts | unique | list | to_yaml }}
   ansible.builtin.set_fact:
-    freeipa_runtime_hostgroup_target_hosts: "{{ freeipa_runtime_hostgroup_target_hosts_yaml | from_yaml }}"
+    freeipa_runtime_hostgroup_membership_target_hosts: "{{ freeipa_runtime_hostgroup_membership_target_hosts_yaml | from_yaml }}"
   changed_when: false
 
 - name: Assert event-target Linux hostnames resolved for FreeIPA hostgroup updates
   ansible.builtin.assert:
     that:
-      - freeipa_runtime_hostgroup_target_hosts | default([]) | length > 0
+      - freeipa_runtime_hostgroup_membership_target_hosts | default([]) | length > 0
     fail_msg: >-
       No resolved Linux runtime hostnames were available for event-driven FreeIPA hostgroup updates.
       Ensure the event playbook ran hostname resolution successfully for the discovered VM.
 
 - name: Build FreeIPA hostgroups backed by the Linux runtime inventory group
   vars:
-    freeipa_runtime_hostgroups_targeted_yaml: |
+    freeipa_runtime_hostgroup_membership_hostgroups_targeted_yaml: |
       {% set targeted = [] %}
-      {% for hostgroup in freeipa_hostgroups %}
+      {% for hostgroup in freeipa_runtime_hostgroup_membership_hostgroups %}
       {%   if freeipa_runtime_hostgroup_membership_inventory_group in (hostgroup.inventory_groups | default([])) %}
       {%     set _ = targeted.append(hostgroup) %}
       {%   endif %}
       {% endfor %}
       {{ targeted | to_yaml }}
   ansible.builtin.set_fact:
-    freeipa_runtime_hostgroups_targeted: "{{ freeipa_runtime_hostgroups_targeted_yaml | from_yaml }}"
+    freeipa_runtime_hostgroup_membership_hostgroups_targeted: "{{ freeipa_runtime_hostgroup_membership_hostgroups_targeted_yaml | from_yaml }}"
   changed_when: false
 
 - name: Ensure event-target Linux hosts are present in runtime-backed FreeIPA hostgroups
   freeipa.ansible_freeipa.ipahostgroup:
-    ipaadmin_principal: "{{ freeipa_admin_principal }}"
-    ipaadmin_password: "{{ freeipa_admin_password }}"
-    ipaapi_context: "{{ freeipa_api_context }}"
+    ipaadmin_principal: "{{ freeipa_runtime_hostgroup_membership_admin_principal }}"
+    ipaadmin_password: "{{ freeipa_runtime_hostgroup_membership_admin_password }}"
+    ipaapi_context: "{{ freeipa_runtime_hostgroup_membership_api_context }}"
     name: "{{ item.0.name }}"
     host:
       - "{{ item.1 }}"
     action: member
     state: present
-  loop: "{{ freeipa_runtime_hostgroups_targeted | default([]) | product(freeipa_runtime_hostgroup_target_hosts | default([])) | list }}"
+  loop: "{{ freeipa_runtime_hostgroup_membership_hostgroups_targeted | default([]) | product(freeipa_runtime_hostgroup_membership_target_hosts | default([])) | list }}"
   loop_control:
     label: "{{ item.0.name }} <- {{ item.1 }}"
   when:
-    - freeipa_runtime_hostgroups_targeted | default([]) | length > 0
-    - freeipa_runtime_hostgroup_target_hosts | default([]) | length > 0
+    - freeipa_runtime_hostgroup_membership_hostgroups_targeted | default([]) | length > 0
+    - freeipa_runtime_hostgroup_membership_target_hosts | default([]) | length > 0
   no_log: true

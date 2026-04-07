@@ -51,10 +51,31 @@
     - not linux_ipa_proxmox_discovery_skip_missing_ip | bool
 
 - name: Add discovered Proxmox VMs to the Linux IPA runtime group
+  vars:
+    linux_ipa_proxmox_discovery_ssh_common_args_default: >-
+      {{
+        '-o StrictHostKeyChecking=accept-new'
+        if linux_ipa_ssh_host_key_policy == 'accept_new'
+        else (
+          '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+          if linux_ipa_ssh_host_key_policy == 'disabled'
+          else ''
+        )
+      }}
   ansible.builtin.add_host:
     name: "{{ linux_ipa_proxmox_discovery_inventory_prefix }}-{{ linux_ipa_proxmox_node_shortname.stdout }}-vm{{ linux_ipa_proxmox_guest_network_result.item.vmid }}"
     groups: "{{ linux_ipa_runtime_group }}"
     ansible_host: "{{ linux_ipa_proxmox_discovered_ip | trim }}"
+    ansible_password: >-
+      {{
+        linux_ipa_ssh_bootstrap_password
+        if (
+          linux_ipa_ssh_bootstrap_enabled | bool
+          and (linux_ipa_ssh_bootstrap_password | default('', true) | string | trim | length > 0)
+        )
+        else omit
+      }}
+    ansible_ssh_common_args: "{{ linux_ipa_proxmox_discovery_ssh_common_args_default if (linux_ipa_proxmox_discovery_ssh_common_args_default | length > 0) else omit }}"
     linux_ipa_requested_hostname: >-
       {{
         (
@@ -65,6 +86,7 @@
       }}
     linux_ipa_source: proxmox_discovery
     linux_ipa_proxmox_node: "{{ linux_ipa_proxmox_node_shortname.stdout }}"
+    linux_ipa_proxmox_node_inventory_host: "{{ inventory_hostname }}"
     linux_ipa_proxmox_vmid: "{{ linux_ipa_proxmox_guest_network_result.item.vmid }}"
     linux_ipa_proxmox_vm_name: "{{ linux_ipa_proxmox_guest_network_result.item.name | default('vm-' ~ linux_ipa_proxmox_guest_network_result.item.vmid) }}"
   when: linux_ipa_proxmox_discovered_ip | length > 0

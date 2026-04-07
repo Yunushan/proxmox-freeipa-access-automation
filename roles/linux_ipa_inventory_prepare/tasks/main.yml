@@ -3,6 +3,13 @@
   ansible.builtin.set_fact:
     linux_ipa_inventory_source_hosts: []
 
+- name: Validate Linux IPA SSH host key policy
+  ansible.builtin.assert:
+    that:
+      - linux_ipa_ssh_host_key_policy in ['strict', 'accept_new', 'disabled']
+    fail_msg: >-
+      linux_ipa_ssh_host_key_policy must be one of strict, accept_new, or disabled.
+
 - name: Collect Linux IPA hosts from inventory source groups
   ansible.builtin.set_fact:
     linux_ipa_inventory_source_hosts: "{{ (linux_ipa_inventory_source_hosts + (groups[item] | default([]))) | unique }}"
@@ -11,9 +18,57 @@
     label: "{{ item }}"
 
 - name: Add inventory-defined Linux IPA hosts to the runtime group
+  vars:
+    linux_ipa_inventory_prepare_ssh_common_args_default: >-
+      {{
+        '-o StrictHostKeyChecking=accept-new'
+        if linux_ipa_ssh_host_key_policy == 'accept_new'
+        else (
+          '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+          if linux_ipa_ssh_host_key_policy == 'disabled'
+          else ''
+        )
+      }}
   ansible.builtin.add_host:
     name: "{{ item }}"
     groups: "{{ linux_ipa_runtime_group }}"
+    ansible_host: "{{ hostvars[item].ansible_host | default(omit) }}"
+    ansible_user: "{{ hostvars[item].ansible_user | default(omit) }}"
+    ansible_port: "{{ hostvars[item].ansible_port | default(omit) }}"
+    ansible_connection: "{{ hostvars[item].ansible_connection | default(omit) }}"
+    ansible_password: >-
+      {{
+        (
+          hostvars[item].ansible_password
+          | default(linux_ipa_ssh_bootstrap_password, true)
+        )
+        if (
+          (hostvars[item].ansible_password | default('', true) | string | trim | length > 0)
+          or (
+            linux_ipa_ssh_bootstrap_enabled | bool
+            and (linux_ipa_ssh_bootstrap_password | default('', true) | string | trim | length > 0)
+          )
+        )
+        else omit
+      }}
+    ansible_become: "{{ hostvars[item].ansible_become | default(omit) }}"
+    ansible_become_method: "{{ hostvars[item].ansible_become_method | default(omit) }}"
+    ansible_become_password: "{{ hostvars[item].ansible_become_password | default(omit) }}"
+    ansible_ssh_private_key_file: "{{ hostvars[item].ansible_ssh_private_key_file | default(omit) }}"
+    linux_ipa_proxmox_node_inventory_host: "{{ hostvars[item].linux_ipa_proxmox_node_inventory_host | default(omit) }}"
+    linux_ipa_proxmox_vmid: "{{ hostvars[item].linux_ipa_proxmox_vmid | default(omit) }}"
+    ansible_ssh_common_args: >-
+      {{
+        (
+          hostvars[item].ansible_ssh_common_args
+          | default(linux_ipa_inventory_prepare_ssh_common_args_default, true)
+        )
+        if (
+          (hostvars[item].ansible_ssh_common_args | default('', true) | string | trim | length > 0)
+          or (linux_ipa_inventory_prepare_ssh_common_args_default | length > 0)
+        )
+        else omit
+      }}
   loop: "{{ linux_ipa_inventory_source_hosts }}"
   loop_control:
     label: "{{ item }}"
@@ -31,6 +86,17 @@
     label: "{{ item.name | default(item.ansible_host | default(item.ipa_hostname | default('unnamed-client'))) }}"
 
 - name: Add manually defined Linux IPA hosts to the runtime group
+  vars:
+    linux_ipa_inventory_prepare_ssh_common_args_default: >-
+      {{
+        '-o StrictHostKeyChecking=accept-new'
+        if linux_ipa_ssh_host_key_policy == 'accept_new'
+        else (
+          '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+          if linux_ipa_ssh_host_key_policy == 'disabled'
+          else ''
+        )
+      }}
   ansible.builtin.add_host:
     name: >-
       {{
@@ -43,12 +109,39 @@
     ansible_user: "{{ item.ansible_user | default(omit) }}"
     ansible_port: "{{ item.ansible_port | default(omit) }}"
     ansible_connection: "{{ item.ansible_connection | default(omit) }}"
-    ansible_password: "{{ item.ansible_password | default(omit) }}"
+    ansible_password: >-
+      {{
+        (
+          item.ansible_password
+          | default(linux_ipa_ssh_bootstrap_password, true)
+        )
+        if (
+          (item.ansible_password | default('', true) | string | trim | length > 0)
+          or (
+            linux_ipa_ssh_bootstrap_enabled | bool
+            and (linux_ipa_ssh_bootstrap_password | default('', true) | string | trim | length > 0)
+          )
+        )
+        else omit
+      }}
     ansible_become: "{{ item.ansible_become | default(omit) }}"
     ansible_become_method: "{{ item.ansible_become_method | default(omit) }}"
     ansible_become_password: "{{ item.ansible_become_password | default(omit) }}"
     ansible_ssh_private_key_file: "{{ item.ansible_ssh_private_key_file | default(omit) }}"
-    ansible_ssh_common_args: "{{ item.ansible_ssh_common_args | default(omit) }}"
+    linux_ipa_proxmox_node_inventory_host: "{{ item.linux_ipa_proxmox_node_inventory_host | default(omit) }}"
+    linux_ipa_proxmox_vmid: "{{ item.linux_ipa_proxmox_vmid | default(omit) }}"
+    ansible_ssh_common_args: >-
+      {{
+        (
+          item.ansible_ssh_common_args
+          | default(linux_ipa_inventory_prepare_ssh_common_args_default, true)
+        )
+        if (
+          (item.ansible_ssh_common_args | default('', true) | string | trim | length > 0)
+          or (linux_ipa_inventory_prepare_ssh_common_args_default | length > 0)
+        )
+        else omit
+      }}
     linux_ipa_requested_hostname: "{{ item.ipa_hostname | default(omit, true) }}"
     freeipa_hostgroup_hostname: "{{ item.ipa_hostname | default(omit, true) }}"
     linux_ipa_source: manual

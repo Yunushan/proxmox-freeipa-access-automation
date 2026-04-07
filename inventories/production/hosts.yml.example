@@ -30,3 +30,16 @@ all:
           ansible_host: 192.0.2.102
         # Option 3: remove these entries entirely and use linux_ipa_client_hosts
         # or Proxmox VM discovery from group_vars/all/30-linux-clients.yml instead.
+    windows_qemu_guest_agent_clients:
+      hosts:
+        # Optional: only used when you want this repository to install QEMU
+        # Guest Agent on reachable Windows guests. This does not enroll or
+        # otherwise manage Windows identity.
+        # windows-guest-01.example.com:
+        #   ansible_host: 192.0.2.150
+        #   ansible_connection: winrm
+        #   ansible_user: Administrator
+        #   ansible_password: "{{ vault_windows_admin_password }}"
+        #   ansible_port: 5986
+        #   ansible_winrm_transport: ntlm
+        #   ansible_winrm_server_cert_validation: ignore
