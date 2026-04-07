@@ -62,7 +62,7 @@ After the webhook service is running, you can simulate an event from the control
 curl -X POST \
   -H "Authorization: Bearer CHANGE_ME" \
   -H "Content-Type: application/json" \
-  -d '{"vmid":"241","phase":"post-start","node":"pve6-ist","node_fqdn":"pve6-ist.karel.net.tr","source":"manual-test"}' \
+  -d '{"vmid":"241","phase":"post-start","node":"pve-test-01","node_fqdn":"pve-test-01.example.test","source":"test"}' \
   http://127.0.0.1:8085/hooks/proxmox-vm-event
 ```
 
