@@ -449,7 +449,8 @@
         | map('string')
         | map('trim')
         | reject('equalto', '')
-        | map('regex_replace', '\\s+.*$', '')
+        | map('split')
+        | map('first')
         | unique
         | list
       }}

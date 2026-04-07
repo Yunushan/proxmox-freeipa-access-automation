@@ -245,14 +245,20 @@
 
 - name: Fail when Linux QGA SSH bootstrap hit unexpected Proxmox guest exec errors
   ansible.builtin.assert:
+    vars:
+      linux_ipa_qga_ssh_bootstrap_exec_failed_results_summary: |
+        {%- set summary = [] -%}
+        {%- for result in linux_ipa_qga_ssh_bootstrap_exec_failed_results -%}
+        {%- set _ = summary.append(
+          result.item ~ ' (rc=' ~ (result.rc | string) ~ ', stderr=' ~ ((result.stderr | default('') | trim) | default('no stderr', true)) ~ ')'
+        ) -%}
+        {%- endfor -%}
+        {{ summary | join('; ') }}
     that:
       - linux_ipa_qga_ssh_bootstrap_exec_failed_results | length == 0
     fail_msg: >-
       Linux QGA SSH bootstrap failed on {{ inventory_hostname }} for
-      {% for result in linux_ipa_qga_ssh_bootstrap_exec_failed_results -%}
-      {{ result.item }} (rc={{ result.rc }}, stderr={{ result.stderr | default('') | trim | default('no stderr', true) }})
-      {%- if not loop.last %}; {% endif -%}
-      {%- endfor %}.
+      {{ linux_ipa_qga_ssh_bootstrap_exec_failed_results_summary }}.
   when: linux_ipa_qga_ssh_bootstrap_target_hosts | length > 0
 
 - name: Assert Linux QGA SSH bootstrap guest commands completed successfully
