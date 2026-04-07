@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  author: Repository maintainers
+  description: Add targeted Linux runtime hosts to FreeIPA hostgroups that are backed by the runtime inventory group.
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

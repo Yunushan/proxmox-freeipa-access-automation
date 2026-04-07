@@ -1,4 +1,17 @@
 ---
+- name: Normalize optional Proxmox discovery VMID filters for this node
+  ansible.builtin.set_fact:
+    linux_ipa_proxmox_discovery_vmids_normalized: >-
+      {{
+        linux_ipa_proxmox_discovery_vmids
+        | default([])
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
+  changed_when: false
+
 - name: Read Proxmox node short name
   ansible.builtin.command: hostname -s
   become: true
@@ -31,6 +44,7 @@
     label: "{{ item.name | default('vm-' ~ item.vmid) }}"
   when:
     - not (item.template | default(0) | bool)
+    - (linux_ipa_proxmox_discovery_vmids_normalized | length == 0) or ((item.vmid | string) in linux_ipa_proxmox_discovery_vmids_normalized)
     - (not linux_ipa_proxmox_discovery_only_running | bool) or (item.status | default('') == 'running')
 
 - name: Read guest network interfaces through the Proxmox guest agent

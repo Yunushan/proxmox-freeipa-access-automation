@@ -1,0 +1,16 @@
+[Unit]
+Description=Proxmox VM event webhook for FreeIPA automation
+After=network.target
+
+[Service]
+Type=simple
+User=ansible
+Group=ansible
+WorkingDirectory=/opt/ansible/proxmox-freeipa-access-automation
+EnvironmentFile=/etc/default/proxmox-freeipa-event-webhook
+ExecStart=/usr/bin/python3 /opt/ansible/proxmox-freeipa-access-automation/scripts/proxmox_event_webhook.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

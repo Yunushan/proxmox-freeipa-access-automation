@@ -12,6 +12,7 @@ and this project follows semantic versioning when tagged releases are introduced
 - Split inventory variable files for features, FreeIPA, Linux clients, Proxmox LDAP, sync, and RBAC.
 - Shared Linux inventory-preparation and hostname-resolution playbook includes.
 - Linux guest source modes for static inventory, IP-only/manual definitions, and Proxmox VM discovery.
+- An event-driven Proxmox hook and controller webhook workflow for immediate Linux guest onboarding after `post-start` and `post-migrate` VM events.
 - Role-level `meta/main.yml` and `README.md` files for every local role.
 - Repository governance files: `.editorconfig` and `.github/CODEOWNERS`.
 - A dedicated `tests/` surface with smoke-test documentation and a reusable `scripts/smoke-test.py` entrypoint.
@@ -28,3 +29,4 @@ and this project follows semantic versioning when tagged releases are introduced
 - The FreeIPA collection dependency is now pinned to an exact version, and smoke setup now materializes all example vault files automatically.
 - Playbooks, preparation includes, and validation paths now use a documented and consistent operator tag model.
 - Rollout serial and failure-budget controls are now centralized in inventory vars and applied across FreeIPA, Proxmox, Linux, and validation paths.
+- Proxmox VM discovery can now optionally filter by VMID, which is used by the event-driven onboarding workflow.

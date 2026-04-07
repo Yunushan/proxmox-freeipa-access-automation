@@ -17,6 +17,7 @@
   <a href="#quick-start">Quick Start</a> •
   <a href="#rollout-order">Rollout Order</a> •
   <a href="#inventory-model">Inventory Model</a> •
+  <a href="docs/EVENT_DRIVEN_VM_ONBOARDING.md">Event Hooks</a> •
   <a href="docs/VARIABLES.md">Variables</a> •
   <a href="#verification">Verification</a> •
   <a href="#development">Development</a> •
@@ -56,6 +57,7 @@ This is a good fit when you want onboarding and offboarding to be mostly:
 - Proxmox RBAC bindings for synced directory groups
 - Linux guest enrollment into FreeIPA with static inventory, IP-only targets, or Proxmox VM discovery
 - automatic SSSD cache refresh on managed Linux clients after FreeIPA access-model changes
+- optional event-driven Linux onboarding from Proxmox VM hook and webhook triggers
 
 ## Scope
 
@@ -336,6 +338,7 @@ Use tags to target stable rollout slices instead of creating more playbooks.
 - Proxmox subsets: `proxmox_ldap`, `proxmox_sync`, `proxmox_rbac`
 - Linux preparation: `inventory`, `discovery`, `hostnames`, `linux_inventory`, `proxmox_discovery`
 - Linux enrollment: `linux_enroll`
+- Event-driven VM handling: `event`, `linux_refresh`
 
 Examples:
 
@@ -344,6 +347,14 @@ Examples:
 .\scripts\run-playbook.ps1 -Playbook proxmox -Tags proxmox_ldap,proxmox_rbac -VaultId freeipa@prompt,proxmox@prompt
 .\scripts\run-playbook.ps1 -Playbook validate -Tags discovery -VaultId freeipa@prompt,proxmox@prompt
 ```
+
+## Event-Driven VM Onboarding
+
+If you want Proxmox to trigger Linux discovery and IPA enrollment immediately after VM starts or migrations, use the optional hook/webhook workflow documented in [docs/EVENT_DRIVEN_VM_ONBOARDING.md](docs/EVENT_DRIVEN_VM_ONBOARDING.md).
+
+That workflow uses a dedicated event playbook at `playbooks/proxmox-vm-event.yml` so the trigger path only handles the Linux and FreeIPA guest side. It does not rerun the Proxmox LDAP realm or RBAC automation on every VM event.
+
+Proxmox VM hooks do not expose a standalone `create` phase. In practice, new VMs are picked up on their first `post-start` event, and migration hooks can trigger on both source and target nodes.
 
 ## Inventory Model
 
@@ -417,6 +428,7 @@ Notes:
 - discovery adds VMs to the same `linux_ipa_clients_runtime` group used by the rest of the playbooks
 - IP discovery depends on the QEMU guest agent reporting network interfaces
 - `linux_ipa_proxmox_discovery_use_vm_name_as_hint` only trusts VM names that are already FQDNs
+- `linux_ipa_proxmox_discovery_vmids` is optional and mainly used by the event-driven hook/webhook workflow to scope discovery to one or more specific VMIDs
 - the guest still needs a final hostname, either already configured inside the VM or provided with `ipa_hostname` through a manual definition
 - the guest's real system hostname must also be valid for enrollment; placeholder values such as `localhost.localdomain` must be replaced on the VM before running `linux-clients` or `site`
 - when guests use short hostnames such as `app-server-01`, you can set `linux_ipa_identity_hostname_suffix` and optionally `linux_freeipa_enroll_manage_hostname: true` so the project resolves and applies a full hostname such as `app-server-01.example.net` before enrollment
@@ -548,6 +560,7 @@ After a successful rollout, verify the resulting state instead of assuming every
 │       └── README.md
 ├── docs/
 │   ├── ARCHITECTURE.md
+│   ├── EVENT_DRIVEN_VM_ONBOARDING.md
 │   └── VARIABLES.md
 ├── inventories/
 │   └── production/
@@ -566,18 +579,22 @@ After a successful rollout, verify the resulting state instead of assuming every
 │               └── vault-proxmox.yml.example
 ├── playbooks/
 │   ├── includes/
+│   │   ├── prepare_linux_event_inventory.yml
 │   │   ├── prepare_linux_inventory.yml
 │   │   └── resolve_linux_hostnames.yml
 │   ├── freeipa.yml
 │   ├── linux-clients.yml
+│   ├── proxmox-vm-event.yml
 │   ├── proxmox.yml
 │   ├── site.yml
 │   └── validate.yml
 ├── roles/
 │   ├── freeipa_access_model/
+│   ├── freeipa_runtime_hostgroup_membership/
 │   ├── linux_ipa_host_identity/
 │   ├── linux_ipa_inventory_prepare/
 │   ├── linux_freeipa_enroll/
+│   ├── linux_sssd_refresh/
 │   ├── proxmox_linux_vm_discovery/
 │   ├── proxmox_ldap_realm/
 │   ├── proxmox_rbac/
@@ -588,6 +605,11 @@ After a successful rollout, verify the resulting state instead of assuming every
     ├── lint.ps1
     ├── lint.sh
     ├── patch_freeipa_collection.py
+    ├── proxmox-event-webhook.env.example
+    ├── proxmox-event-webhook.service.example
+    ├── proxmox-vm-hook.conf.example
+    ├── proxmox-vm-hook.pl
+    ├── proxmox_event_webhook.py
     ├── smoke-test.py
     ├── run-playbook.ps1
     ├── vault.ps1
@@ -616,6 +638,8 @@ Repository helper files included here:
 - `scripts/lint.py` provides the cross-platform lint entrypoint for local use, CI, and pre-commit
 - `scripts/smoke-test.py` validates the example inventory and runs syntax checks without touching real infrastructure
 - `scripts/lint.ps1` and `scripts/lint.sh` run the combined local lint and smoke workflow
+- `scripts/proxmox_event_webhook.py` runs the optional controller-side webhook for Proxmox VM events
+- `scripts/proxmox-vm-hook.pl` is the optional Proxmox VM hookscript that notifies the controller webhook on `post-start` and `post-migrate`
 - `scripts/run-playbook.ps1` wraps common `ansible-playbook` commands for PowerShell users
 - `scripts/vault.ps1` and `scripts/vault.sh` wrap common split-vault operations for FreeIPA and Proxmox secrets
 - `tests/` holds the repository verification surface, starting with smoke-test documentation

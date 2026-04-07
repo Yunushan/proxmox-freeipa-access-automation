@@ -2,6 +2,7 @@
 linux_ipa_runtime_group: linux_ipa_clients_runtime
 linux_ipa_proxmox_discovery_enabled: false
 linux_ipa_proxmox_discovery_nodes: []
+linux_ipa_proxmox_discovery_vmids: []
 linux_ipa_proxmox_discovery_only_running: true
 linux_ipa_proxmox_discovery_skip_missing_ip: true
 linux_ipa_proxmox_discovery_ip_preference: ipv4

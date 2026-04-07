@@ -1,0 +1,72 @@
+---
+- name: Prepare Linux inventory from a Proxmox VM event
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - linux
+    - inventory
+    - discovery
+    - event
+  tasks:
+    - name: Assert Proxmox discovery is enabled for event-driven Linux handling
+      ansible.builtin.assert:
+        that:
+          - linux_ipa_proxmox_discovery_enabled | bool
+          - linux_ipa_proxmox_discovery_nodes | length > 0
+        fail_msg: >-
+          Event-driven Linux handling requires linux_ipa_proxmox_discovery_enabled: true
+          and one or more linux_ipa_proxmox_discovery_nodes values.
+      tags:
+        - linux
+        - discovery
+        - event
+
+    - name: Assert the Proxmox VM event supplied at least one VMID filter
+      ansible.builtin.assert:
+        that:
+          - linux_ipa_proxmox_discovery_vmids | default([]) | length > 0
+        fail_msg: >-
+          Event-driven Linux handling requires linux_ipa_proxmox_discovery_vmids
+          to be provided by the event trigger.
+      tags:
+        - linux
+        - discovery
+        - event
+
+    - name: Validate Proxmox discovery configuration for event-driven Linux handling
+      ansible.builtin.include_role:
+        name: proxmox_linux_vm_discovery
+        tasks_from: validate.yml
+      tags:
+        - linux
+        - discovery
+        - event
+
+    - name: Seed Proxmox discovery target runtime group for the VM event
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        groups: linux_ipa_proxmox_discovery_targets
+      loop: "{{ linux_ipa_proxmox_discovery_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+      changed_when: false
+      tags:
+        - linux
+        - discovery
+        - event
+
+- name: Discover Linux guests from Proxmox nodes for the VM event
+  hosts: linux_ipa_proxmox_discovery_targets
+  gather_facts: false
+  tags:
+    - linux
+    - inventory
+    - discovery
+    - event
+  roles:
+    - role: proxmox_linux_vm_discovery
+      tags:
+        - linux
+        - discovery
+        - event

@@ -15,6 +15,7 @@ Discovers guest VMs from one or more Proxmox nodes and adds them to the Linux IP
 - `linux_ipa_runtime_group`
 - `linux_ipa_proxmox_discovery_enabled`
 - `linux_ipa_proxmox_discovery_nodes`
+- `linux_ipa_proxmox_discovery_vmids`
 - `linux_ipa_proxmox_discovery_only_running`
 - `linux_ipa_proxmox_discovery_skip_missing_ip`
 - `linux_ipa_proxmox_discovery_ip_preference`
@@ -25,3 +26,4 @@ Discovers guest VMs from one or more Proxmox nodes and adds them to the Linux IP
 
 - Discovery relies on the QEMU guest agent for IP visibility.
 - Guest discovery only prepares inventory; hostname resolution and IPA enrollment happen in later steps.
+- `linux_ipa_proxmox_discovery_vmids` is optional and is mainly useful for event-driven runs that should scope discovery to one or more specific VMIDs.

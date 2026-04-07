@@ -1,0 +1,3 @@
+---
+freeipa_runtime_hostgroup_membership_enabled: true
+freeipa_runtime_hostgroup_membership_inventory_group: linux_ipa_clients_runtime

@@ -1,0 +1,8 @@
+# Copy to /etc/default/proxmox-freeipa-hook on each Proxmox node that runs the hookscript.
+
+PFA_WEBHOOK_URL=https://ansible-controller.example.com:8085/hooks/proxmox-vm-event
+PFA_WEBHOOK_TOKEN=CHANGE_ME
+PFA_ALLOWED_PHASES=post-start,post-migrate
+PFA_VERIFY_TLS=1
+PFA_TIMEOUT_SECONDS=10
+PFA_STRICT=0
