@@ -58,6 +58,7 @@ Relevant Linux enrollment hostname controls:
 - `linux_freeipa_enroll_join_attempts`: number of times the repository retries the upstream FreeIPA client join when it fails with a JSON-RPC timeout; defaults to `3`
 - `linux_freeipa_enroll_join_retry_delay`: seconds to wait between join retries after a JSON-RPC timeout; defaults to `15`
 - `linux_freeipa_enroll_success_group`: runtime inventory group that collects only the Linux guests that completed FreeIPA enrollment successfully; defaults to `linux_ipa_clients_enrolled_runtime`
+- `linux_freeipa_enroll_merge_inventory_ipa_servers`: when `true`, Linux enrollment appends the `ipa_servers` inventory hostnames to `linux_ipa_servers` before resolution, reachability checks, and the upstream client join; defaults to `true`
 - `linux_ipa_manage_etc_hosts`: when `true`, the Linux enrollment role manages a bootstrap block in `/etc/hosts` before IPA connectivity and hostname verification
 - `linux_ipa_etc_hosts_entries`: list of `{ ip, names }` mappings for `/etc/hosts`, useful when IPA DNS is not reachable yet or when a guest FQDN must be pinned locally during bootstrap
 - `guest_qemu_agent_install_enabled`: when `true`, reachable Linux enrollment targets and optional `windows_qemu_guest_agent_clients` hosts install and start QEMU Guest Agent before later bootstrap steps
