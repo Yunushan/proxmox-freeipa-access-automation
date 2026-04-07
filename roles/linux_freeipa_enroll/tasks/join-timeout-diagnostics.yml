@@ -1,0 +1,168 @@
+---
+- name: Prepare Linux IPA enrollment timeout diagnostics
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_join_timeout_diagnostics_candidate_display: >-
+      {{
+        'auto-discovery'
+        if (linux_freeipa_enroll_join_last_server == '__auto__')
+        else linux_freeipa_enroll_join_last_server
+      }}
+    linux_freeipa_enroll_join_timeout_diagnostics_basedn: >-
+      {{
+        linux_freeipa_enroll_effective_domain_normalized
+        | split('.')
+        | map('regex_replace', '^(.*)$', 'dc=\\1')
+        | join(',')
+      }}
+    linux_freeipa_enroll_join_timeout_diagnostics_log_path: >-
+      {{
+        (
+          linux_freeipa_enroll_join_timeout_diagnostic_log_dir
+          | default('/var/tmp', true)
+          | string
+          | regex_replace('/+$', '')
+        )
+        ~ '/ansible-ipa-join-debug-'
+        ~ (
+          inventory_hostname
+          | regex_replace('[^A-Za-z0-9_.-]', '_')
+        )
+        ~ '.log'
+      }}
+  changed_when: false
+
+- name: Resolve the final Linux IPA join candidate from the guest for diagnostics
+  ansible.builtin.command:
+    argv:
+      - getent
+      - ahostsv4
+      - "{{ linux_freeipa_enroll_join_last_server }}"
+  register: linux_freeipa_enroll_join_timeout_resolution
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: linux_freeipa_enroll_join_last_server != '__auto__'
+
+- name: Probe the final Linux IPA join candidate JSON endpoint for diagnostics
+  ansible.builtin.uri:
+    url: "https://{{ linux_freeipa_enroll_join_last_server }}/ipa/json"
+    method: GET
+    return_content: false
+    use_proxy: false
+    validate_certs: false
+    timeout: "{{ linux_freeipa_enroll_join_timeout_diagnostic_http_timeout | int }}"
+    status_code:
+      - 200
+      - 401
+      - 302
+      - 303
+  register: linux_freeipa_enroll_join_timeout_http_probe
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: linux_freeipa_enroll_join_last_server != '__auto__'
+
+- name: Capture bounded ipa-join debug output after the final Linux IPA timeout
+  ansible.builtin.shell: |
+    set -o pipefail
+    log_path={{ linux_freeipa_enroll_join_timeout_diagnostics_log_path | quote }}
+    rm -f "$log_path"
+    if ! command -v timeout >/dev/null 2>&1; then
+      printf 'timeout command not found on guest\n' > "$log_path"
+      exit 127
+    fi
+    if ! command -v ipa-join >/dev/null 2>&1; then
+      printf 'ipa-join command not found on guest\n' > "$log_path"
+      exit 127
+    fi
+    export XMLRPC_TRACE_CURL=yes
+    export KRB5_TRACE=/dev/stderr
+    timeout {{ linux_freeipa_enroll_join_timeout_diagnostic_ipa_join_timeout | int }}s ipa-join -d -s {{ linux_freeipa_enroll_join_last_server | quote }} -b {{ linux_freeipa_enroll_join_timeout_diagnostics_basedn | quote }} -h {{ linux_freeipa_enroll_hostname_to_verify | quote }} {% if linux_freeipa_enroll_effective_force_join | bool %}-f {% endif %}-w "$IPA_JOIN_PASSWORD" > "$log_path" 2>&1
+  args:
+    executable: /bin/bash
+  environment: >-
+    {{
+      linux_freeipa_enroll_effective_join_environment
+      | combine({
+          'IPA_JOIN_PASSWORD': linux_freeipa_enroll_effective_ipaadmin_password
+        })
+    }}
+  register: linux_freeipa_enroll_join_timeout_ipa_join_debug
+  changed_when: false
+  failed_when: false
+  no_log: true
+  when: linux_freeipa_enroll_join_last_server != '__auto__'
+
+- name: Read the tail of the bounded ipa-join debug log
+  ansible.builtin.command:
+    argv:
+      - tail
+      - -n
+      - "20"
+      - "{{ linux_freeipa_enroll_join_timeout_diagnostics_log_path }}"
+  register: linux_freeipa_enroll_join_timeout_ipa_join_debug_tail
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: linux_freeipa_enroll_join_last_server != '__auto__'
+
+- name: Summarize Linux IPA enrollment timeout diagnostics
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_join_timeout_diagnostics_log_path: >-
+      {{
+        linux_freeipa_enroll_join_timeout_diagnostics_log_path
+        if (linux_freeipa_enroll_join_last_server != '__auto__')
+        else ''
+      }}
+    linux_freeipa_enroll_join_timeout_diagnostics_summary: >-
+      {% if linux_freeipa_enroll_join_last_server == '__auto__' -%}
+      candidate=auto-discovery; ipa-join debug replay skipped because no explicit IPA server was available
+      {%- else -%}
+      candidate={{ linux_freeipa_enroll_join_timeout_diagnostics_candidate_display }};
+      resolution={{
+        (
+          linux_freeipa_enroll_join_timeout_resolution.stdout_lines
+          | default([])
+          | map('string')
+          | map('trim')
+          | reject('equalto', '')
+          | map('split')
+          | map('first')
+          | unique
+          | list
+          | join(',')
+        )
+        | default('unresolved', true)
+      }};
+      ipa_json={{
+        (
+          'status ' ~ (linux_freeipa_enroll_join_timeout_http_probe.status | string)
+        )
+        if (linux_freeipa_enroll_join_timeout_http_probe.status is defined)
+        else (
+          linux_freeipa_enroll_join_timeout_http_probe.msg
+          | default('probe failed')
+          | string
+          | trim
+        )
+      }};
+      ipa_join_debug_rc={{
+        linux_freeipa_enroll_join_timeout_ipa_join_debug.rc
+        | default('not-run')
+      }};
+      ipa_join_debug_log={{ linux_freeipa_enroll_join_timeout_diagnostics_log_path }};
+      ipa_join_debug_tail={{
+        (
+          linux_freeipa_enroll_join_timeout_ipa_join_debug_tail.stdout_lines
+          | default([])
+          | map('string')
+          | map('trim')
+          | reject('equalto', '')
+          | join(' | ')
+          | regex_replace('\\s+', ' ')
+          | truncate(500, true, '...')
+        )
+        | default('no debug output captured', true)
+      }}
+      {%- endif %}
+  changed_when: false

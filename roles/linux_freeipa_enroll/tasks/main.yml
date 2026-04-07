@@ -44,7 +44,7 @@
       }}
     linux_freeipa_enroll_effective_mkhomedir: "{{ linux_ipaclient_mkhomedir }}"
     linux_freeipa_enroll_effective_force_join: "{{ linux_ipaclient_force_join }}"
-    linux_freeipa_enroll_effective_no_dns_lookup: "{{ linux_ipaclient_no_dns_lookup }}"
+    linux_freeipa_enroll_requested_no_dns_lookup: "{{ linux_ipaclient_no_dns_lookup }}"
     linux_freeipa_enroll_effective_no_sudo: "{{ linux_ipaclient_no_sudo }}"
     linux_freeipa_enroll_effective_permit: "{{ linux_ipasssd_permit }}"
     linux_freeipa_enroll_effective_manage_authoritative_dns: "{{ linux_freeipa_enroll_manage_authoritative_dns }}"
@@ -103,6 +103,68 @@
       }}
   changed_when: false
   no_log: true
+
+- name: Derive deterministic Linux IPA enrollment join behavior
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_effective_no_dns_lookup: >-
+      {{
+        (
+          (linux_freeipa_enroll_effective_servers_normalized | length > 0)
+          and (linux_freeipa_enroll_force_no_dns_lookup_with_explicit_servers | bool)
+        )
+        or
+        (linux_freeipa_enroll_requested_no_dns_lookup | bool)
+      }}
+    linux_freeipa_enroll_effective_no_proxy_entries: >-
+      {{
+        (
+          linux_freeipa_enroll_effective_servers_normalized
+          + [
+            linux_freeipa_enroll_effective_domain_normalized,
+            '.' ~ linux_freeipa_enroll_effective_domain_normalized,
+            'localhost',
+            '127.0.0.1',
+            '::1'
+          ]
+        )
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+  changed_when: false
+  no_log: true
+
+- name: Build Linux IPA enrollment join environment overrides
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_effective_join_environment: >-
+      {{
+        {
+          'no_proxy': (
+            linux_freeipa_enroll_effective_no_proxy_entries
+            | join(',')
+          ),
+          'NO_PROXY': (
+            linux_freeipa_enroll_effective_no_proxy_entries
+            | join(',')
+          ),
+        }
+        if (linux_freeipa_enroll_clear_proxy_environment | bool)
+        else {}
+      }}
+  changed_when: false
+  no_log: true
+
+- name: Note when Linux IPA enrollment is forcing explicit-server join behavior
+  ansible.builtin.debug:
+    msg: >-
+      Linux IPA enrollment is forcing deterministic explicit-server behavior for {{ inventory_hostname }}.
+      The role will disable DNS-based IPA server discovery because explicit server candidates are configured:
+      {{ linux_freeipa_enroll_effective_servers_normalized | join(', ') }}.
+  changed_when: false
+  when:
+    - linux_freeipa_enroll_effective_servers_normalized | length > 0
+    - linux_freeipa_enroll_force_no_dns_lookup_with_explicit_servers | bool
+    - not (linux_freeipa_enroll_requested_no_dns_lookup | bool)
 
 - name: Validate Linux IPA /etc/hosts bootstrap entries
   vars:
@@ -273,6 +335,47 @@
   loop: "{{ linux_freeipa_enroll_https_connectivity.results | default([]) }}"
   loop_control:
     label: "{{ item.item }}"
+
+- name: Probe the FreeIPA JSON endpoint on configured IPA servers from the Linux guest
+  ansible.builtin.uri:
+    url: "https://{{ item }}/ipa/json"
+    method: GET
+    return_content: false
+    use_proxy: false
+    validate_certs: false
+    timeout: "{{ linux_freeipa_enroll_preflight_json_probe_timeout | int }}"
+    status_code:
+      - 200
+      - 401
+      - 302
+      - 303
+  register: linux_freeipa_enroll_json_probe
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  loop: "{{ linux_freeipa_enroll_effective_servers_normalized }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - linux_freeipa_enroll_preflight_json_probe_enabled | bool
+    - linux_freeipa_enroll_effective_servers_normalized | length > 0
+
+- name: Assert the FreeIPA JSON endpoint responds promptly on configured IPA servers
+  ansible.builtin.assert:
+    that:
+      - not (item.failed | default(false))
+      - item.status | default(0) | int in [200, 401, 302, 303]
+    fail_msg: >-
+      Linux guest {{ inventory_hostname }} reached {{ item.item }}:443 but the FreeIPA web/API endpoint
+      did not return a timely HTTP response from https://{{ item.item }}/ipa/json within
+      {{ linux_freeipa_enroll_preflight_json_probe_timeout | int }} seconds.
+      Result: {{ item.msg | default('unknown probe failure') }}.
+      This usually indicates a proxy, TLS, web-tier, or IPA API responsiveness problem rather than
+      a basic network reachability issue.
+  loop: "{{ linux_freeipa_enroll_json_probe.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: linux_freeipa_enroll_preflight_json_probe_enabled | bool
 
 - name: Read current Linux guest FQDN before IPA enrollment
   ansible.builtin.command: hostname -f
@@ -571,6 +674,8 @@
     linux_freeipa_enroll_join_last_error: ""
     linux_freeipa_enroll_join_last_error_is_timeout: false
     linux_freeipa_enroll_join_last_server: ""
+    linux_freeipa_enroll_join_timeout_diagnostics_summary: ""
+    linux_freeipa_enroll_join_timeout_diagnostics_log_path: ""
     linux_freeipa_enroll_join_server_candidates: >-
       {{
         linux_freeipa_enroll_effective_servers_normalized
@@ -613,6 +718,9 @@
       {{ linux_freeipa_enroll_join_server_candidates | reject('equalto', '__auto__') | list | join(', ') | default('auto-discovery', true) }}.
       The host is being left unenrolled and excluded from the success group so the workflow can continue.
       Last error: {{ linux_freeipa_enroll_join_last_error | default('unknown error') }}
+      {% if linux_freeipa_enroll_join_timeout_diagnostics_summary | default('', true) | trim | length > 0 %}
+      Diagnostics: {{ linux_freeipa_enroll_join_timeout_diagnostics_summary }}
+      {% endif %}
   changed_when: false
   when:
     - not ansible_check_mode
@@ -627,6 +735,9 @@
       Linux IPA enrollment did not complete successfully for {{ inventory_hostname }}.
       Last server candidate: {{ linux_freeipa_enroll_join_last_server | default('unknown', true) }}.
       Last error: {{ linux_freeipa_enroll_join_last_error | default('unknown error') }}
+      {% if linux_freeipa_enroll_join_timeout_diagnostics_summary | default('', true) | trim | length > 0 %}
+      Diagnostics: {{ linux_freeipa_enroll_join_timeout_diagnostics_summary }}
+      {% endif %}
   when:
     - not ansible_check_mode
     - not (

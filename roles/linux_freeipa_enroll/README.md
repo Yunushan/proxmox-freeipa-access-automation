@@ -16,7 +16,12 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - `linux_freeipa_enroll_join_attempts`
 - `linux_freeipa_enroll_join_retry_delay`
 - `linux_freeipa_enroll_continue_on_join_timeout`
+- `linux_freeipa_enroll_collect_join_timeout_diagnostics`
 - `linux_freeipa_enroll_merge_inventory_ipa_servers`
+- `linux_freeipa_enroll_force_no_dns_lookup_with_explicit_servers`
+- `linux_freeipa_enroll_clear_proxy_environment`
+- `linux_freeipa_enroll_preflight_json_probe_enabled`
+- `linux_freeipa_enroll_preflight_json_probe_timeout`
 - `linux_freeipa_enroll_manage_authoritative_dns`
 - `linux_freeipa_enroll_authoritative_dns_delegate_host`
 - `linux_freeipa_enroll_authoritative_dns_query_server`
@@ -40,6 +45,10 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - The repository retries the upstream client join when FreeIPA returns a JSON-RPC timeout. Use `linux_freeipa_enroll_join_attempts`, `linux_freeipa_enroll_join_retry_delay`, and `linux_ipaclient_kinit_attempts` to tune slow or busy IPA environments.
 - `linux_freeipa_enroll_merge_inventory_ipa_servers` defaults to `true`, so Linux enrollment automatically appends the `ipa_servers` inventory hostnames to `linux_ipa_servers` before joining.
 - When more than one IPA server is available, each retry pass walks those server candidates one at a time instead of repeating the same join target blindly.
+- When explicit IPA servers are configured, `linux_freeipa_enroll_force_no_dns_lookup_with_explicit_servers` defaults to `true`, so the role forces `ipaclient_no_dns_lookup` and avoids extra discovery behavior during the upstream join.
+- `linux_freeipa_enroll_clear_proxy_environment` defaults to `true`, so the upstream join injects a focused `NO_PROXY` list for the IPA servers and domain instead of relying on whatever global proxy environment the guest happens to have.
+- `linux_freeipa_enroll_preflight_json_probe_enabled` defaults to `true`, so the role probes `https://<ipa-server>/ipa/json` with a short timeout before the upstream join and fails fast on a slow or hung IPA web/API endpoint.
+- `linux_freeipa_enroll_collect_join_timeout_diagnostics` defaults to `true`, so a final JSON-RPC timeout also writes a bounded `ipa-join -d` replay log on the guest and includes a short diagnostics summary in the final failure or timeout note.
 - `ipaclient_domain` must be the shared IPA DNS domain such as `example.com`, not an IPA server hostname such as `ipa01.example.com`.
 - `linux_ipa_servers` should preferably be a YAML list of IPA server FQDNs. Comma-separated strings are normalized, but list syntax is the preferred form.
 - When DNS is not ready yet, the role can manage a dedicated `/etc/hosts` block from `linux_ipa_etc_hosts_entries` before IPA connectivity checks run.
