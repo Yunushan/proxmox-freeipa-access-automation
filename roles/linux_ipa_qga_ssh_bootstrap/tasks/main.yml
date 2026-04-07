@@ -58,7 +58,8 @@
 
 - name: Verify the Proxmox guest agent responds for Linux QGA SSH bootstrap targets
   ansible.builtin.raw: >-
-    qm guest cmd {{ hostvars[item].linux_ipa_proxmox_vmid | string | quote }} ping
+    {{ linux_ipa_qga_ssh_bootstrap_qm_path | quote }}
+    guest cmd {{ hostvars[item].linux_ipa_proxmox_vmid | string | quote }} ping
   delegate_to: "{{ hostvars[item].linux_ipa_proxmox_node_inventory_host }}"
   register: linux_ipa_qga_ssh_bootstrap_ping_results
   loop: "{{ linux_ipa_qga_ssh_bootstrap_target_hosts }}"
@@ -114,7 +115,8 @@
       chmod 0440 "/etc/sudoers.d/90-{{ linux_ipa_qga_ssh_bootstrap_user }}"
       visudo -cf "/etc/sudoers.d/90-{{ linux_ipa_qga_ssh_bootstrap_user }}" >/dev/null
   ansible.builtin.raw: >-
-    qm guest exec {{ hostvars[item].linux_ipa_proxmox_vmid | string | quote }}
+    {{ linux_ipa_qga_ssh_bootstrap_qm_path | quote }}
+    guest exec {{ hostvars[item].linux_ipa_proxmox_vmid | string | quote }}
     --timeout {{ linux_ipa_qga_ssh_bootstrap_timeout | int | string | quote }}
     -- /bin/sh -lc {{ linux_ipa_qga_ssh_bootstrap_guest_script | quote }}
   delegate_to: "{{ hostvars[item].linux_ipa_proxmox_node_inventory_host }}"
