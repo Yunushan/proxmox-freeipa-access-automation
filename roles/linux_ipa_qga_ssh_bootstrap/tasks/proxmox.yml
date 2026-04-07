@@ -244,16 +244,23 @@
   when: linux_ipa_qga_ssh_bootstrap_exec_blocked_results | length > 0
 
 - name: Fail when Linux QGA SSH bootstrap hit unexpected Proxmox guest exec errors
+  vars:
+    linux_ipa_qga_ssh_bootstrap_exec_failed_results_summary_template: |
+      {%- set summary = [] -%}
+      {%- for result in linux_ipa_qga_ssh_bootstrap_exec_failed_results -%}
+      {%- set _ = summary.append(
+        result.item ~ ' (rc=' ~ (result.rc | string) ~ ', stderr=' ~ ((result.stderr | default('') | trim) | default('no stderr', true)) ~ ')'
+      ) -%}
+      {%- endfor -%}
+      {{ summary | join('; ') }}
+  ansible.builtin.set_fact:
+    linux_ipa_qga_ssh_bootstrap_exec_failed_results_summary: >-
+      {{ linux_ipa_qga_ssh_bootstrap_exec_failed_results_summary_template | trim }}
+  changed_when: false
+  when: linux_ipa_qga_ssh_bootstrap_target_hosts | length > 0
+
+- name: Fail when Linux QGA SSH bootstrap hit unexpected Proxmox guest exec errors
   ansible.builtin.assert:
-    vars:
-      linux_ipa_qga_ssh_bootstrap_exec_failed_results_summary: |
-        {%- set summary = [] -%}
-        {%- for result in linux_ipa_qga_ssh_bootstrap_exec_failed_results -%}
-        {%- set _ = summary.append(
-          result.item ~ ' (rc=' ~ (result.rc | string) ~ ', stderr=' ~ ((result.stderr | default('') | trim) | default('no stderr', true)) ~ ')'
-        ) -%}
-        {%- endfor -%}
-        {{ summary | join('; ') }}
     that:
       - linux_ipa_qga_ssh_bootstrap_exec_failed_results | length == 0
     fail_msg: >-
