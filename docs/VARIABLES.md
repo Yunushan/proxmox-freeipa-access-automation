@@ -67,6 +67,7 @@ Relevant Linux enrollment hostname controls:
 - `linux_ipa_qga_ssh_bootstrap_private_key_file`: controller SSH private key paired with the QGA bootstrap public key and used for later SSH connections
 - `linux_ipa_qga_ssh_bootstrap_install_sudo`: when `true`, the QGA bootstrap path installs `sudo` if missing before creating the bootstrap sudoers entry
 - `linux_ipa_qga_ssh_bootstrap_timeout`: timeout passed to `qm guest exec` during the QGA bootstrap path
+- `linux_ipa_qga_ssh_bootstrap_fail_on_guest_exec_blocked`: when `true`, the QGA bootstrap path hard-fails if a guest agent allows `guest-ping` but rejects `guest-exec`; defaults to `false`
 - `linux_ipa_qga_ssh_bootstrap_qm_path`: Proxmox CLI command or absolute path used for Proxmox-side `qm guest ...` calls; defaults to `qm`
 - `linux_ipa_qga_ssh_bootstrap_qm_fallback_paths`: common absolute `qm` locations probed on the Proxmox node before failing; defaults to `/usr/sbin/qm`, `/usr/bin/qm`, and `/sbin/qm`
 - `linux_ipa_qga_ssh_bootstrap_delegate_python_interpreter`: Python interpreter forced for delegated Proxmox-side `qm guest ...` tasks; defaults to `/usr/bin/python3`

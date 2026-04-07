@@ -175,6 +175,84 @@
   loop_control:
     label: "{{ item }}"
   changed_when: false
+  failed_when: false
+  when: linux_ipa_qga_ssh_bootstrap_target_hosts | length > 0
+
+- name: Initialize Linux QGA SSH bootstrap execution result buckets
+  ansible.builtin.set_fact:
+    linux_ipa_qga_ssh_bootstrap_exec_blocked_results: []
+    linux_ipa_qga_ssh_bootstrap_exec_failed_results: []
+    linux_ipa_qga_ssh_bootstrap_exec_success_results: []
+    linux_ipa_qga_ssh_bootstrap_bootstrapped_hosts: []
+  when: linux_ipa_qga_ssh_bootstrap_target_hosts | length > 0
+
+- name: Classify Linux QGA SSH bootstrap guest-exec policy blocks
+  ansible.builtin.set_fact:
+    linux_ipa_qga_ssh_bootstrap_exec_blocked_results: "{{ linux_ipa_qga_ssh_bootstrap_exec_blocked_results + [item] }}"
+  loop: "{{ linux_ipa_qga_ssh_bootstrap_exec_results.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - linux_ipa_qga_ssh_bootstrap_target_hosts | length > 0
+    - item.rc | int != 0
+    - "'Command guest-exec has been disabled' in (item.stderr | default(''))"
+
+- name: Classify Linux QGA SSH bootstrap unexpected execution failures
+  ansible.builtin.set_fact:
+    linux_ipa_qga_ssh_bootstrap_exec_failed_results: "{{ linux_ipa_qga_ssh_bootstrap_exec_failed_results + [item] }}"
+  loop: "{{ linux_ipa_qga_ssh_bootstrap_exec_results.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - linux_ipa_qga_ssh_bootstrap_target_hosts | length > 0
+    - item.rc | int != 0
+    - "'Command guest-exec has been disabled' not in (item.stderr | default(''))"
+
+- name: Collect Linux QGA SSH bootstrap successful execution results
+  ansible.builtin.set_fact:
+    linux_ipa_qga_ssh_bootstrap_exec_success_results: "{{ linux_ipa_qga_ssh_bootstrap_exec_success_results + [item] }}"
+  loop: "{{ linux_ipa_qga_ssh_bootstrap_exec_results.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - linux_ipa_qga_ssh_bootstrap_target_hosts | length > 0
+    - item.rc | int == 0
+
+- name: Warn when Linux QGA SSH bootstrap guest-exec is disabled in the guest agent
+  ansible.builtin.debug:
+    msg: >-
+      Skipping Linux QGA SSH bootstrap for {{ item.item }} on {{ inventory_hostname }}
+      because the guest agent rejected guest-exec as not allowed. Later plays must
+      rely on an existing SSH path for this guest, or you should enable
+      linux_ipa_ssh_bootstrap_enabled with first-touch credentials, or allow
+      guest-exec inside qemu-ga.
+  loop: "{{ linux_ipa_qga_ssh_bootstrap_exec_blocked_results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: linux_ipa_qga_ssh_bootstrap_exec_blocked_results | length > 0
+
+- name: Fail when Linux QGA SSH bootstrap guest-exec is blocked and strict mode is enabled
+  ansible.builtin.assert:
+    that:
+      - not linux_ipa_qga_ssh_bootstrap_fail_on_guest_exec_blocked | bool
+    fail_msg: >-
+      Linux QGA SSH bootstrap could not run guest-exec for
+      {{ linux_ipa_qga_ssh_bootstrap_exec_blocked_results | map(attribute='item') | join(', ') }}
+      on {{ inventory_hostname }} because the guest agent rejected the command as
+      not allowed. Allow guest-exec inside qemu-ga, or disable strict handling
+      with linux_ipa_qga_ssh_bootstrap_fail_on_guest_exec_blocked: false.
+  when: linux_ipa_qga_ssh_bootstrap_exec_blocked_results | length > 0
+
+- name: Fail when Linux QGA SSH bootstrap hit unexpected Proxmox guest exec errors
+  ansible.builtin.assert:
+    that:
+      - linux_ipa_qga_ssh_bootstrap_exec_failed_results | length == 0
+    fail_msg: >-
+      Linux QGA SSH bootstrap failed on {{ inventory_hostname }} for
+      {% for result in linux_ipa_qga_ssh_bootstrap_exec_failed_results -%}
+      {{ result.item }} (rc={{ result.rc }}, stderr={{ result.stderr | default('') | trim | default('no stderr', true) }})
+      {%- if not loop.last %}; {% endif -%}
+      {%- endfor %}.
   when: linux_ipa_qga_ssh_bootstrap_target_hosts | length > 0
 
 - name: Assert Linux QGA SSH bootstrap guest commands completed successfully
@@ -187,9 +265,14 @@
     fail_msg: >-
       Linux QGA SSH bootstrap failed for {{ item.item }}.
       Proxmox returned {{ item.stdout | default('no output') | trim | default('no output', true) }}.
-  loop: "{{ linux_ipa_qga_ssh_bootstrap_exec_results.results | default([]) }}"
+  loop: "{{ linux_ipa_qga_ssh_bootstrap_exec_success_results }}"
   loop_control:
     label: "{{ item.item }}"
+  when: linux_ipa_qga_ssh_bootstrap_target_hosts | length > 0
+
+- name: Build the Linux QGA SSH bootstrap success host list
+  ansible.builtin.set_fact:
+    linux_ipa_qga_ssh_bootstrap_bootstrapped_hosts: "{{ linux_ipa_qga_ssh_bootstrap_exec_success_results | map(attribute='item') | list }}"
   when: linux_ipa_qga_ssh_bootstrap_target_hosts | length > 0
 
 - name: Prefer the Linux QGA SSH bootstrap user for subsequent runtime guest connections
@@ -200,8 +283,8 @@
     ansible_become_method: sudo
     ansible_ssh_private_key_file: "{{ linux_ipa_qga_ssh_bootstrap_private_key_file }}"
   delegate_to: localhost
-  loop: "{{ linux_ipa_qga_ssh_bootstrap_target_hosts }}"
+  loop: "{{ linux_ipa_qga_ssh_bootstrap_bootstrapped_hosts }}"
   loop_control:
     label: "{{ item }}"
   changed_when: false
-  when: linux_ipa_qga_ssh_bootstrap_target_hosts | length > 0
+  when: linux_ipa_qga_ssh_bootstrap_bootstrapped_hosts | length > 0
