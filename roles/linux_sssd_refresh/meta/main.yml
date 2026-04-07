@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  author: Repository maintainers
+  description: Refresh Linux SSSD caches after FreeIPA-side access changes.
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

@@ -55,6 +55,7 @@ This is a good fit when you want onboarding and offboarding to be mostly:
 - recurring Proxmox realm sync from one designated cluster node
 - Proxmox RBAC bindings for synced directory groups
 - Linux guest enrollment into FreeIPA with static inventory, IP-only targets, or Proxmox VM discovery
+- automatic SSSD cache refresh on managed Linux clients after FreeIPA access-model changes
 
 ## Scope
 
@@ -445,7 +446,7 @@ Key variable families:
 | Rollout controls | `freeipa_access_serial`, `freeipa_access_max_fail_percentage`, `proxmox_rollout_serial`, `proxmox_rollout_max_fail_percentage`, `linux_freeipa_enroll_serial`, `linux_freeipa_enroll_max_fail_percentage` |
 | Proxmox LDAP realm | `proxmox_ldap_realm_id`, `proxmox_ldap_server1`, `proxmox_ldap_base_dn`, `proxmox_ldap_group_dn`, `proxmox_ldap_bind_dn`, `proxmox_ldap_bind_password`, `proxmox_ldap_sync_attributes`, `proxmox_ldap_sync_defaults` |
 | Proxmox RBAC | `proxmox_custom_roles`, `proxmox_acl_bindings` |
-| Linux IPA enrollment | `ipaclient_domain`, `ipaclient_realm`, `linux_ipa_servers`, `linux_ipaclient_mkhomedir`, `linux_ipasssd_permit`, `linux_ipa_client_hosts`, `linux_ipa_proxmox_discovery_*` |
+| Linux IPA enrollment | `ipaclient_domain`, `ipaclient_realm`, `linux_ipa_servers`, `linux_ipaclient_mkhomedir`, `linux_ipasssd_permit`, `linux_sssd_refresh_enabled`, `linux_ipa_client_hosts`, `linux_ipa_proxmox_discovery_*` |
 | Ansible connection secrets | `vault_proxmox_become_password` when `proxmox_primary` uses a sudo-capable non-root SSH user |
 
 ## Example Group Strategy
