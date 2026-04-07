@@ -448,6 +448,7 @@ Notes:
 - `linux_ipa_ssh_bootstrap_enabled` optionally installs the controller SSH public key onto Linux guests before hostname resolution and enrollment; for first-touch password logins, set `linux_ipa_ssh_bootstrap_password` in vaulted variables instead of plain inventory
 - Linux IPA enrollment retries upstream client joins that fail with a FreeIPA JSON-RPC timeout, and exposes `linux_ipaclient_kinit_attempts` for slower or busier IPA environments
 - Linux IPA enrollment also merges the `ipa_servers` inventory hostnames into the join server list by default, so clients can use the full IPA server set instead of a single configured endpoint
+- when more than one IPA server is available, each retry pass tries those IPA server candidates one at a time during Linux client enrollment
 - the combined `site` workflow creates FreeIPA hostgroups before Linux enrollment, then adds the enrolled runtime hosts afterward so pre-enrollment runs do not fail on hostgroup membership for not-yet-enrolled guests
 
 ## Configuration Surface

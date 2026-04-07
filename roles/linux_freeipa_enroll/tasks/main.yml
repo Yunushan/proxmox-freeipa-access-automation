@@ -412,14 +412,37 @@
     linux_freeipa_enroll_join_succeeded: false
     linux_freeipa_enroll_join_last_error: ""
     linux_freeipa_enroll_join_last_error_is_timeout: false
+    linux_freeipa_enroll_join_last_server: ""
+    linux_freeipa_enroll_join_server_candidates: >-
+      {{
+        linux_freeipa_enroll_effective_servers_normalized
+        if (linux_freeipa_enroll_effective_servers_normalized | length > 0)
+        else ['__auto__']
+      }}
   when: not ansible_check_mode
 
-- name: Retry Linux host enrollment into FreeIPA when the join times out
+- name: Retry Linux host enrollment into FreeIPA across the effective IPA server candidates
   ansible.builtin.include_tasks: join-attempt.yml
-  loop: "{{ range(1, (linux_freeipa_enroll_join_attempts | int) + 1) | list }}"
+  loop: "{{ range(1, (linux_freeipa_enroll_join_attempts | int) + 1) | product(linux_freeipa_enroll_join_server_candidates) | list }}"
   loop_control:
-    loop_var: linux_freeipa_enroll_join_attempt
-    label: "attempt {{ linux_freeipa_enroll_join_attempt }}"
+    loop_var: linux_freeipa_enroll_join_plan_item
+    label: >-
+      attempt {{ linux_freeipa_enroll_join_plan_item.0 }} ->
+      {{
+        'auto-discovery'
+        if (linux_freeipa_enroll_join_plan_item.1 == '__auto__')
+        else linux_freeipa_enroll_join_plan_item.1
+      }}
+  vars:
+    linux_freeipa_enroll_join_attempt: "{{ linux_freeipa_enroll_join_plan_item.0 }}"
+    linux_freeipa_enroll_join_candidate_server: "{{ linux_freeipa_enroll_join_plan_item.1 }}"
+    linux_freeipa_enroll_join_candidate_is_last_for_attempt: >-
+      {{
+        (
+          linux_freeipa_enroll_join_plan_item.1
+          == (linux_freeipa_enroll_join_server_candidates | last)
+        ) | bool
+      }}
   when:
     - not ansible_check_mode
     - not (linux_freeipa_enroll_join_succeeded | bool)
@@ -430,6 +453,7 @@
       - linux_freeipa_enroll_join_succeeded | bool
     fail_msg: >-
       Linux IPA enrollment did not complete successfully for {{ inventory_hostname }}.
+      Last server candidate: {{ linux_freeipa_enroll_join_last_server | default('unknown', true) }}.
       Last error: {{ linux_freeipa_enroll_join_last_error | default('unknown error') }}
   when: not ansible_check_mode
 

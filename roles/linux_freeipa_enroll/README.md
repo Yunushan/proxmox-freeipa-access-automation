@@ -31,6 +31,7 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - Successful enrollments are added to `linux_freeipa_enroll_success_group` so later plays can target only the guests that actually completed IPA enrollment.
 - The repository retries the upstream client join when FreeIPA returns a JSON-RPC timeout. Use `linux_freeipa_enroll_join_attempts`, `linux_freeipa_enroll_join_retry_delay`, and `linux_ipaclient_kinit_attempts` to tune slow or busy IPA environments.
 - `linux_freeipa_enroll_merge_inventory_ipa_servers` defaults to `true`, so Linux enrollment automatically appends the `ipa_servers` inventory hostnames to `linux_ipa_servers` before joining.
+- When more than one IPA server is available, each retry pass walks those server candidates one at a time instead of repeating the same join target blindly.
 - `ipaclient_domain` must be the shared IPA DNS domain such as `example.com`, not an IPA server hostname such as `ipa01.example.com`.
 - `linux_ipa_servers` should preferably be a YAML list of IPA server FQDNs. Comma-separated strings are normalized, but list syntax is the preferred form.
 - When DNS is not ready yet, the role can manage a dedicated `/etc/hosts` block from `linux_ipa_etc_hosts_entries` before IPA connectivity checks run.
