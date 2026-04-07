@@ -195,6 +195,10 @@
         )
         | regex_replace('\\.$', '')
       }}
+  changed_when: false
+
+- name: Derive Linux guest authoritative DNS repair actions
+  ansible.builtin.set_fact:
     linux_freeipa_enroll_authoritative_dns_wrong_a: >-
       {{
         linux_freeipa_enroll_authoritative_dns_current_a
