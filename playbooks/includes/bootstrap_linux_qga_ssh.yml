@@ -10,9 +10,32 @@
     - discovery
     - qga_bootstrap
   tasks:
+    - name: Prepare Linux guest SSH access through the Proxmox guest agent
+      ansible.builtin.include_role:
+        name: linux_ipa_qga_ssh_bootstrap
+        tasks_from: controller.yml
+      when: linux_ipa_qga_ssh_bootstrap_enabled | bool
+      tags:
+        - linux
+        - linux_enroll
+        - inventory
+        - discovery
+        - qga_bootstrap
+
+- name: Execute Linux SSH access bootstrap through the Proxmox guest agent
+  hosts: linux_ipa_qga_ssh_bootstrap_nodes
+  gather_facts: false
+  tags:
+    - linux
+    - linux_enroll
+    - inventory
+    - discovery
+    - qga_bootstrap
+  tasks:
     - name: Bootstrap Linux guest SSH access through the Proxmox guest agent
       ansible.builtin.include_role:
         name: linux_ipa_qga_ssh_bootstrap
+        tasks_from: proxmox.yml
       when: linux_ipa_qga_ssh_bootstrap_enabled | bool
       tags:
         - linux

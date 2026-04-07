@@ -21,6 +21,7 @@ Bootstraps Linux guest SSH access through the Proxmox QEMU Guest Agent so alread
 - `linux_ipa_qga_ssh_bootstrap_install_sudo`
 - `linux_ipa_qga_ssh_bootstrap_timeout`
 - `linux_ipa_qga_ssh_bootstrap_qm_path`
+- `linux_ipa_qga_ssh_bootstrap_qm_fallback_paths`
 - `linux_ipa_qga_ssh_bootstrap_delegate_python_interpreter`
 
 ## Notes
@@ -28,4 +29,5 @@ Bootstraps Linux guest SSH access through the Proxmox QEMU Guest Agent so alread
 - This role only applies to runtime Linux hosts that carry both `linux_ipa_proxmox_node_inventory_host` and `linux_ipa_proxmox_vmid`.
 - It relies on the QEMU Guest Agent already being active in the guest.
 - The bootstrap user is persistent by default so later site/linux runs can keep using the same automation account.
-- `linux_ipa_qga_ssh_bootstrap_qm_path` defaults to `/usr/sbin/qm` so delegated Proxmox tasks do not depend on an interactive PATH.
+- The combined `site` workflow runs this role in two phases: controller preparation on `localhost`, then `qm guest ...` execution on the matching Proxmox nodes.
+- `linux_ipa_qga_ssh_bootstrap_qm_path` defaults to `qm`, and `linux_ipa_qga_ssh_bootstrap_qm_fallback_paths` probes common absolute paths on the Proxmox node before failing.

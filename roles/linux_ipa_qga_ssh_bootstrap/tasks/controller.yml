@@ -1,0 +1,94 @@
+---
+- name: Validate the controller SSH public key file for Linux QGA bootstrap
+  ansible.builtin.stat:
+    path: "{{ linux_ipa_qga_ssh_bootstrap_public_key_file }}"
+  become: false
+  register: linux_ipa_qga_ssh_bootstrap_public_key_stat
+
+- name: Assert the controller SSH public key file exists for Linux QGA bootstrap
+  ansible.builtin.assert:
+    that:
+      - linux_ipa_qga_ssh_bootstrap_public_key_stat.stat.exists
+      - linux_ipa_qga_ssh_bootstrap_public_key_stat.stat.isreg
+    fail_msg: >-
+      linux_ipa_qga_ssh_bootstrap_public_key_file must point to an existing
+      controller SSH public key file before Linux QGA SSH bootstrap can run.
+
+- name: Validate the controller SSH private key file for Linux QGA bootstrap
+  ansible.builtin.stat:
+    path: "{{ linux_ipa_qga_ssh_bootstrap_private_key_file }}"
+  become: false
+  register: linux_ipa_qga_ssh_bootstrap_private_key_stat
+
+- name: Assert the controller SSH private key file exists for Linux QGA bootstrap
+  ansible.builtin.assert:
+    that:
+      - linux_ipa_qga_ssh_bootstrap_private_key_stat.stat.exists
+      - linux_ipa_qga_ssh_bootstrap_private_key_stat.stat.isreg
+    fail_msg: >-
+      linux_ipa_qga_ssh_bootstrap_private_key_file must point to an existing
+      controller private key before Linux QGA SSH bootstrap can run.
+
+- name: Load the controller SSH public key for Linux QGA bootstrap
+  ansible.builtin.set_fact:
+    linux_ipa_qga_ssh_bootstrap_public_key: "{{ lookup('ansible.builtin.file', linux_ipa_qga_ssh_bootstrap_public_key_file) | trim }}"
+
+- name: Assert the controller SSH public key for Linux QGA bootstrap is not empty
+  ansible.builtin.assert:
+    that:
+      - linux_ipa_qga_ssh_bootstrap_public_key | length > 0
+    fail_msg: >-
+      linux_ipa_qga_ssh_bootstrap_public_key_file resolved to an empty SSH public key.
+
+- name: Build the Linux QGA SSH bootstrap target list
+  ansible.builtin.set_fact:
+    linux_ipa_qga_ssh_bootstrap_target_hosts: >-
+      {% set ns = namespace(targets=[]) %}
+      {% for candidate in groups[linux_ipa_runtime_group] | default([]) %}
+      {%   if hostvars[candidate].linux_ipa_proxmox_node_inventory_host is defined
+            and hostvars[candidate].linux_ipa_proxmox_vmid is defined %}
+      {%     set _ = ns.targets.append(candidate) %}
+      {%   endif %}
+      {% endfor %}
+      {{ ns.targets | to_json }}
+
+- name: Normalize the Linux QGA SSH bootstrap target list
+  ansible.builtin.set_fact:
+    linux_ipa_qga_ssh_bootstrap_target_hosts: "{{ linux_ipa_qga_ssh_bootstrap_target_hosts | from_json }}"
+
+- name: Build the Linux QGA SSH bootstrap Proxmox node list
+  ansible.builtin.set_fact:
+    linux_ipa_qga_ssh_bootstrap_target_nodes: >-
+      {% set ns = namespace(nodes=[]) %}
+      {% for candidate in linux_ipa_qga_ssh_bootstrap_target_hosts %}
+      {%   set node = hostvars[candidate].linux_ipa_proxmox_node_inventory_host | default('') %}
+      {%   if node | length > 0 %}
+      {%     set _ = ns.nodes.append(node) %}
+      {%   endif %}
+      {% endfor %}
+      {{ ns.nodes | unique | list | to_json }}
+
+- name: Normalize the Linux QGA SSH bootstrap Proxmox node list
+  ansible.builtin.set_fact:
+    linux_ipa_qga_ssh_bootstrap_target_nodes: "{{ linux_ipa_qga_ssh_bootstrap_target_nodes | from_json }}"
+
+- name: Assert Linux QGA SSH bootstrap Proxmox nodes exist in inventory
+  ansible.builtin.assert:
+    that:
+      - item in hostvars
+    fail_msg: >-
+      Linux QGA SSH bootstrap target node {{ item }} is not defined in the Ansible inventory.
+  loop: "{{ linux_ipa_qga_ssh_bootstrap_target_nodes }}"
+  loop_control:
+    label: "{{ item }}"
+  when: linux_ipa_qga_ssh_bootstrap_target_nodes | length > 0
+
+- name: Seed Linux QGA SSH bootstrap Proxmox nodes
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    groups: linux_ipa_qga_ssh_bootstrap_nodes
+  loop: "{{ linux_ipa_qga_ssh_bootstrap_target_nodes }}"
+  loop_control:
+    label: "{{ item }}"
+  changed_when: false
+  when: linux_ipa_qga_ssh_bootstrap_target_nodes | length > 0
