@@ -12,9 +12,13 @@ linux_ipaclient_no_dns_lookup: true
 linux_ipaclient_no_sudo: false
 linux_ipasssd_permit: false
 linux_sssd_refresh_enabled: true
-guest_qemu_agent_install_enabled: false
+# Install QEMU Guest Agent automatically on guests that are already reachable.
+guest_qemu_agent_install_enabled: true
 linux_ipa_ssh_host_key_policy: accept_new
-linux_ipa_qga_ssh_bootstrap_enabled: false
+# Prefer no-reboot SSH bootstrap through the Proxmox guest agent for
+# Proxmox-discovered Linux VMs before any SSH-dependent hostname or enrollment
+# tasks run.
+linux_ipa_qga_ssh_bootstrap_enabled: true
 linux_ipa_qga_ssh_bootstrap_user: ansible-bootstrap
 linux_ipa_ssh_bootstrap_enabled: false
 linux_ipa_ssh_bootstrap_password: "{{ vault_linux_ipa_ssh_bootstrap_password | default('') }}"
