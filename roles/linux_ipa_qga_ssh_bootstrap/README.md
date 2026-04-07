@@ -21,6 +21,7 @@ Bootstraps Linux guest SSH access through the Proxmox QEMU Guest Agent so alread
 - `linux_ipa_qga_ssh_bootstrap_install_sudo`
 - `linux_ipa_qga_ssh_bootstrap_timeout`
 - `linux_ipa_qga_ssh_bootstrap_qm_path`
+- `linux_ipa_qga_ssh_bootstrap_delegate_python_interpreter`
 
 ## Notes
 

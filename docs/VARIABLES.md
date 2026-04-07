@@ -68,6 +68,7 @@ Relevant Linux enrollment hostname controls:
 - `linux_ipa_qga_ssh_bootstrap_install_sudo`: when `true`, the QGA bootstrap path installs `sudo` if missing before creating the bootstrap sudoers entry
 - `linux_ipa_qga_ssh_bootstrap_timeout`: timeout passed to `qm guest exec` during the QGA bootstrap path
 - `linux_ipa_qga_ssh_bootstrap_qm_path`: Proxmox CLI command or absolute path used for delegated `qm guest ...` calls; defaults to `qm`
+- `linux_ipa_qga_ssh_bootstrap_delegate_python_interpreter`: Python interpreter forced for delegated Proxmox-side `qm guest ...` tasks; defaults to `/usr/bin/python3`
 - `linux_ipa_ssh_bootstrap_enabled`: when `true`, the Linux workflows install the controller SSH public key onto the Linux guest account used for Ansible connections before hostname resolution and enrollment
 - `linux_ipa_ssh_bootstrap_password`: optional shared first-touch password used as a fallback `ansible_password` for runtime Linux guests during SSH key bootstrap; keep this in vaulted variables when used
 - `linux_ipa_ssh_bootstrap_public_key_file`: controller SSH public key path installed onto Linux guests during SSH bootstrap
