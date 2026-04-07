@@ -44,5 +44,5 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - When the relevant reverse zone is not hosted in FreeIPA DNS, the role now keeps the forward A and AAAA repair path but skips PTR repair instead of failing the enrollment.
 - `linux_freeipa_enroll_pin_local_hostname_in_etc_hosts` defaults to `true`, so the role also pins the guest enrollment FQDN to the guest primary IPv4 in `/etc/hosts` before hostname verification and join attempts.
 - The guest FQDN used for enrollment must not resolve to loopback or link-local addresses such as `127.0.0.1`, `::1`, `169.254.0.0/16`, or `fe80::/10`.
-- The guest primary IPv4 address should also reverse-resolve back to that same FQDN before enrollment.
+- The guest primary IPv4 address should also reverse-resolve back to that same FQDN before enrollment. When authoritative PTR repair is unavailable in the current FreeIPA DNS workflow, the role warns and continues instead of failing on the PTR mismatch alone.
 - The upstream collection must be installed from `requirements.yml` before execution.

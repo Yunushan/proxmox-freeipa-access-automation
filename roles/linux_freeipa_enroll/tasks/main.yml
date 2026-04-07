@@ -520,6 +520,21 @@
   changed_when: false
   when: linux_freeipa_enroll_primary_ipv4_to_verify | length > 0
 
+- name: Note when Linux guest reverse DNS verification is being relaxed
+  ansible.builtin.debug:
+    msg: >-
+      Linux guest {{ inventory_hostname }} has primary IPv4 address {{ linux_freeipa_enroll_primary_ipv4_to_verify }},
+      but authoritative PTR repair is unavailable for this address in the current FreeIPA DNS workflow.
+      Reverse DNS currently resolves to
+      {{ linux_freeipa_enroll_primary_ipv4_reverse_names | default([]) | join(', ') | default('an unresolved value', true) }}.
+      The enrollment role will continue with forward hostname validation and the upstream IPA client join.
+  changed_when: false
+  when:
+    - linux_freeipa_enroll_primary_ipv4_to_verify | length > 0
+    - linux_freeipa_enroll_effective_manage_authoritative_dns | bool
+    - not (linux_freeipa_enroll_authoritative_dns_reverse_zone_available | default(false) | bool)
+    - linux_freeipa_enroll_hostname_to_verify not in (linux_freeipa_enroll_primary_ipv4_reverse_names | default([]))
+
 - name: Assert the Linux guest primary IPv4 reverse DNS matches the enrollment hostname
   ansible.builtin.assert:
     that:
@@ -533,7 +548,13 @@
       {{ linux_freeipa_enroll_primary_ipv4_reverse_names | default([]) | join(', ') | default('an unresolved value', true) }}
       instead of {{ linux_freeipa_enroll_hostname_to_verify }}.
       Fix the PTR record so the guest primary IP maps back to the same FQDN used for IPA enrollment.
-  when: linux_freeipa_enroll_primary_ipv4_to_verify | length > 0
+  when:
+    - linux_freeipa_enroll_primary_ipv4_to_verify | length > 0
+    - not (
+        (linux_freeipa_enroll_effective_manage_authoritative_dns | bool)
+        and
+        not (linux_freeipa_enroll_authoritative_dns_reverse_zone_available | default(false) | bool)
+      )
 
 - name: Skip Linux IPA enrollment in check mode
   ansible.builtin.debug:

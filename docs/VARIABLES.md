@@ -64,6 +64,7 @@ Relevant Linux enrollment hostname controls:
 - `linux_freeipa_enroll_authoritative_dns_query_server`: DNS server IP used by the authoritative DNS repair logic when it queries FreeIPA DNS directly; defaults to `127.0.0.1` on the delegated IPA host
 - `linux_freeipa_enroll_authoritative_dns_remove_link_local_aaaa`: when `true`, authoritative DNS repair removes `fe80::/10` AAAA records for Linux enrollment hosts; defaults to `true`
 - `linux_freeipa_enroll_pin_local_hostname_in_etc_hosts`: when `true`, Linux enrollment pins the guest enrollment FQDN to the guest primary IPv4 in `/etc/hosts` before hostname validation and join attempts; defaults to `true`
+- when authoritative PTR repair is unavailable, Linux enrollment warns on reverse-DNS mismatch and continues with the upstream IPA client join instead of failing at the repository preflight step
 - `linux_ipa_manage_etc_hosts`: when `true`, the Linux enrollment role manages a bootstrap block in `/etc/hosts` before IPA connectivity and hostname verification
 - `linux_ipa_etc_hosts_entries`: list of `{ ip, names }` mappings for `/etc/hosts`, useful when IPA DNS is not reachable yet or when a guest FQDN must be pinned locally during bootstrap
 - `guest_qemu_agent_install_enabled`: when `true`, reachable Linux enrollment targets and optional `windows_qemu_guest_agent_clients` hosts install and start QEMU Guest Agent before later bootstrap steps
