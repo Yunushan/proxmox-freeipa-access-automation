@@ -58,7 +58,7 @@
   failed_when: false
   when:
     - linux_ipa_qga_ssh_bootstrap_target_hosts | length > 0
-    - '/' not in linux_ipa_qga_ssh_bootstrap_qm_path
+    - "'/' not in linux_ipa_qga_ssh_bootstrap_qm_path"
 
 - name: Set the resolved Linux QGA SSH bootstrap qm path
   ansible.builtin.set_fact:
