@@ -115,7 +115,7 @@ It is intentionally scoped to this project, not the full FreeIPA server-to-serve
 | DNS | `53` | `TCP`, `UDP` | Linux guest | IPA DNS servers | When Linux guests use IPA DNS | Resolve IPA records and external names through IPA DNS |
 | Kerberos | `88` | `TCP`, `UDP` | Linux guest | IPA servers | Linux IPA enrollment and login | Kerberos authentication |
 | LDAP | `389` | `TCP` | Linux guest | IPA servers | Linux IPA enrollment and login | LDAP and FreeIPA client discovery |
-| HTTPS | `443` | `TCP` | Linux guest | IPA servers | Linux IPA enrollment | IPA web/API verification during client install |
+| HTTPS | `linux_freeipa_enroll_https_port` (default `443`) | `TCP` | Linux guest | IPA servers | Linux IPA enrollment | IPA web/API verification during client install |
 | Kerberos Password | `464` | `TCP`, `UDP` | Linux guest | IPA servers | Linux IPA enrollment and password operations | Kerberos password and keytab operations |
 | LDAPS | `636` | `TCP` | Proxmox primary node | IPA/LDAP servers | Proxmox LDAP realm in default `ldaps` mode | Proxmox LDAP realm connection |
 

@@ -21,6 +21,8 @@
       - ipaclient_realm | length > 0
       - linux_ipaadmin_principal | length > 0
       - linux_ipaadmin_password | length > 0
+      - linux_freeipa_enroll_https_port | int > 0
+      - linux_freeipa_enroll_https_port | int < 65536
       - >-
         (
           (linux_ipa_servers | length > 0)
@@ -36,6 +38,7 @@
     linux_freeipa_enroll_effective_domain: "{{ ipaclient_domain }}"
     linux_freeipa_enroll_effective_realm: "{{ ipaclient_realm }}"
     linux_freeipa_enroll_effective_servers: "{{ linux_ipa_servers }}"
+    linux_freeipa_enroll_effective_https_port: "{{ linux_freeipa_enroll_https_port | int }}"
     linux_freeipa_enroll_effective_inventory_servers: >-
       {{
         groups['ipa_servers'] | default([])
@@ -130,6 +133,12 @@
         | reject('equalto', '')
         | unique
         | list
+      }}
+    linux_freeipa_enroll_effective_https_port_suffix: >-
+      {{
+        ''
+        if (linux_freeipa_enroll_effective_https_port | int) == 443
+        else ':' ~ (linux_freeipa_enroll_effective_https_port | string)
       }}
   changed_when: false
   no_log: true
@@ -311,7 +320,7 @@
 - name: Check HTTPS reachability to configured IPA servers from the Linux guest
   ansible.builtin.wait_for:
     host: "{{ item }}"
-    port: 443
+    port: "{{ linux_freeipa_enroll_effective_https_port | int }}"
     timeout: 5
     connect_timeout: 3
     state: started
@@ -329,7 +338,7 @@
       - not (item.failed | default(false))
       - item.elapsed is defined
     fail_msg: >-
-      Linux guest {{ inventory_hostname }} cannot reach HTTPS on {{ item.item }}:443.
+      Linux guest {{ inventory_hostname }} cannot reach HTTPS on {{ item.item }}:{{ linux_freeipa_enroll_effective_https_port }}.
       FreeIPA enrollment also needs the IPA web/API endpoint. Verify firewall, routing, and that
       the configured target is a real IPA server.
   loop: "{{ linux_freeipa_enroll_https_connectivity.results | default([]) }}"
@@ -338,7 +347,7 @@
 
 - name: Probe the FreeIPA JSON endpoint on configured IPA servers from the Linux guest
   ansible.builtin.uri:
-    url: "https://{{ item }}/ipa/json"
+    url: "https://{{ item }}{{ linux_freeipa_enroll_effective_https_port_suffix }}/ipa/json"
     method: GET
     return_content: false
     use_proxy: false
@@ -440,7 +449,7 @@
 - name: Fail when every FreeIPA JSON preflight probe is unhealthy and timeout continuation is disabled
   ansible.builtin.fail:
     msg: >-
-      Linux guest {{ inventory_hostname }} reached the configured IPA servers on TCP 443, but every FreeIPA JSON
+      Linux guest {{ inventory_hostname }} reached the configured IPA servers on TCP {{ linux_freeipa_enroll_effective_https_port }}, but every FreeIPA JSON
       preflight probe timed out or failed within {{ linux_freeipa_enroll_preflight_json_probe_timeout | int }} seconds.
       Summary: {{ linux_freeipa_enroll_json_probe_failure_summary | default('unknown probe failure') }}.
       This usually indicates a proxy, TLS, web-tier, or IPA API responsiveness problem rather than a basic
@@ -453,7 +462,7 @@
 - name: Note when every FreeIPA JSON preflight probe is unhealthy and timeout continuation is enabled
   ansible.builtin.debug:
     msg: >-
-      Linux guest {{ inventory_hostname }} reached the configured IPA servers on TCP 443, but every FreeIPA JSON
+      Linux guest {{ inventory_hostname }} reached the configured IPA servers on TCP {{ linux_freeipa_enroll_effective_https_port }}, but every FreeIPA JSON
       preflight probe timed out or failed within {{ linux_freeipa_enroll_preflight_json_probe_timeout | int }} seconds.
       Summary: {{ linux_freeipa_enroll_json_probe_failure_summary | default('unknown probe failure') }}.
       The repository will skip the expensive upstream join retries and mark this host as timed out immediately.

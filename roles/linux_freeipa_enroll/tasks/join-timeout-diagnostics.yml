@@ -45,7 +45,7 @@
 
 - name: Probe the final Linux IPA join candidate JSON endpoint for diagnostics
   ansible.builtin.uri:
-    url: "https://{{ linux_freeipa_enroll_join_last_server }}/ipa/json"
+    url: "https://{{ linux_freeipa_enroll_join_last_server }}{{ linux_freeipa_enroll_effective_https_port_suffix }}/ipa/json"
     method: GET
     return_content: false
     use_proxy: false
