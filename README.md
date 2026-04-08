@@ -360,6 +360,8 @@ If you want Proxmox to trigger Linux discovery and IPA enrollment immediately af
 
 That workflow uses a dedicated event playbook at `playbooks/proxmox-vm-event.yml` so the trigger path only handles the Linux and FreeIPA guest side. It does not rerun the Proxmox LDAP realm or RBAC automation on every VM event.
 
+The repository can now also deploy that optional hook/webhook stack from `site.yml` or `proxmox.yml` when `proxmox_vm_event_onboarding_enabled: true` and the required webhook variables are set.
+
 Proxmox VM hooks do not expose a standalone `create` phase. In practice, new VMs are picked up on their first `post-start` event, and migration hooks can trigger on both source and target nodes.
 
 ## Inventory Model

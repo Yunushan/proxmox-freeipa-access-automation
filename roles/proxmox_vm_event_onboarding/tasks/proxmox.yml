@@ -1,0 +1,154 @@
+---
+- name: Prepare effective Proxmox-side VM event hook values
+  ansible.builtin.set_fact:
+    proxmox_vm_event_hookscript_target: >-
+      {{
+        proxmox_vm_event_hookscript_storage
+        ~ ':snippets/'
+        ~ proxmox_vm_event_hookscript_filename
+      }}
+  changed_when: false
+
+- name: Assert Proxmox-side VM event hook variables are valid
+  ansible.builtin.assert:
+    that:
+      - proxmox_vm_event_hook_webhook_url | default('', true) | string | trim | length > 0
+      - proxmox_vm_event_webhook_token | default('', true) | string | trim | length > 0
+      - proxmox_vm_event_hookscript_storage | default('', true) | string | trim | length > 0
+      - proxmox_vm_event_hookscript_snippet_dir | default('', true) | string | trim | length > 0
+      - proxmox_vm_event_hookscript_filename | default('', true) | string | trim | length > 0
+    fail_msg: >-
+      Proxmox VM event onboarding is enabled, but the Proxmox-side hook variables are incomplete.
+      Provide proxmox_vm_event_hook_webhook_url and proxmox_vm_event_webhook_token.
+
+- name: Ensure the Proxmox snippets directory exists for the VM event hookscript
+  ansible.builtin.file:
+    path: "{{ proxmox_vm_event_hookscript_snippet_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy the Proxmox VM event hookscript
+  ansible.builtin.copy:
+    src: "{{ playbook_dir | dirname }}/scripts/proxmox-vm-hook.pl"
+    dest: "{{ proxmox_vm_event_hookscript_snippet_dir }}/{{ proxmox_vm_event_hookscript_filename }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy the Proxmox VM event hook configuration
+  ansible.builtin.template:
+    src: proxmox-freeipa-hook.conf.j2
+    dest: "{{ proxmox_vm_event_hook_config_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Read the current local Proxmox VM inventory
+  ansible.builtin.command: qm list
+  register: proxmox_vm_event_qm_list
+  changed_when: false
+  when: proxmox_vm_event_hookscript_attach_existing_vms | bool
+
+- name: Extract local Proxmox VMIDs for event hookscript attachment
+  ansible.builtin.set_fact:
+    proxmox_vm_event_current_vmids: >-
+      {{
+        proxmox_vm_event_qm_list.stdout_lines
+        | default([])
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | reject('match', '^VMID\\s+')
+        | map('regex_replace', '\\s+.*$', '')
+        | list
+      }}
+  changed_when: false
+  when: proxmox_vm_event_hookscript_attach_existing_vms | bool
+
+- name: Read current Proxmox VM hookscript settings
+  ansible.builtin.command:
+    argv:
+      - qm
+      - config
+      - "{{ item }}"
+  register: proxmox_vm_event_qm_config_results
+  changed_when: false
+  loop: "{{ proxmox_vm_event_current_vmids | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - proxmox_vm_event_hookscript_attach_existing_vms | bool
+    - proxmox_vm_event_current_vmids | default([]) | length > 0
+
+- name: Assert conflicting Proxmox VM hookscripts are explicitly allowed before replacement
+  vars:
+    proxmox_vm_event_existing_hookscript: >-
+      {{
+        item.stdout
+        | default('')
+        | regex_findall('^hookscript:\\s+(\\S+)$', multiline=True)
+        | first
+        | default('', true)
+      }}
+  ansible.builtin.assert:
+    that:
+      - >-
+        (
+          proxmox_vm_event_existing_hookscript | length == 0
+        )
+        or
+        (
+          proxmox_vm_event_existing_hookscript == proxmox_vm_event_hookscript_target
+        )
+        or
+        (
+          proxmox_vm_event_hookscript_override_existing | bool
+        )
+    fail_msg: >-
+      Proxmox VM {{ item.item }} already uses hookscript
+      {{ proxmox_vm_event_existing_hookscript | default('unknown', true) }}
+      instead of {{ proxmox_vm_event_hookscript_target }}.
+      Set proxmox_vm_event_hookscript_override_existing: true to replace it.
+  loop: "{{ proxmox_vm_event_qm_config_results.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - proxmox_vm_event_hookscript_attach_existing_vms | bool
+    - proxmox_vm_event_qm_config_results.results | default([]) | length > 0
+
+- name: Attach the repository Proxmox VM event hookscript to local VMs
+  vars:
+    proxmox_vm_event_existing_hookscript: >-
+      {{
+        item.stdout
+        | default('')
+        | regex_findall('^hookscript:\\s+(\\S+)$', multiline=True)
+        | first
+        | default('', true)
+      }}
+  ansible.builtin.command:
+    argv:
+      - qm
+      - set
+      - "{{ item.item }}"
+      - --hookscript
+      - "{{ proxmox_vm_event_hookscript_target }}"
+  loop: "{{ proxmox_vm_event_qm_config_results.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - proxmox_vm_event_hookscript_attach_existing_vms | bool
+    - proxmox_vm_event_qm_config_results.results | default([]) | length > 0
+    - >-
+      (
+        proxmox_vm_event_existing_hookscript | length == 0
+      )
+      or
+      (
+        (proxmox_vm_event_existing_hookscript != proxmox_vm_event_hookscript_target)
+        and (proxmox_vm_event_hookscript_override_existing | bool)
+      )

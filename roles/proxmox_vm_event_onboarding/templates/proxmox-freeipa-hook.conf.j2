@@ -1,0 +1,6 @@
+PFA_WEBHOOK_URL="{{ proxmox_vm_event_hook_webhook_url }}"
+PFA_WEBHOOK_TOKEN="{{ proxmox_vm_event_webhook_token }}"
+PFA_ALLOWED_PHASES="{{ proxmox_vm_event_allowed_phases | join(',') }}"
+PFA_VERIFY_TLS={{ 1 if (proxmox_vm_event_hook_verify_tls | bool) else 0 }}
+PFA_TIMEOUT_SECONDS={{ proxmox_vm_event_hook_timeout_seconds | int }}
+PFA_STRICT={{ 1 if (proxmox_vm_event_hook_strict | bool) else 0 }}

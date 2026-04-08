@@ -1,0 +1,16 @@
+[Unit]
+Description=Proxmox VM event webhook for FreeIPA automation
+After=network.target
+
+[Service]
+Type=simple
+User={{ proxmox_vm_event_webhook_user }}
+Group={{ proxmox_vm_event_webhook_group }}
+WorkingDirectory={{ proxmox_vm_event_webhook_effective_repo_dir }}
+EnvironmentFile={{ proxmox_vm_event_webhook_env_path }}
+ExecStart=/usr/bin/python3 {{ proxmox_vm_event_webhook_effective_repo_dir }}/scripts/proxmox_event_webhook.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

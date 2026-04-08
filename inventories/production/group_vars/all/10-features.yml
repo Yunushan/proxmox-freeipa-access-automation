@@ -6,4 +6,5 @@ freeipa_access_model_enabled: true
 proxmox_ldap_enabled: true
 proxmox_rbac_enabled: true
 proxmox_realm_sync_timer_enabled: true
+proxmox_vm_event_onboarding_enabled: false
 linux_freeipa_enroll_enabled: true

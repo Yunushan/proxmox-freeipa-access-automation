@@ -104,6 +104,12 @@ Relevant Linux enrollment hostname controls:
 - `linux_ipaclient_kinit_attempts`: value passed to the upstream `ipaclient_kinit_attempts` setting so host Kerberos ticket acquisition is retried more aggressively during Linux IPA enrollment; defaults to `10`
 - `linux_sssd_refresh_enabled`: when `true`, the `freeipa.yml` and `site.yml` workflows clear SSSD caches and restart `sssd` on managed Linux clients after FreeIPA access-model changes so new sudo and HBAC policy is visible immediately
 - `linux_ipa_proxmox_discovery_vmids`: optional VMID filter list for Proxmox discovery, mainly useful for event-driven runs such as the Proxmox hook/webhook workflow
+- `proxmox_vm_event_onboarding_enabled`: when `true`, `site.yml` and `proxmox.yml` deploy the optional controller-side Proxmox VM event webhook and Proxmox-side hookscript/config so `post-start` and `post-migrate` events can trigger automatic Linux onboarding
+- `proxmox_vm_event_webhook_token`: shared bearer token for the controller webhook listener and Proxmox hookscript; required when `proxmox_vm_event_onboarding_enabled` is `true`
+- `proxmox_vm_event_hook_webhook_url`: full webhook URL reachable from Proxmox nodes, for example `https://automation.example.com:8085/hooks/proxmox-vm-event`; required when `proxmox_vm_event_onboarding_enabled` is `true`
+- `proxmox_vm_event_webhook_ansible_extra_args`: optional non-interactive extra arguments passed to `ansible-playbook` by the controller webhook, commonly used for `--vault-id` file arguments in unattended event-driven runs
+- `proxmox_vm_event_hookscript_attach_existing_vms`: when `true`, Proxmox rollout automatically attaches the repository hookscript to current QEMU VMs on participating discovery nodes; defaults to `true`
+- `proxmox_vm_event_hookscript_override_existing`: when `true`, Proxmox rollout replaces conflicting per-VM hookscripts with the repository hookscript; defaults to `false`
 
 Linux enrollment naming rules:
 

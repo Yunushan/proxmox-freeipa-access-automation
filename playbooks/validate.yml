@@ -31,6 +31,7 @@
         that:
           - not (proxmox_rbac_enabled | bool) or (proxmox_ldap_enabled | bool)
           - not (proxmox_realm_sync_timer_enabled | bool) or (proxmox_ldap_enabled | bool)
+          - not (proxmox_vm_event_onboarding_enabled | bool) or (linux_ipa_proxmox_discovery_enabled | bool)
         fail_msg: One or more feature toggles are mutually incompatible.
 
     - name: Check required FreeIPA variable presence when enabled
@@ -77,6 +78,19 @@
           - linux_validate_ipaadmin_password | length > 0
         fail_msg: Linux FreeIPA enrollment variables are missing or empty.
       when: linux_freeipa_enroll_enabled | bool
+
+    - name: Check required Proxmox VM event onboarding variables when enabled
+      tags:
+        - validate
+        - proxmox
+        - proxmox_event
+      ansible.builtin.assert:
+        that:
+          - proxmox_vm_event_webhook_token | default('', true) | length > 0
+          - proxmox_vm_event_hook_webhook_url | default('', true) | length > 0
+          - linux_ipa_proxmox_discovery_nodes | default([]) | length > 0
+        fail_msg: Proxmox VM event onboarding variables are missing or empty.
+      when: proxmox_vm_event_onboarding_enabled | bool
 
 - name: Validate Proxmox node prerequisites
   hosts: proxmox_primary

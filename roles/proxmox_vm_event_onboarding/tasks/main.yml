@@ -1,0 +1,8 @@
+---
+- name: Deploy controller-side Proxmox VM event onboarding assets
+  ansible.builtin.include_tasks: controller.yml
+  when: inventory_hostname == 'localhost'
+
+- name: Deploy Proxmox-side VM event onboarding assets
+  ansible.builtin.include_tasks: proxmox.yml
+  when: inventory_hostname != 'localhost'

@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  author: OpenAI
+  description: Deploy the optional Proxmox VM event hook and controller webhook for automatic Linux onboarding.
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

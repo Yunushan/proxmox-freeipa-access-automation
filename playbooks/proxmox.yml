@@ -1,4 +1,24 @@
 ---
+- name: Seed Proxmox VM event onboarding target runtime group for the Proxmox workflow
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - proxmox
+    - proxmox_event
+  tasks:
+    - name: Add participating Proxmox nodes to the VM event onboarding runtime group
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        groups: proxmox_vm_event_onboarding_targets
+      loop: "{{ linux_ipa_proxmox_discovery_nodes | default([]) }}"
+      loop_control:
+        label: "{{ item }}"
+      changed_when: false
+      when:
+        - proxmox_vm_event_onboarding_enabled | bool
+        - linux_ipa_proxmox_discovery_enabled | bool
+
 - name: Configure Proxmox LDAP realm and recurring sync only
   hosts: proxmox_primary
   become: true
@@ -23,3 +43,34 @@
       tags:
         - proxmox
         - proxmox_rbac
+
+- name: Deploy controller-side Proxmox VM event onboarding only
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: false
+  tags:
+    - proxmox
+    - proxmox_event
+  roles:
+    - role: proxmox_vm_event_onboarding
+      when: proxmox_vm_event_onboarding_enabled | bool
+      tags:
+        - proxmox
+        - proxmox_event
+
+- name: Deploy Proxmox-side VM event onboarding only
+  hosts: proxmox_vm_event_onboarding_targets
+  become: true
+  gather_facts: false
+  serial: "{{ proxmox_rollout_serial | default(1) | int }}"
+  max_fail_percentage: "{{ proxmox_rollout_max_fail_percentage | default(0) | int }}"
+  tags:
+    - proxmox
+    - proxmox_event
+  roles:
+    - role: proxmox_vm_event_onboarding
+      when: proxmox_vm_event_onboarding_enabled | bool
+      tags:
+        - proxmox
+        - proxmox_event

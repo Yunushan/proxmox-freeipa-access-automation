@@ -1,0 +1,59 @@
+---
+- name: Prepare effective controller-side Proxmox VM event onboarding values
+  ansible.builtin.set_fact:
+    proxmox_vm_event_webhook_effective_repo_dir: >-
+      {{
+        proxmox_vm_event_webhook_repo_dir
+        | default((playbook_dir | dirname), true)
+        | string
+        | trim
+      }}
+    proxmox_vm_event_webhook_effective_inventory: >-
+      {{
+        proxmox_vm_event_webhook_inventory
+        | default(ansible_inventory_sources | default([]) | first, true)
+        | default((playbook_dir | dirname) ~ '/inventories/production/hosts.yml', true)
+        | string
+        | trim
+      }}
+  changed_when: false
+  no_log: true
+
+- name: Assert controller-side Proxmox VM event onboarding variables are valid
+  ansible.builtin.assert:
+    that:
+      - proxmox_vm_event_webhook_token | default('', true) | string | trim | length > 0
+      - proxmox_vm_event_webhook_effective_repo_dir | length > 0
+      - proxmox_vm_event_webhook_effective_inventory | length > 0
+      - proxmox_vm_event_webhook_port | int > 0
+      - proxmox_vm_event_webhook_port | int < 65536
+    fail_msg: >-
+      Proxmox VM event onboarding is enabled, but the controller-side webhook variables are incomplete.
+      Provide at least proxmox_vm_event_webhook_token and valid controller paths.
+
+- name: Deploy Proxmox VM event webhook environment file
+  ansible.builtin.template:
+    src: proxmox-freeipa-event-webhook.env.j2
+    dest: "{{ proxmox_vm_event_webhook_env_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Deploy Proxmox VM event webhook service unit
+  ansible.builtin.template:
+    src: proxmox-freeipa-event-webhook.service.j2
+    dest: "/etc/systemd/system/{{ proxmox_vm_event_webhook_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Flush systemd handler for Proxmox VM event webhook deployment
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start the Proxmox VM event webhook service
+  ansible.builtin.systemd_service:
+    name: "{{ proxmox_vm_event_webhook_service_name }}"
+    enabled: true
+    state: started
+  when: not ansible_check_mode

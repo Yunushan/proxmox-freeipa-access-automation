@@ -1,0 +1,35 @@
+---
+proxmox_vm_event_onboarding_enabled: false
+proxmox_vm_event_webhook_service_name: proxmox-freeipa-event-webhook
+proxmox_vm_event_webhook_env_path: /etc/default/proxmox-freeipa-event-webhook
+proxmox_vm_event_webhook_bind: 0.0.0.0
+proxmox_vm_event_webhook_port: 8085
+proxmox_vm_event_webhook_path: /hooks/proxmox-vm-event
+proxmox_vm_event_webhook_health_path: /healthz
+proxmox_vm_event_webhook_token: "{{ vault_proxmox_vm_event_webhook_token | default('', true) }}"
+proxmox_vm_event_allowed_phases:
+  - post-start
+  - post-migrate
+proxmox_vm_event_webhook_debounce_seconds: 5
+proxmox_vm_event_webhook_pre_run_delay_seconds: 20
+proxmox_vm_event_webhook_retry_count: 2
+proxmox_vm_event_webhook_retry_delay_seconds: 30
+proxmox_vm_event_webhook_repo_dir: ""
+proxmox_vm_event_webhook_playbook: playbooks/proxmox-vm-event.yml
+proxmox_vm_event_webhook_inventory: ""
+proxmox_vm_event_webhook_ansible_playbook_bin: /usr/bin/ansible-playbook
+proxmox_vm_event_webhook_ansible_extra_args: ""
+proxmox_vm_event_webhook_tls_certfile: ""
+proxmox_vm_event_webhook_tls_keyfile: ""
+proxmox_vm_event_webhook_user: root
+proxmox_vm_event_webhook_group: root
+proxmox_vm_event_hook_config_path: /etc/default/proxmox-freeipa-hook
+proxmox_vm_event_hook_webhook_url: ""
+proxmox_vm_event_hook_verify_tls: true
+proxmox_vm_event_hook_timeout_seconds: 10
+proxmox_vm_event_hook_strict: false
+proxmox_vm_event_hookscript_storage: local
+proxmox_vm_event_hookscript_snippet_dir: /var/lib/vz/snippets
+proxmox_vm_event_hookscript_filename: proxmox-vm-hook.pl
+proxmox_vm_event_hookscript_attach_existing_vms: true
+proxmox_vm_event_hookscript_override_existing: false
