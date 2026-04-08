@@ -997,6 +997,14 @@
     - linux_freeipa_enroll_networkmanager_dns_refresh_interface | length > 0
 
 - name: Apply Linux IPA DNS resolver changes through the active NetworkManager device
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_should_refresh_networkmanager_dns | default(false) | bool
+    - linux_freeipa_enroll_effective_networkmanager_dns_refresh_strategy == 'apply'
+    - ansible_service_mgr == 'systemd'
+    - "'NetworkManager.service' in (ansible_facts.services | default({}))"
+    - (ansible_facts.services['NetworkManager.service'].state | default('')) == 'running'
+    - linux_freeipa_enroll_networkmanager_dns_refresh_interface | length > 0
   block:
     - name: Reapply the active NetworkManager device configuration
       ansible.builtin.command:
@@ -1026,14 +1034,6 @@
           {{ linux_freeipa_enroll_networkmanager_dns_refresh_interface | default('unknown', true) }}
           could not be determined.
       when: linux_freeipa_enroll_networkmanager_active_connection_name.stdout | default('', true) | trim | length == 0
-  when:
-    - not ansible_check_mode
-    - linux_freeipa_enroll_should_refresh_networkmanager_dns | default(false) | bool
-    - linux_freeipa_enroll_effective_networkmanager_dns_refresh_strategy == 'apply'
-    - ansible_service_mgr == 'systemd'
-    - "'NetworkManager.service' in (ansible_facts.services | default({}))"
-    - (ansible_facts.services['NetworkManager.service'].state | default('')) == 'running'
-    - linux_freeipa_enroll_networkmanager_dns_refresh_interface | length > 0
 
 - name: Mark targeted NetworkManager DNS refresh as performed
   ansible.builtin.set_fact:
@@ -1073,7 +1073,7 @@
     - (ansible_facts.services['NetworkManager.service'].state | default('')) == 'running'
 
 - name: Reset the Ansible SSH connection after NetworkManager DNS refresh
-  meta: reset_connection
+  ansible.builtin.meta: reset_connection
   when:
     - not ansible_check_mode
     - linux_freeipa_enroll_networkmanager_dns_refresh_performed | default(false) | bool
