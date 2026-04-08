@@ -25,6 +25,14 @@
       - linux_freeipa_enroll_https_port | int < 65536
       - >-
         (
+          linux_freeipa_enroll_networkmanager_dns_refresh_strategy
+          | default('', true)
+          | string
+          | trim
+          | lower
+        ) in ['', 'apply', 'restart', 'none']
+      - >-
+        (
           (linux_ipa_servers | length > 0)
           or (linux_freeipa_enroll_inventory_server_fallback_count | int > 0)
           or not (linux_ipaclient_no_dns_lookup | bool)
@@ -59,6 +67,21 @@
     linux_freeipa_enroll_effective_dns_servers: "{{ linux_ipaclient_dns_servers }}"
     linux_freeipa_enroll_effective_manage_etc_hosts: "{{ linux_ipa_manage_etc_hosts }}"
     linux_freeipa_enroll_effective_etc_hosts_entries: "{{ linux_ipa_etc_hosts_entries }}"
+    linux_freeipa_enroll_effective_networkmanager_dns_refresh_strategy: >-
+      {% set requested = (
+           linux_freeipa_enroll_networkmanager_dns_refresh_strategy
+           | default('', true)
+           | string
+           | trim
+           | lower
+         ) %}
+      {% if requested in ['apply', 'restart', 'none'] %}
+      {{ requested }}
+      {% elif linux_freeipa_enroll_restart_networkmanager_after_dns_config is defined %}
+      {{ 'restart' if (linux_freeipa_enroll_restart_networkmanager_after_dns_config | bool) else 'none' }}
+      {% else %}
+      apply
+      {% endif %}
   changed_when: false
   no_log: true
 
@@ -206,11 +229,65 @@
     label: "{{ item.ip | default('missing-ip') }}"
   when: linux_freeipa_enroll_effective_manage_etc_hosts | bool
 
+- name: Derive Linux IPA server bootstrap /etc/hosts entries from inventory
+  vars:
+    linux_freeipa_enroll_inventory_ipa_server_entries_yaml: |
+      {% set entries = [] %}
+      {% for server in linux_freeipa_enroll_effective_servers_normalized %}
+      {%   set inventory_hosts = groups['ipa_servers'] | default([]) %}
+      {%   if server in inventory_hosts %}
+      {%     set candidate_ip = hostvars[server].ansible_host | default('', true) | string | trim %}
+      {%     set candidate_short = server | regex_replace('\\..*$', '') %}
+      {%     if candidate_ip | length > 0 and ((candidate_ip is match('^([0-9]{1,3}\\.){3}[0-9]{1,3}$')) or (candidate_ip is match('^[0-9A-Fa-f:]+$'))) %}
+      {%       set names = [server] %}
+      {%       if candidate_short | length > 0 and candidate_short != server %}
+      {%         set _ = names.append(candidate_short) %}
+      {%       endif %}
+      {%       set _ = entries.append({
+             'ip': candidate_ip,
+             'names': names | unique | list
+           }) %}
+      {%     endif %}
+      {%   endif %}
+      {% endfor %}
+      {{ entries | to_yaml }}
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_inventory_ipa_server_bootstrap_entries: "{{ linux_freeipa_enroll_inventory_ipa_server_entries_yaml | from_yaml }}"
+  changed_when: false
+  when: linux_freeipa_enroll_bootstrap_ipa_server_hosts_from_inventory | bool
+
+- name: Combine Linux IPA /etc/hosts bootstrap entries
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_manual_etc_hosts_entries: >-
+      {{
+        (
+          linux_freeipa_enroll_effective_etc_hosts_entries
+          if (linux_freeipa_enroll_effective_manage_etc_hosts | bool)
+          else []
+        )
+      }}
+    linux_freeipa_enroll_combined_etc_hosts_entries: >-
+      {{
+        (
+          (
+            linux_freeipa_enroll_effective_etc_hosts_entries
+            if (linux_freeipa_enroll_effective_manage_etc_hosts | bool)
+            else []
+          )
+          +
+          (
+            linux_freeipa_enroll_inventory_ipa_server_bootstrap_entries
+            | default([])
+          )
+        )
+      }}
+  changed_when: false
+
 - name: Build Linux IPA /etc/hosts bootstrap lines
   vars:
     linux_freeipa_enroll_etc_hosts_lines_yaml: |
       {% set lines = [] %}
-      {% for entry in linux_freeipa_enroll_effective_etc_hosts_entries %}
+      {% for entry in linux_freeipa_enroll_combined_etc_hosts_entries | default([]) %}
       {%   set entry_names = (
              entry.names
              if (entry.names is sequence and entry.names is not string)
@@ -233,7 +310,7 @@
   ansible.builtin.set_fact:
     linux_freeipa_enroll_etc_hosts_lines: "{{ linux_freeipa_enroll_etc_hosts_lines_yaml | from_yaml }}"
   changed_when: false
-  when: linux_freeipa_enroll_effective_manage_etc_hosts | bool
+  when: linux_freeipa_enroll_combined_etc_hosts_entries | default([]) | length > 0
 
 - name: Ensure Linux IPA /etc/hosts bootstrap entries are present
   ansible.builtin.blockinfile:
@@ -246,7 +323,6 @@
       {{ line }}
       {% endfor %}
   when:
-    - linux_freeipa_enroll_effective_manage_etc_hosts | bool
     - linux_freeipa_enroll_etc_hosts_lines | default([]) | length > 0
 
 - name: Assert Linux IPA domain is not configured as an IPA server hostname
@@ -871,6 +947,144 @@
         and
         (linux_freeipa_enroll_join_timed_out | bool)
       )
+
+- name: Prepare Linux guest NetworkManager DNS refresh state
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_should_refresh_networkmanager_dns: >-
+      {{
+        (linux_freeipa_enroll_join_succeeded | bool)
+        and (linux_freeipa_enroll_effective_configure_dns_resolver | bool)
+        and (linux_freeipa_enroll_effective_dns_servers | default([]) | length > 0)
+        and (linux_freeipa_enroll_effective_networkmanager_dns_refresh_strategy in ['apply', 'restart'])
+      }}
+    linux_freeipa_enroll_networkmanager_dns_refresh_interface: >-
+      {{
+        ansible_facts.get('default_ipv4', {}).get('interface', '')
+        | string
+        | trim
+      }}
+    linux_freeipa_enroll_networkmanager_dns_refresh_performed: false
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_join_succeeded | bool
+
+- name: Gather Linux guest service facts before refreshing DNS on NetworkManager hosts
+  ansible.builtin.service_facts:
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_should_refresh_networkmanager_dns | default(false) | bool
+
+- name: Read the active NetworkManager connection profile for targeted DNS refresh
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - -g
+      - GENERAL.CONNECTION
+      - device
+      - show
+      - "{{ linux_freeipa_enroll_networkmanager_dns_refresh_interface }}"
+  register: linux_freeipa_enroll_networkmanager_active_connection_name
+  changed_when: false
+  failed_when: false
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_should_refresh_networkmanager_dns | default(false) | bool
+    - linux_freeipa_enroll_effective_networkmanager_dns_refresh_strategy == 'apply'
+    - ansible_service_mgr == 'systemd'
+    - "'NetworkManager.service' in (ansible_facts.services | default({}))"
+    - (ansible_facts.services['NetworkManager.service'].state | default('')) == 'running'
+    - linux_freeipa_enroll_networkmanager_dns_refresh_interface | length > 0
+
+- name: Apply Linux IPA DNS resolver changes through the active NetworkManager device
+  block:
+    - name: Reapply the active NetworkManager device configuration
+      ansible.builtin.command:
+        argv:
+          - nmcli
+          - device
+          - reapply
+          - "{{ linux_freeipa_enroll_networkmanager_dns_refresh_interface }}"
+      changed_when: true
+
+  rescue:
+    - name: Reactivate the active NetworkManager connection after device reapply failure
+      ansible.builtin.command:
+        argv:
+          - nmcli
+          - connection
+          - up
+          - "{{ linux_freeipa_enroll_networkmanager_active_connection_name.stdout | default('', true) | trim }}"
+      changed_when: true
+      when: linux_freeipa_enroll_networkmanager_active_connection_name.stdout | default('', true) | trim | length > 0
+
+    - name: Fail when targeted NetworkManager DNS refresh cannot determine an active connection profile
+      ansible.builtin.fail:
+        msg: >-
+          Linux guest {{ inventory_hostname }} could not apply the updated DNS resolver settings through NetworkManager
+          because the active connection profile for interface
+          {{ linux_freeipa_enroll_networkmanager_dns_refresh_interface | default('unknown', true) }}
+          could not be determined.
+      when: linux_freeipa_enroll_networkmanager_active_connection_name.stdout | default('', true) | trim | length == 0
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_should_refresh_networkmanager_dns | default(false) | bool
+    - linux_freeipa_enroll_effective_networkmanager_dns_refresh_strategy == 'apply'
+    - ansible_service_mgr == 'systemd'
+    - "'NetworkManager.service' in (ansible_facts.services | default({}))"
+    - (ansible_facts.services['NetworkManager.service'].state | default('')) == 'running'
+    - linux_freeipa_enroll_networkmanager_dns_refresh_interface | length > 0
+
+- name: Mark targeted NetworkManager DNS refresh as performed
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_networkmanager_dns_refresh_performed: true
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_should_refresh_networkmanager_dns | default(false) | bool
+    - linux_freeipa_enroll_effective_networkmanager_dns_refresh_strategy == 'apply'
+    - ansible_service_mgr == 'systemd'
+    - "'NetworkManager.service' in (ansible_facts.services | default({}))"
+    - (ansible_facts.services['NetworkManager.service'].state | default('')) == 'running'
+    - linux_freeipa_enroll_networkmanager_dns_refresh_interface | length > 0
+
+- name: Restart NetworkManager after Linux IPA DNS resolver changes
+  ansible.builtin.systemd_service:
+    name: NetworkManager
+    state: restarted
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_should_refresh_networkmanager_dns | default(false) | bool
+    - linux_freeipa_enroll_effective_networkmanager_dns_refresh_strategy == 'restart'
+    - ansible_service_mgr == 'systemd'
+    - "'NetworkManager.service' in (ansible_facts.services | default({}))"
+    - (ansible_facts.services['NetworkManager.service'].state | default('')) == 'running'
+
+- name: Mark restart-based NetworkManager DNS refresh as performed
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_networkmanager_dns_refresh_performed: true
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_should_refresh_networkmanager_dns | default(false) | bool
+    - linux_freeipa_enroll_effective_networkmanager_dns_refresh_strategy == 'restart'
+    - ansible_service_mgr == 'systemd'
+    - "'NetworkManager.service' in (ansible_facts.services | default({}))"
+    - (ansible_facts.services['NetworkManager.service'].state | default('')) == 'running'
+
+- name: Reset the Ansible SSH connection after NetworkManager DNS refresh
+  meta: reset_connection
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_networkmanager_dns_refresh_performed | default(false) | bool
+
+- name: Wait for the Linux guest to reconnect after NetworkManager DNS refresh
+  ansible.builtin.wait_for_connection:
+    timeout: 60
+    sleep: 2
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_networkmanager_dns_refresh_performed | default(false) | bool
 
 - name: Mark Linux guest as successfully enrolled for later FreeIPA hostgroup updates
   ansible.builtin.add_host:
