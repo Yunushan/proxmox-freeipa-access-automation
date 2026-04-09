@@ -88,7 +88,18 @@
         that:
           - proxmox_vm_event_webhook_token | default('', true) | length > 0
           - proxmox_vm_event_hook_webhook_url | default('', true) | length > 0
+          - proxmox_vm_event_hook_webhook_url | regex_search('^https?://')
           - linux_ipa_proxmox_discovery_nodes | default([]) | length > 0
+          - >-
+            (
+              proxmox_vm_event_hook_webhook_url | regex_search('^http://')
+            )
+            or
+            (
+              (proxmox_vm_event_webhook_tls_certfile | default('', true) | length > 0)
+              and
+              (proxmox_vm_event_webhook_tls_keyfile | default('', true) | length > 0)
+            )
         fail_msg: Proxmox VM event onboarding variables are missing or empty.
       when: proxmox_vm_event_onboarding_enabled | bool
 
