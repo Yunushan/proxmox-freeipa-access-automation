@@ -47,9 +47,10 @@
           - -c
           - "{{ freeipa_access_model_login_shell_kerberos_cache.path }}"
           - "{{ freeipa_access_model_admin_principal }}"
+      args:
+        stdin: "{{ freeipa_access_model_admin_password }}"
+        stdin_add_newline: true
       register: freeipa_access_model_login_shell_kinit
-      stdin: "{{ freeipa_access_model_admin_password }}"
-      stdin_add_newline: true
       changed_when: false
       no_log: true
 
