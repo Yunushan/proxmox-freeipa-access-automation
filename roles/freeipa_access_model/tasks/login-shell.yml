@@ -1,0 +1,120 @@
+---
+- name: Normalize FreeIPA login-shell enforcement groups
+  ansible.builtin.set_fact:
+    freeipa_access_model_effective_login_shell_groups: >-
+      {{
+        (
+          freeipa_access_model_login_shell_groups
+          if (
+            freeipa_access_model_login_shell_groups is iterable
+            and not (freeipa_access_model_login_shell_groups is string)
+          )
+          else [freeipa_access_model_login_shell_groups]
+        )
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+
+- name: Read current FreeIPA configuration
+  ansible.builtin.command:
+    argv:
+      - ipa
+      - config-show
+  register: freeipa_access_model_config_show
+  changed_when: false
+  when: freeipa_access_model_manage_default_login_shell | bool
+
+- name: Ensure FreeIPA default login shell is configured
+  ansible.builtin.command:
+    argv:
+      - ipa
+      - config-mod
+      - "--defaultshell={{ freeipa_access_model_default_login_shell }}"
+  when:
+    - freeipa_access_model_manage_default_login_shell | bool
+    - not ansible_check_mode
+    - >-
+      (
+        freeipa_access_model_config_show.stdout
+        | regex_findall('(?m)^Default shell:\\s*(.+)$')
+        | first
+        | default('')
+        | trim
+      ) != (freeipa_access_model_default_login_shell | string | trim)
+
+- name: Read FreeIPA group membership for login-shell enforcement
+  ansible.builtin.command:
+    argv:
+      - ipa
+      - group-show
+      - "{{ item }}"
+      - --all
+      - --raw
+  loop: "{{ freeipa_access_model_effective_login_shell_groups }}"
+  loop_control:
+    label: "{{ item }}"
+  register: freeipa_access_model_login_shell_group_show
+  changed_when: false
+  when:
+    - freeipa_access_model_manage_group_member_login_shell | bool
+    - freeipa_access_model_effective_login_shell_groups | length > 0
+
+- name: Build FreeIPA user list for login-shell enforcement
+  ansible.builtin.set_fact:
+    freeipa_access_model_login_shell_users: >-
+      {{
+        freeipa_access_model_login_shell_group_show.results
+        | default([])
+        | map(attribute='stdout')
+        | map('regex_findall', '(?m)^member_user:\\s*(.+)$')
+        | list
+        | flatten
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | sort
+        | list
+      }}
+  when:
+    - freeipa_access_model_manage_group_member_login_shell | bool
+    - freeipa_access_model_effective_login_shell_groups | length > 0
+
+- name: Read current FreeIPA login shell for managed users
+  ansible.builtin.command:
+    argv:
+      - ipa
+      - user-show
+      - "{{ item }}"
+  loop: "{{ freeipa_access_model_login_shell_users | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+  register: freeipa_access_model_login_shell_user_show
+  changed_when: false
+  when:
+    - freeipa_access_model_manage_group_member_login_shell | bool
+    - freeipa_access_model_login_shell_users | default([]) | length > 0
+
+- name: Ensure managed FreeIPA users have the expected login shell
+  ansible.builtin.command:
+    argv:
+      - ipa
+      - user-mod
+      - "{{ item.item }}"
+      - "--shell={{ freeipa_access_model_default_login_shell }}"
+  loop: "{{ freeipa_access_model_login_shell_user_show.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - freeipa_access_model_manage_group_member_login_shell | bool
+    - not ansible_check_mode
+    - >-
+      (
+        item.stdout
+        | regex_findall('(?m)^Login shell:\\s*(.+)$')
+        | first
+        | default('')
+        | trim
+      ) != (freeipa_access_model_default_login_shell | string | trim)

@@ -4,6 +4,13 @@
     that:
       - freeipa_access_model_admin_principal | length > 0
       - freeipa_access_model_admin_password | length > 0
+      - >-
+          (
+            not (freeipa_access_model_manage_default_login_shell | bool)
+            and not (freeipa_access_model_manage_group_member_login_shell | bool)
+          )
+          or (freeipa_access_model_default_login_shell | string | trim | length > 0)
     fail_msg: >-
       freeipa_access_model_admin_principal and freeipa_access_model_admin_password
-      must be set.
+      must be set, and freeipa_access_model_default_login_shell must be non-empty
+      whenever FreeIPA login-shell management is enabled.

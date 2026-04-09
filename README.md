@@ -66,6 +66,7 @@ This is a good fit when you want onboarding and offboarding to be mostly:
 ## What You Get
 
 - FreeIPA user group, hostgroup, HBAC, and sudo rule management
+- automatic FreeIPA login-shell defaults for Linux admin users
 - Proxmox LDAP realm configuration against FreeIPA
 - recurring Proxmox realm sync from one designated cluster node
 - Proxmox RBAC bindings for synced directory groups

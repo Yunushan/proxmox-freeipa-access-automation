@@ -8,3 +8,19 @@ freeipa_access_model_user_groups: "{{ freeipa_user_groups | default([]) }}"
 freeipa_access_model_hostgroups: "{{ freeipa_hostgroups | default([]) }}"
 freeipa_access_model_hbac_rules: "{{ freeipa_hbac_rules | default([]) }}"
 freeipa_access_model_sudo_rules: "{{ freeipa_sudo_rules | default([]) }}"
+freeipa_access_model_manage_default_login_shell: true
+freeipa_access_model_default_login_shell: "{{ freeipa_default_login_shell | default('/bin/bash') }}"
+freeipa_access_model_manage_group_member_login_shell: true
+freeipa_access_model_login_shell_groups: >-
+  {{
+    freeipa_login_shell_groups
+    | default(
+        (
+          freeipa_access_model_user_groups
+          | map(attribute='name')
+          | select('equalto', 'linux-ssh-admins')
+          | list
+        ),
+        true
+      )
+  }}

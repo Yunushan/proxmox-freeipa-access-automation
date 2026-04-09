@@ -5,6 +5,9 @@
 - name: Manage FreeIPA user groups
   ansible.builtin.include_tasks: groups.yml
 
+- name: Manage FreeIPA login shell defaults
+  ansible.builtin.include_tasks: login-shell.yml
+
 - name: Manage FreeIPA hostgroups
   ansible.builtin.include_tasks: hostgroups.yml
 

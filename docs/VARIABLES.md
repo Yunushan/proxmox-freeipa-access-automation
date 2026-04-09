@@ -129,3 +129,7 @@ Linux enrollment naming rules:
 - `freeipa_hostgroups`: hostgroups built from declarative inventory groups or hostnames
 - `freeipa_hbac_rules`: login and service-access rules such as SSH access
 - `freeipa_sudo_rules`: sudo authorization rules evaluated by IPA-enrolled Linux clients
+- `freeipa_access_model_manage_default_login_shell`: when `true`, `freeipa_access_model` ensures the global FreeIPA default shell matches `freeipa_access_model_default_login_shell`; defaults to `true`
+- `freeipa_access_model_default_login_shell`: login shell enforced as the FreeIPA global default and, when group-member login-shell management is enabled, the shell applied to matching users; defaults to `/bin/bash`
+- `freeipa_access_model_manage_group_member_login_shell`: when `true`, `freeipa_access_model` also updates the login shell of users who are members of `freeipa_access_model_login_shell_groups`; defaults to `true`
+- `freeipa_access_model_login_shell_groups`: FreeIPA user groups whose direct members should be forced to `freeipa_access_model_default_login_shell`; defaults to `['linux-ssh-admins']` when that declarative group exists in `freeipa_user_groups`

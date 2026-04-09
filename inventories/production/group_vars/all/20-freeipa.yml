@@ -15,6 +15,12 @@ freeipa_user_groups:
   - name: linux-ssh-admins
     description: Linux administrators with SSH access and sudo rights
 
+# New IPA users inherit this shell, and existing direct members of the
+# groups below are corrected to the same shell during freeipa/site runs.
+freeipa_default_login_shell: /bin/bash
+freeipa_login_shell_groups:
+  - linux-ssh-admins
+
 freeipa_hostgroups:
   - name: linux-all
     description: All Linux clients from the prepared runtime group
