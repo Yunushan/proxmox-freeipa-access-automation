@@ -27,6 +27,20 @@
 
 </div>
 
+## Languages
+
+English is the canonical source for the full documentation. Full translated README files are available in 20 additional languages.
+
+[English](README.md) | [العربية](docs/i18n/README.ar.md) | [বাংলা](docs/i18n/README.bn.md) | [简体中文](docs/i18n/README.zh-CN.md) | [Français](docs/i18n/README.fr.md)
+
+[Deutsch](docs/i18n/README.de.md) | [हिन्दी](docs/i18n/README.hi.md) | [Bahasa Indonesia](docs/i18n/README.id.md) | [日本語](docs/i18n/README.ja.md) | [한국어](docs/i18n/README.ko.md)
+
+[मराठी](docs/i18n/README.mr.md) | [فارسی](docs/i18n/README.fa.md) | [Português](docs/i18n/README.pt.md) | [ਪੰਜਾਬੀ](docs/i18n/README.pa.md) | [Русский](docs/i18n/README.ru.md)
+
+[Español](docs/i18n/README.es.md) | [தமிழ்](docs/i18n/README.ta.md) | [తెలుగు](docs/i18n/README.te.md) | [Türkçe](docs/i18n/README.tr.md) | [اردو](docs/i18n/README.ur.md)
+
+[Tiếng Việt](docs/i18n/README.vi.md) | [Translation Index](docs/i18n/README.md) | [Translation Guide](docs/i18n/TRANSLATION_GUIDE.md)
+
 This repository treats **FreeIPA as the source of truth** for identity and access. Proxmox consumes that directory through an LDAP realm, Linux guests join FreeIPA through the upstream `ipaclient` role, and access stays centralized through synced groups, HBAC, and sudo rules instead of local account sprawl.
 
 > [!IMPORTANT]
@@ -584,6 +598,9 @@ After a successful rollout, verify the resulting state instead of assuming every
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── EVENT_DRIVEN_VM_ONBOARDING.md
+│   ├── i18n/
+│   │   ├── README.md
+│   │   └── README.<lang>.md
 │   └── VARIABLES.md
 ├── inventories/
 │   └── production/
@@ -662,6 +679,8 @@ Repository helper files included here:
 - `.pre-commit-config.yaml` runs the fast lint hook before commits when `pre-commit` is installed
 - `CHANGELOG.md` tracks notable repository changes in a single place
 - `docs/VARIABLES.md` explains the split inventory variable layout
+- `docs/i18n/` holds short translated README overviews while `README.md` remains the canonical full document
+- `docs/i18n/TRANSLATION_GUIDE.md` explains how translated README overview pages should be kept in sync
 - `scripts/bootstrap.ps1` and `scripts/bootstrap.sh` install the required collection into the repo-local `collections/` path and patch it for ansible-core 2.24+ compatibility
 - `scripts/patch_freeipa_collection.py` rewrites deprecated imports in the pinned FreeIPA collection so it stays compatible with future ansible-core releases
 - `scripts/lint.py` provides the cross-platform lint entrypoint for local use, CI, and pre-commit
