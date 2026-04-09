@@ -88,11 +88,11 @@
         that:
           - proxmox_vm_event_webhook_token | default('', true) | length > 0
           - proxmox_vm_event_hook_webhook_url | default('', true) | length > 0
-          - proxmox_vm_event_hook_webhook_url | regex_search('^https?://')
+          - proxmox_vm_event_hook_webhook_url is match('^https?://')
           - linux_ipa_proxmox_discovery_nodes | default([]) | length > 0
           - >-
             (
-              proxmox_vm_event_hook_webhook_url | regex_search('^http://')
+              proxmox_vm_event_hook_webhook_url is match('^http://')
             )
             or
             (

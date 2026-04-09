@@ -13,14 +13,14 @@
   ansible.builtin.assert:
     that:
       - proxmox_vm_event_hook_webhook_url | default('', true) | string | trim | length > 0
-      - proxmox_vm_event_hook_webhook_url | regex_search('^https?://')
+      - proxmox_vm_event_hook_webhook_url is match('^https?://')
       - proxmox_vm_event_webhook_token | default('', true) | string | trim | length > 0
       - proxmox_vm_event_hookscript_storage | default('', true) | string | trim | length > 0
       - proxmox_vm_event_hookscript_snippet_dir | default('', true) | string | trim | length > 0
       - proxmox_vm_event_hookscript_filename | default('', true) | string | trim | length > 0
       - >-
         (
-          proxmox_vm_event_hook_webhook_url | regex_search('^http://')
+          proxmox_vm_event_hook_webhook_url is match('^http://')
         )
         or
         (
