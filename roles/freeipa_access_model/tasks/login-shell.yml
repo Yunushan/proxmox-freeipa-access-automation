@@ -59,6 +59,8 @@
         argv:
           - ipa
           - config-show
+          - --all
+          - --raw
       register: freeipa_access_model_config_show
       changed_when: false
       environment:
@@ -84,7 +86,7 @@
         - >-
           (
             freeipa_access_model_config_show.stdout
-            | regex_findall('(?m)^Default shell:\\s*(.+)$')
+            | regex_findall('(?m)^ipadefaultloginshell:\\s*(.+)$')
             | first
             | default('')
             | trim
@@ -137,6 +139,8 @@
           - ipa
           - user-show
           - "{{ item }}"
+          - --all
+          - --raw
       loop: "{{ freeipa_access_model_login_shell_users | default([]) }}"
       loop_control:
         label: "{{ item }}"
@@ -171,7 +175,7 @@
         - >-
           (
             item.stdout
-            | regex_findall('(?m)^Login shell:\\s*(.+)$')
+            | regex_findall('(?m)^loginshell:\\s*(.+)$')
             | first
             | default('')
             | trim
