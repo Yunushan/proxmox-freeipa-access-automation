@@ -20,5 +20,6 @@ Deploys the optional Proxmox VM hook and controller-side webhook for event-drive
 ## Notes
 
 - The controller-side webhook still needs non-interactive vault arguments or another unattended secret source if the event playbook depends on vaulted values.
+- `proxmox_vm_event_hook_webhook_url` must use `http://` unless the controller webhook is also configured with both `proxmox_vm_event_webhook_tls_certfile` and `proxmox_vm_event_webhook_tls_keyfile`.
 - Proxmox does not expose a standalone VM `create` hook phase; new VMs are handled on their first `post-start` event when the hookscript is already attached.
 - Hookscript attachment is per VM. This role can reconcile current VMs on participating nodes, but future creation workflows should also preserve the hookscript on templates or through later reconciliation runs.

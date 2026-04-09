@@ -13,13 +13,26 @@
   ansible.builtin.assert:
     that:
       - proxmox_vm_event_hook_webhook_url | default('', true) | string | trim | length > 0
+      - proxmox_vm_event_hook_webhook_url | regex_search('^https?://')
       - proxmox_vm_event_webhook_token | default('', true) | string | trim | length > 0
       - proxmox_vm_event_hookscript_storage | default('', true) | string | trim | length > 0
       - proxmox_vm_event_hookscript_snippet_dir | default('', true) | string | trim | length > 0
       - proxmox_vm_event_hookscript_filename | default('', true) | string | trim | length > 0
+      - >-
+        (
+          proxmox_vm_event_hook_webhook_url | regex_search('^http://')
+        )
+        or
+        (
+          (proxmox_vm_event_webhook_tls_certfile | default('', true) | string | trim | length > 0)
+          and
+          (proxmox_vm_event_webhook_tls_keyfile | default('', true) | string | trim | length > 0)
+        )
     fail_msg: >-
       Proxmox VM event onboarding is enabled, but the Proxmox-side hook variables are incomplete.
       Provide proxmox_vm_event_hook_webhook_url and proxmox_vm_event_webhook_token.
+      Use http:// when the controller webhook is running without TLS cert/key files, or configure
+      proxmox_vm_event_webhook_tls_certfile and proxmox_vm_event_webhook_tls_keyfile for https://.
 
 - name: Ensure the Proxmox snippets directory exists for the VM event hookscript
   ansible.builtin.file:
