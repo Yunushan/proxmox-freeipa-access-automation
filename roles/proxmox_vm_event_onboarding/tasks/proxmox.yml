@@ -60,8 +60,9 @@
         | map('string')
         | map('trim')
         | reject('equalto', '')
-        | reject('match', '^VMID\\s+')
-        | map('regex_replace', '\\s+.*$', '')
+        | map('split')
+        | map('first')
+        | select('match', '^[0-9]+$')
         | list
       }}
   changed_when: false
