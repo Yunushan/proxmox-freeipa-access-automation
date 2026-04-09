@@ -27,12 +27,46 @@
       No resolved Linux runtime hostnames were available for event-driven FreeIPA hostgroup updates.
       Ensure the event playbook ran hostname resolution successfully for the discovered VM.
 
+- name: Normalize FreeIPA hostgroup inventory-group selectors for runtime membership updates
+  vars:
+    freeipa_runtime_hostgroup_membership_hostgroup_inventory_groups_yaml: |
+      {{
+        (
+          freeipa_runtime_hostgroup_membership_hostgroup_inventory_groups
+          if (
+            freeipa_runtime_hostgroup_membership_hostgroup_inventory_groups is sequence
+            and freeipa_runtime_hostgroup_membership_hostgroup_inventory_groups is not string
+          )
+          else (
+            freeipa_runtime_hostgroup_membership_hostgroup_inventory_groups
+            | default(freeipa_runtime_hostgroup_membership_inventory_group, true)
+            | string
+            | split(',')
+          )
+        )
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | list
+        | to_yaml
+      }}
+  ansible.builtin.set_fact:
+    freeipa_runtime_hostgroup_membership_hostgroup_inventory_groups_effective: >-
+      {{ freeipa_runtime_hostgroup_membership_hostgroup_inventory_groups_yaml | from_yaml }}
+  changed_when: false
+
 - name: Build FreeIPA hostgroups backed by the Linux runtime inventory group
   vars:
     freeipa_runtime_hostgroup_membership_hostgroups_targeted_yaml: |
       {% set targeted = [] %}
       {% for hostgroup in freeipa_runtime_hostgroup_membership_hostgroups %}
-      {%   if freeipa_runtime_hostgroup_membership_inventory_group in (hostgroup.inventory_groups | default([])) %}
+      {%   set hostgroup_inventory_groups = hostgroup.inventory_groups | default([]) %}
+      {%   if (
+             hostgroup_inventory_groups
+             | intersect(freeipa_runtime_hostgroup_membership_hostgroup_inventory_groups_effective | default([]))
+             | length
+           ) > 0 %}
       {%     set _ = targeted.append(hostgroup) %}
       {%   endif %}
       {% endfor %}

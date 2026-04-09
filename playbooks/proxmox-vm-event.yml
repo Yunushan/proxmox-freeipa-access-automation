@@ -73,6 +73,8 @@
     - role: freeipa_runtime_hostgroup_membership
       vars:
         freeipa_runtime_hostgroup_membership_inventory_group: "{{ linux_freeipa_enroll_success_group | default('linux_ipa_clients_enrolled_runtime') }}"
+        freeipa_runtime_hostgroup_membership_hostgroup_inventory_groups:
+          - "{{ linux_ipa_runtime_group | default('linux_ipa_clients_runtime') }}"
       when:
         - freeipa_access_model_enabled | bool
         - freeipa_runtime_hostgroup_membership_enabled | bool

@@ -104,6 +104,8 @@ Relevant Linux enrollment hostname controls:
 - `linux_ipaclient_kinit_attempts`: value passed to the upstream `ipaclient_kinit_attempts` setting so host Kerberos ticket acquisition is retried more aggressively during Linux IPA enrollment; defaults to `10`
 - `linux_sssd_refresh_enabled`: when `true`, the `freeipa.yml` and `site.yml` workflows clear SSSD caches and restart `sssd` on managed Linux clients after FreeIPA access-model changes so new sudo and HBAC policy is visible immediately
 - `linux_ipa_proxmox_discovery_vmids`: optional VMID filter list for Proxmox discovery, mainly useful for event-driven runs such as the Proxmox hook/webhook workflow
+- `freeipa_runtime_hostgroup_membership_inventory_group`: runtime inventory group that supplies the current Linux hosts to add into FreeIPA hostgroups; defaults to `linux_ipa_clients_runtime`
+- `freeipa_runtime_hostgroup_membership_hostgroup_inventory_groups`: declarative inventory-group names used to choose which `freeipa_hostgroups` should receive those runtime hosts; defaults to the value of `freeipa_runtime_hostgroup_membership_inventory_group`
 - `proxmox_vm_event_onboarding_enabled`: when `true`, `site.yml` and `proxmox.yml` deploy the optional controller-side Proxmox VM event webhook and Proxmox-side hookscript/config so `post-start` and `post-migrate` events can trigger automatic Linux onboarding
 - `proxmox_vm_event_webhook_token`: shared bearer token for the controller webhook listener and Proxmox hookscript; required when `proxmox_vm_event_onboarding_enabled` is `true`
 - `proxmox_vm_event_hook_webhook_url`: full webhook URL reachable from Proxmox nodes, for example `https://automation.example.com:8085/hooks/proxmox-vm-event`; required when `proxmox_vm_event_onboarding_enabled` is `true`
