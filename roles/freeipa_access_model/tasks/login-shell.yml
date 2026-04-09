@@ -18,103 +18,177 @@
         | list
       }}
 
-- name: Read current FreeIPA configuration
-  ansible.builtin.command:
-    argv:
-      - ipa
-      - config-show
-  register: freeipa_access_model_config_show
-  changed_when: false
-  when: freeipa_access_model_manage_default_login_shell | bool
-
-- name: Ensure FreeIPA default login shell is configured
-  ansible.builtin.command:
-    argv:
-      - ipa
-      - config-mod
-      - "--defaultshell={{ freeipa_access_model_default_login_shell }}"
-  when:
-    - freeipa_access_model_manage_default_login_shell | bool
-    - not ansible_check_mode
-    - >-
-      (
-        freeipa_access_model_config_show.stdout
-        | regex_findall('(?m)^Default shell:\\s*(.+)$')
-        | first
-        | default('')
-        | trim
-      ) != (freeipa_access_model_default_login_shell | string | trim)
-
-- name: Read FreeIPA group membership for login-shell enforcement
-  ansible.builtin.command:
-    argv:
-      - ipa
-      - group-show
-      - "{{ item }}"
-      - --all
-      - --raw
-  loop: "{{ freeipa_access_model_effective_login_shell_groups }}"
-  loop_control:
-    label: "{{ item }}"
-  register: freeipa_access_model_login_shell_group_show
-  changed_when: false
-  when:
-    - freeipa_access_model_manage_group_member_login_shell | bool
-    - freeipa_access_model_effective_login_shell_groups | length > 0
-
-- name: Build FreeIPA user list for login-shell enforcement
+- name: Determine whether FreeIPA login-shell management is needed
   ansible.builtin.set_fact:
-    freeipa_access_model_login_shell_users: >-
+    freeipa_access_model_login_shell_management_enabled: >-
       {{
-        freeipa_access_model_login_shell_group_show.results
-        | default([])
-        | map(attribute='stdout')
-        | map('regex_findall', '(?m)^member_user:\\s*(.+)$')
-        | list
-        | flatten
-        | map('trim')
-        | reject('equalto', '')
-        | unique
-        | sort
-        | list
+        (freeipa_access_model_manage_default_login_shell | bool)
+        or
+        (
+          (freeipa_access_model_manage_group_member_login_shell | bool)
+          and (freeipa_access_model_effective_login_shell_groups | length > 0)
+        )
       }}
-  when:
-    - freeipa_access_model_manage_group_member_login_shell | bool
-    - freeipa_access_model_effective_login_shell_groups | length > 0
 
-- name: Read current FreeIPA login shell for managed users
-  ansible.builtin.command:
-    argv:
-      - ipa
-      - user-show
-      - "{{ item }}"
-  loop: "{{ freeipa_access_model_login_shell_users | default([]) }}"
-  loop_control:
-    label: "{{ item }}"
-  register: freeipa_access_model_login_shell_user_show
-  changed_when: false
-  when:
-    - freeipa_access_model_manage_group_member_login_shell | bool
-    - freeipa_access_model_login_shell_users | default([]) | length > 0
+- name: Manage FreeIPA login shell settings through the IPA CLI
+  when: freeipa_access_model_login_shell_management_enabled | bool
+  block:
+    - name: Create temporary Kerberos cache for FreeIPA login-shell tasks
+      ansible.builtin.tempfile:
+        state: file
+        prefix: freeipa-access-model-krb5cc-
+      register: freeipa_access_model_login_shell_kerberos_cache
+      changed_when: false
 
-- name: Ensure managed FreeIPA users have the expected login shell
-  ansible.builtin.command:
-    argv:
-      - ipa
-      - user-mod
-      - "{{ item.item }}"
-      - "--shell={{ freeipa_access_model_default_login_shell }}"
-  loop: "{{ freeipa_access_model_login_shell_user_show.results | default([]) }}"
-  loop_control:
-    label: "{{ item.item }}"
-  when:
-    - freeipa_access_model_manage_group_member_login_shell | bool
-    - not ansible_check_mode
-    - >-
-      (
-        item.stdout
-        | regex_findall('(?m)^Login shell:\\s*(.+)$')
-        | first
-        | default('')
-        | trim
-      ) != (freeipa_access_model_default_login_shell | string | trim)
+    - name: Obtain Kerberos ticket for FreeIPA login-shell tasks
+      ansible.builtin.command:
+        argv:
+          - kinit
+          - -c
+          - "{{ freeipa_access_model_login_shell_kerberos_cache.path }}"
+          - "{{ freeipa_access_model_admin_principal }}"
+      register: freeipa_access_model_login_shell_kinit
+      stdin: "{{ freeipa_access_model_admin_password }}"
+      stdin_add_newline: true
+      changed_when: false
+      no_log: true
+
+    - name: Read current FreeIPA configuration
+      ansible.builtin.command:
+        argv:
+          - ipa
+          - config-show
+      register: freeipa_access_model_config_show
+      changed_when: false
+      environment:
+        KRB5CCNAME: "{{ freeipa_access_model_login_shell_kerberos_cache.path }}"
+        LANG: C
+        LC_ALL: C
+      when: freeipa_access_model_manage_default_login_shell | bool
+
+    - name: Ensure FreeIPA default login shell is configured
+      ansible.builtin.command:
+        argv:
+          - ipa
+          - config-mod
+          - "--defaultshell={{ freeipa_access_model_default_login_shell }}"
+      changed_when: true
+      environment:
+        KRB5CCNAME: "{{ freeipa_access_model_login_shell_kerberos_cache.path }}"
+        LANG: C
+        LC_ALL: C
+      when:
+        - freeipa_access_model_manage_default_login_shell | bool
+        - not ansible_check_mode
+        - >-
+          (
+            freeipa_access_model_config_show.stdout
+            | regex_findall('(?m)^Default shell:\\s*(.+)$')
+            | first
+            | default('')
+            | trim
+          ) != (freeipa_access_model_default_login_shell | string | trim)
+
+    - name: Read FreeIPA group membership for login-shell enforcement
+      ansible.builtin.command:
+        argv:
+          - ipa
+          - group-show
+          - "{{ item }}"
+          - --all
+          - --raw
+      loop: "{{ freeipa_access_model_effective_login_shell_groups }}"
+      loop_control:
+        label: "{{ item }}"
+      register: freeipa_access_model_login_shell_group_show
+      changed_when: false
+      environment:
+        KRB5CCNAME: "{{ freeipa_access_model_login_shell_kerberos_cache.path }}"
+        LANG: C
+        LC_ALL: C
+      when:
+        - freeipa_access_model_manage_group_member_login_shell | bool
+        - freeipa_access_model_effective_login_shell_groups | length > 0
+
+    - name: Build FreeIPA user list for login-shell enforcement
+      ansible.builtin.set_fact:
+        freeipa_access_model_login_shell_users: >-
+          {{
+            freeipa_access_model_login_shell_group_show.results
+            | default([])
+            | map(attribute='stdout')
+            | map('regex_findall', '(?m)^member_user:\\s*(.+)$')
+            | list
+            | flatten
+            | map('trim')
+            | reject('equalto', '')
+            | unique
+            | sort
+            | list
+          }}
+      when:
+        - freeipa_access_model_manage_group_member_login_shell | bool
+        - freeipa_access_model_effective_login_shell_groups | length > 0
+
+    - name: Read current FreeIPA login shell for managed users
+      ansible.builtin.command:
+        argv:
+          - ipa
+          - user-show
+          - "{{ item }}"
+      loop: "{{ freeipa_access_model_login_shell_users | default([]) }}"
+      loop_control:
+        label: "{{ item }}"
+      register: freeipa_access_model_login_shell_user_show
+      changed_when: false
+      environment:
+        KRB5CCNAME: "{{ freeipa_access_model_login_shell_kerberos_cache.path }}"
+        LANG: C
+        LC_ALL: C
+      when:
+        - freeipa_access_model_manage_group_member_login_shell | bool
+        - freeipa_access_model_login_shell_users | default([]) | length > 0
+
+    - name: Ensure managed FreeIPA users have the expected login shell
+      ansible.builtin.command:
+        argv:
+          - ipa
+          - user-mod
+          - "{{ item.item }}"
+          - "--shell={{ freeipa_access_model_default_login_shell }}"
+      loop: "{{ freeipa_access_model_login_shell_user_show.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      changed_when: true
+      environment:
+        KRB5CCNAME: "{{ freeipa_access_model_login_shell_kerberos_cache.path }}"
+        LANG: C
+        LC_ALL: C
+      when:
+        - freeipa_access_model_manage_group_member_login_shell | bool
+        - not ansible_check_mode
+        - >-
+          (
+            item.stdout
+            | regex_findall('(?m)^Login shell:\\s*(.+)$')
+            | first
+            | default('')
+            | trim
+          ) != (freeipa_access_model_default_login_shell | string | trim)
+  always:
+    - name: Destroy temporary Kerberos ticket for FreeIPA login-shell tasks
+      ansible.builtin.command:
+        argv:
+          - kdestroy
+          - -c
+          - "{{ freeipa_access_model_login_shell_kerberos_cache.path }}"
+      changed_when: false
+      failed_when: false
+      when: freeipa_access_model_login_shell_kerberos_cache is defined
+
+    - name: Remove temporary Kerberos cache for FreeIPA login-shell tasks
+      ansible.builtin.file:
+        path: "{{ freeipa_access_model_login_shell_kerberos_cache.path }}"
+        state: absent
+      changed_when: false
+      when: freeipa_access_model_login_shell_kerberos_cache is defined
