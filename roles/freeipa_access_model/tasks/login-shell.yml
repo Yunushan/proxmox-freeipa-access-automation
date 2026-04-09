@@ -30,6 +30,10 @@
         )
       }}
 
+- name: Define FreeIPA login-shell CLI no-op message
+  ansible.builtin.set_fact:
+    freeipa_access_model_login_shell_noop_message: "no modifications to be performed"
+
 - name: Manage FreeIPA login shell settings through the IPA CLI
   when: freeipa_access_model_login_shell_management_enabled | bool
   block:
@@ -75,7 +79,35 @@
           - ipa
           - config-mod
           - "--defaultshell={{ freeipa_access_model_default_login_shell }}"
-      changed_when: true
+      register: freeipa_access_model_config_mod
+      changed_when: >-
+        freeipa_access_model_login_shell_noop_message
+        not in
+        ((
+          (
+            freeipa_access_model_config_mod.stdout | default('')
+          )
+          ~ '\n'
+          ~
+          (
+            freeipa_access_model_config_mod.stderr | default('')
+          )
+        ) | lower)
+      failed_when:
+        - freeipa_access_model_config_mod.rc != 0
+        - >-
+          freeipa_access_model_login_shell_noop_message
+          not in
+          ((
+            (
+              freeipa_access_model_config_mod.stdout | default('')
+            )
+            ~ '\n'
+            ~
+            (
+              freeipa_access_model_config_mod.stderr | default('')
+            )
+          ) | lower)
       environment:
         KRB5CCNAME: "{{ freeipa_access_model_login_shell_kerberos_cache.path }}"
         LANG: C
@@ -86,7 +118,7 @@
         - >-
           (
             freeipa_access_model_config_show.stdout
-            | regex_findall('(?m)^ipadefaultloginshell:\\s*(.+)$')
+            | regex_findall('(?im)^\\s*ipadefaultloginshell\\s*:\\s*(.+?)\\s*$')
             | first
             | default('')
             | trim
@@ -120,7 +152,7 @@
             freeipa_access_model_login_shell_group_show.results
             | default([])
             | map(attribute='stdout')
-            | map('regex_findall', '(?m)^member_user:\\s*(.+)$')
+            | map('regex_findall', '(?im)^\\s*member_user\\s*:\\s*(.+?)\\s*$')
             | list
             | flatten
             | map('trim')
@@ -164,7 +196,35 @@
       loop: "{{ freeipa_access_model_login_shell_user_show.results | default([]) }}"
       loop_control:
         label: "{{ item.item }}"
-      changed_when: true
+      register: freeipa_access_model_login_shell_user_mod
+      changed_when: >-
+        freeipa_access_model_login_shell_noop_message
+        not in
+        ((
+          (
+            freeipa_access_model_login_shell_user_mod.stdout | default('')
+          )
+          ~ '\n'
+          ~
+          (
+            freeipa_access_model_login_shell_user_mod.stderr | default('')
+          )
+        ) | lower)
+      failed_when:
+        - freeipa_access_model_login_shell_user_mod.rc != 0
+        - >-
+          freeipa_access_model_login_shell_noop_message
+          not in
+          ((
+            (
+              freeipa_access_model_login_shell_user_mod.stdout | default('')
+            )
+            ~ '\n'
+            ~
+            (
+              freeipa_access_model_login_shell_user_mod.stderr | default('')
+            )
+          ) | lower)
       environment:
         KRB5CCNAME: "{{ freeipa_access_model_login_shell_kerberos_cache.path }}"
         LANG: C
@@ -175,7 +235,7 @@
         - >-
           (
             item.stdout
-            | regex_findall('(?m)^loginshell:\\s*(.+)$')
+            | regex_findall('(?im)^\\s*loginshell\\s*:\\s*(.+?)\\s*$')
             | first
             | default('')
             | trim
