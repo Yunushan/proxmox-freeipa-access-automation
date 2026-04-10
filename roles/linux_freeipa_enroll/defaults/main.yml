@@ -39,6 +39,7 @@ linux_freeipa_enroll_manage_local_group_sudoers: true
 linux_freeipa_enroll_local_sudo_groups:
   - linux-ssh-admins
 linux_freeipa_enroll_local_sudo_group_domain_variants: true
+linux_freeipa_enroll_local_sudo_sync_ipa_group_members: true
 linux_freeipa_enroll_local_sudo_nopasswd: false
 linux_ipa_servers: []
 linux_ipaadmin_principal: "{{ freeipa_admin_principal }}"
