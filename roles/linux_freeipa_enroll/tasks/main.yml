@@ -325,6 +325,202 @@
   when:
     - linux_freeipa_enroll_etc_hosts_lines | default([]) | length > 0
 
+- name: Prepare Linux split DNS source state
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_split_dns_interface: >-
+      {{
+        ansible_facts.get('default_ipv4', {}).get('interface', '')
+        | string
+        | trim
+      }}
+    linux_freeipa_enroll_split_dns_route_domain: "{{ linux_freeipa_enroll_effective_domain_normalized }}"
+  changed_when: false
+
+- name: Check whether resolvectl is available for Linux split DNS automation
+  ansible.builtin.command:
+    argv:
+      - resolvectl
+      - --version
+  register: linux_freeipa_enroll_split_dns_resolvectl_check
+  changed_when: false
+  failed_when: false
+  when:
+    - linux_freeipa_enroll_split_dns_enabled | bool
+    - linux_freeipa_enroll_split_dns_interface | length > 0
+
+- name: Read current global DNS servers before Linux split DNS automation
+  ansible.builtin.command:
+    argv:
+      - resolvectl
+      - dns
+  register: linux_freeipa_enroll_split_dns_global_dns_raw
+  changed_when: false
+  failed_when: false
+  when:
+    - linux_freeipa_enroll_split_dns_enabled | bool
+    - linux_freeipa_enroll_split_dns_resolvectl_check.rc | default(1) == 0
+
+- name: Read current link DNS servers before Linux split DNS automation
+  ansible.builtin.command:
+    argv:
+      - resolvectl
+      - dns
+      - "{{ linux_freeipa_enroll_split_dns_interface }}"
+  register: linux_freeipa_enroll_split_dns_link_dns_raw
+  changed_when: false
+  failed_when: false
+  when:
+    - linux_freeipa_enroll_split_dns_enabled | bool
+    - linux_freeipa_enroll_split_dns_resolvectl_check.rc | default(1) == 0
+    - linux_freeipa_enroll_split_dns_interface | length > 0
+
+- name: Resolve IPA DNS server addresses for Linux split DNS automation
+  ansible.builtin.command:
+    argv:
+      - getent
+      - ahostsv4
+      - "{{ item }}"
+  register: linux_freeipa_enroll_split_dns_ipa_resolution
+  changed_when: false
+  failed_when: false
+  loop: "{{ linux_freeipa_enroll_effective_servers_normalized }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - linux_freeipa_enroll_split_dns_enabled | bool
+    - linux_freeipa_enroll_effective_servers_normalized | length > 0
+
+- name: Summarize detected Linux split DNS automation inputs
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_split_dns_resolvectl_available: >-
+      {{
+        (linux_freeipa_enroll_split_dns_resolvectl_check.rc | default(1) | int) == 0
+      }}
+    linux_freeipa_enroll_split_dns_global_dns_servers_detected: >-
+      {{
+        (
+          (
+            linux_freeipa_enroll_split_dns_global_dns_raw.stdout_lines
+            | default([])
+            | select('match', '^Global:')
+            | map('regex_replace', '^Global:\\s*', '')
+            | first
+            | default('', true)
+            | string
+            | trim
+            | split()
+          )
+          if (
+            linux_freeipa_enroll_split_dns_global_dns_raw.rc
+            | default(1)
+            | int
+          ) == 0
+          else []
+        )
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+    linux_freeipa_enroll_split_dns_link_dns_servers_detected: >-
+      {{
+        (
+          (
+            linux_freeipa_enroll_split_dns_link_dns_raw.stdout
+            | default('', true)
+            | regex_replace('^.*?:\\s*', '')
+            | string
+            | trim
+            | split()
+          )
+          if (
+            linux_freeipa_enroll_split_dns_link_dns_raw.rc
+            | default(1)
+            | int
+          ) == 0
+          else []
+        )
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+    linux_freeipa_enroll_split_dns_ipa_dns_servers: >-
+      {{
+        (
+          linux_freeipa_enroll_effective_dns_servers
+          if (linux_freeipa_enroll_effective_dns_servers | default([]) | length > 0)
+          else
+          (
+            linux_freeipa_enroll_split_dns_ipa_resolution.results
+            | default([])
+            | map(attribute='stdout_lines')
+            | flatten
+            | map('string')
+            | map('trim')
+            | reject('equalto', '')
+            | map('split')
+            | map('first')
+            | reject('equalto', '')
+            | unique
+            | list
+          )
+        )
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+  changed_when: false
+
+- name: Choose effective public DNS servers for Linux split DNS automation
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_split_dns_public_dns_servers_effective: >-
+      {{
+        (
+          linux_freeipa_enroll_split_dns_public_dns_servers
+          if (linux_freeipa_enroll_split_dns_public_dns_servers | default([]) | length > 0)
+          else
+          (
+            linux_freeipa_enroll_split_dns_global_dns_servers_detected
+            if (
+              (linux_freeipa_enroll_split_dns_global_dns_servers_detected | default([]) | length > 0)
+              and
+              (
+                linux_freeipa_enroll_split_dns_global_dns_servers_detected
+                != (linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
+              )
+            )
+            else linux_freeipa_enroll_split_dns_link_dns_servers_detected
+          )
+        )
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+  changed_when: false
+
+- name: Determine whether Linux split DNS automation can run on this guest
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_split_dns_supported: >-
+      {{
+        (linux_freeipa_enroll_split_dns_enabled | bool)
+        and (linux_freeipa_enroll_split_dns_resolvectl_available | default(false) | bool)
+        and (linux_freeipa_enroll_split_dns_interface | length > 0)
+        and (
+          linux_freeipa_enroll_split_dns_public_dns_servers_effective
+          | default([])
+          | length
+        ) > 0
+        and (
+          linux_freeipa_enroll_split_dns_ipa_dns_servers
+          | default([])
+          | length
+        ) > 0
+      }}
+  changed_when: false
+
 - name: Assert Linux IPA domain is not configured as an IPA server hostname
   ansible.builtin.assert:
     that:
@@ -1212,6 +1408,11 @@
         | string
         | trim
       }}
+    linux_freeipa_enroll_should_manage_split_dns: >-
+      {{
+        (linux_freeipa_enroll_join_succeeded | bool)
+        and (linux_freeipa_enroll_split_dns_supported | default(false) | bool)
+      }}
     linux_freeipa_enroll_networkmanager_dns_refresh_performed: false
   changed_when: false
   when:
@@ -1222,7 +1423,10 @@
   ansible.builtin.service_facts:
   when:
     - not ansible_check_mode
-    - linux_freeipa_enroll_should_refresh_networkmanager_dns | default(false) | bool
+    - >-
+      (linux_freeipa_enroll_should_refresh_networkmanager_dns | default(false) | bool)
+      or
+      (linux_freeipa_enroll_should_manage_split_dns | default(false) | bool)
 
 - name: Read the active NetworkManager connection profile for targeted DNS refresh
   ansible.builtin.command:
@@ -1334,6 +1538,15 @@
   when:
     - not ansible_check_mode
     - linux_freeipa_enroll_networkmanager_dns_refresh_performed | default(false) | bool
+
+- name: Configure Linux split DNS through systemd-resolved after a successful IPA join
+  ansible.builtin.include_tasks: configure-split-dns.yml
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_should_manage_split_dns | default(false) | bool
+    - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
+    - "'systemd-resolved.service' in (ansible_facts.services | default({}))"
+    - (ansible_facts.services['systemd-resolved.service'].state | default('')) == 'running'
 
 - name: Mark Linux guest as successfully enrolled for later FreeIPA hostgroup updates
   ansible.builtin.add_host:

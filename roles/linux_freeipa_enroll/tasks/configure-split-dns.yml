@@ -1,0 +1,86 @@
+---
+- name: Ensure the systemd-resolved drop-in directory exists for Linux split DNS
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    mode: "0755"
+
+- name: Configure global public DNS defaults for Linux split DNS
+  ansible.builtin.copy:
+    dest: /etc/systemd/resolved.conf.d/90-freeipa-split-dns.conf
+    mode: "0644"
+    content: |
+      [Resolve]
+      DNS=
+      DNS={{ linux_freeipa_enroll_split_dns_public_dns_servers_effective | join(' ') }}
+      FallbackDNS=
+      Domains=
+  register: linux_freeipa_enroll_split_dns_resolved_dropin
+
+- name: Install the Linux split DNS apply helper
+  ansible.builtin.copy:
+    dest: /usr/local/sbin/linux-freeipa-split-dns-apply
+    mode: "0755"
+    content: |
+      #!/bin/sh
+      set -eu
+
+      if ! command -v resolvectl >/dev/null 2>&1; then
+        exit 0
+      fi
+
+      iface={{ linux_freeipa_enroll_split_dns_interface | quote }}
+      if [ -z "$iface" ]; then
+        exit 0
+      fi
+
+      resolvectl dns "$iface" {{ linux_freeipa_enroll_split_dns_ipa_dns_servers | join(' ') }}
+      resolvectl domain "$iface" "~{{ linux_freeipa_enroll_split_dns_route_domain }}" "{{ linux_freeipa_enroll_split_dns_route_domain }}"
+      resolvectl default-route "$iface" false
+      resolvectl flush-caches
+  register: linux_freeipa_enroll_split_dns_helper
+
+- name: Install the Linux split DNS systemd unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/linux-freeipa-split-dns.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Apply FreeIPA split DNS routing
+      After=network-online.target systemd-resolved.service
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/linux-freeipa-split-dns-apply
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+  register: linux_freeipa_enroll_split_dns_unit
+
+- name: Reload systemd after Linux split DNS unit changes
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - daemon-reload
+  changed_when: false
+  when: linux_freeipa_enroll_split_dns_unit.changed
+
+- name: Restart systemd-resolved after Linux split DNS drop-in changes
+  ansible.builtin.systemd_service:
+    name: systemd-resolved
+    state: restarted
+  when: linux_freeipa_enroll_split_dns_resolved_dropin.changed
+
+- name: Apply Linux split DNS immediately on the guest
+  ansible.builtin.command:
+    argv:
+      - /usr/local/sbin/linux-freeipa-split-dns-apply
+  changed_when: false
+
+- name: Enable the Linux split DNS systemd unit
+  ansible.builtin.systemd_service:
+    name: linux-freeipa-split-dns
+    enabled: true
+    state: started

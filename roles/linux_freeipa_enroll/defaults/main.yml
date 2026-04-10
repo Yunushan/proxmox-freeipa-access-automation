@@ -33,6 +33,8 @@ linux_freeipa_enroll_authoritative_dns_delegate_host: ""
 linux_freeipa_enroll_authoritative_dns_query_server: 127.0.0.1
 linux_freeipa_enroll_authoritative_dns_remove_link_local_aaaa: true
 linux_freeipa_enroll_pin_local_hostname_in_etc_hosts: true
+linux_freeipa_enroll_split_dns_enabled: true
+linux_freeipa_enroll_split_dns_public_dns_servers: []
 linux_ipa_servers: []
 linux_ipaadmin_principal: "{{ freeipa_admin_principal }}"
 linux_ipaadmin_password: "{{ freeipa_admin_password }}"

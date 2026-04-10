@@ -38,6 +38,8 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - `linux_freeipa_enroll_authoritative_dns_query_server`
 - `linux_freeipa_enroll_authoritative_dns_remove_link_local_aaaa`
 - `linux_freeipa_enroll_pin_local_hostname_in_etc_hosts`
+- `linux_freeipa_enroll_split_dns_enabled`
+- `linux_freeipa_enroll_split_dns_public_dns_servers`
 - `linux_ipa_servers`
 - `linux_ipaadmin_principal`
 - `linux_ipaadmin_password`
@@ -74,6 +76,9 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - When some IPA servers answer that preflight promptly and others do not, the role automatically drops the unhealthy candidates from the upstream join retry plan instead of wasting retries on them.
 - When every configured IPA server fails that preflight and `linux_freeipa_enroll_continue_on_join_timeout` is enabled, the role skips the upstream join retry loop and marks the host timed out immediately with the preflight summary.
 - `linux_freeipa_enroll_collect_join_timeout_diagnostics` defaults to `true`, so a final JSON-RPC timeout also writes a bounded `ipa-join -d` replay log on the guest and includes a short diagnostics summary in the final failure or timeout note.
+- `linux_freeipa_enroll_split_dns_enabled` defaults to `true`, so `systemd-resolved` guests automatically keep public DNS as the global/default resolver path and route only the IPA DNS domain such as `karel.local` to the IPA DNS servers after a successful enrollment.
+- `linux_freeipa_enroll_split_dns_public_dns_servers` defaults to an empty list, so the role auto-detects the current global DNS servers when available or falls back to the current link DNS servers before enrollment. Set it explicitly if you want fixed public resolver IPs instead of automatic detection.
+- The repository-owned split-DNS path is independent of `linux_ipaclient_configure_dns_resolver`, so the default repository workflow can keep the upstream flat resolver management disabled and still apply split DNS automatically on supported `systemd-resolved` guests after enrollment.
 - `ipaclient_domain` must be the shared IPA DNS domain such as `example.com`, not an IPA server hostname such as `ipa01.example.com`.
 - `linux_ipa_servers` should preferably be a YAML list of IPA server FQDNs. Comma-separated strings are normalized, but list syntax is the preferred form.
 - When DNS is not ready yet, the role can manage a dedicated `/etc/hosts` block from `linux_ipa_etc_hosts_entries` before IPA connectivity checks run.
