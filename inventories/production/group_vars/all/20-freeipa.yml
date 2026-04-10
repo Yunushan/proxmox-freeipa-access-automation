@@ -11,6 +11,7 @@ freeipa_api_context: server
 # -----------------------------
 # Add IPA usernames here to grant Linux SSH + sudo through the
 # declarative linux-ssh-admins group, HBAC rule, and sudo rule.
+# Leave this empty if linux-ssh-admins membership is managed directly in FreeIPA.
 freeipa_linux_admin_users: []
 
 freeipa_user_groups:

@@ -7,8 +7,48 @@
     name: "{{ item.name }}"
     description: "{{ item.description | default(omit) }}"
     gidnumber: "{{ item.gidnumber | default(omit) }}"
-    user: "{{ item.user | default(omit) }}"
-    group: "{{ item.group | default(omit) }}"
+    user: >-
+      {{
+        item.user
+        if (
+          (item.user is defined)
+          and
+          (
+            (
+              item.user is sequence
+              and item.user is not string
+              and (item.user | length > 0)
+            )
+            or
+            (
+              item.user is string
+              and (item.user | trim | length > 0)
+            )
+          )
+        )
+        else omit
+      }}
+    group: >-
+      {{
+        item.group
+        if (
+          (item.group is defined)
+          and
+          (
+            (
+              item.group is sequence
+              and item.group is not string
+              and (item.group | length > 0)
+            )
+            or
+            (
+              item.group is string
+              and (item.group | trim | length > 0)
+            )
+          )
+        )
+        else omit
+      }}
     external: "{{ item.external | default(omit) }}"
     nonposix: "{{ item.nonposix | default(omit) }}"
     state: "{{ item.state | default('present') }}"
