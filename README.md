@@ -507,6 +507,8 @@ A simple pattern that scales well:
 - Sudo rule `allow-linux-ssh-admins-sudo`
 - Proxmox ACL binding for synced group `proxmox-admins-ipa`
 
+Populate `freeipa_linux_admin_users` in [`inventories/production/group_vars/all/20-freeipa.yml`](inventories/production/group_vars/all/20-freeipa.yml) when you want the combined `site.yml` run to grant specific IPA users Linux SSH and sudo access automatically through the managed `linux-ssh-admins` group.
+
 Remember that Proxmox LDAP sync creates synced groups with the suffix:
 
 ```text

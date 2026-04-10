@@ -3,6 +3,7 @@ freeipa_access_model_enabled: true
 freeipa_access_model_admin_principal: "{{ freeipa_admin_principal | default('admin') }}"
 freeipa_access_model_admin_password: "{{ freeipa_admin_password | default('') }}"
 freeipa_access_model_api_context: "{{ freeipa_api_context | default('server') }}"
+freeipa_linux_admin_users: []
 freeipa_access_model_manage_inventory_group_host_membership: true
 freeipa_access_model_user_groups: "{{ freeipa_user_groups | default([]) }}"
 freeipa_access_model_hostgroups: "{{ freeipa_hostgroups | default([]) }}"

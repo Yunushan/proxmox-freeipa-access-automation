@@ -136,6 +136,7 @@ Linux enrollment naming rules:
 ## FreeIPA access model
 
 - `freeipa_access_model_manage_inventory_group_host_membership`: when `true`, `freeipa_access_model` adds members resolved from `freeipa_hostgroups[*].inventory_groups`; set it to `false` for pre-enrollment runs that should create hostgroups and rules first, then add enrolled runtime hosts later
+- `freeipa_linux_admin_users`: IPA usernames added directly to the declarative `linux-ssh-admins` group so they receive the repository-managed Linux SSH and sudo access model; defaults to `[]`
 - `freeipa_user_groups`: user groups created in FreeIPA
 - `freeipa_hostgroups`: hostgroups built from declarative inventory groups or hostnames
 - `freeipa_hbac_rules`: login and service-access rules such as SSH access

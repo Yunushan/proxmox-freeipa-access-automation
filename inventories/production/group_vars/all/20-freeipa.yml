@@ -9,11 +9,16 @@ freeipa_api_context: server
 # -----------------------------
 # FreeIPA access model
 # -----------------------------
+# Add IPA usernames here to grant Linux SSH + sudo through the
+# declarative linux-ssh-admins group, HBAC rule, and sudo rule.
+freeipa_linux_admin_users: []
+
 freeipa_user_groups:
   - name: proxmox-admins
     description: Full Proxmox administrators
   - name: linux-ssh-admins
     description: Linux administrators with SSH access and sudo rights
+    user: "{{ freeipa_linux_admin_users }}"
 
 # New IPA users inherit this shell, and existing direct members of the
 # groups below are corrected to the same shell during freeipa/site runs.
