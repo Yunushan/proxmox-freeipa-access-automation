@@ -868,7 +868,10 @@
         if command -v fuser >/dev/null 2>&1; then
           fuser -v $lock_files >&2 || true
         elif command -v pgrep >/dev/null 2>&1; then
-          ps -ef | grep -E 'apt|apt-get|dpkg|unattended-upgrade' | grep -v grep >&2 || true
+          pgrep -a -x apt >&2 || true
+          pgrep -a -x apt-get >&2 || true
+          pgrep -a -x dpkg >&2 || true
+          pgrep -a -x unattended-upgrade >&2 || true
         else
           echo "Neither fuser nor pgrep is available to inspect the lock holder." >&2
         fi
