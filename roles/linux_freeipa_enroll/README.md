@@ -18,6 +18,8 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - `linux_freeipa_enroll_continue_on_join_timeout`
 - `linux_freeipa_enroll_collect_join_timeout_diagnostics`
 - `linux_freeipa_enroll_refresh_apt_cache`
+- `linux_freeipa_enroll_wait_for_cloud_init`
+- `linux_freeipa_enroll_cloud_init_timeout`
 - `linux_freeipa_enroll_apt_lock_timeout`
 - `linux_freeipa_enroll_https_port`
 - `linux_freeipa_enroll_bootstrap_ipa_server_hosts_from_inventory`
@@ -57,6 +59,8 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - `linux_freeipa_enroll_networkmanager_dns_refresh_strategy` uses `apply` by default, so `NetworkManager`-managed guests use a targeted active-device refresh after a successful IPA join instead of restarting the whole daemon. Set it to `restart` if you need the heavier legacy refresh behavior or `none` if you prefer to let the new DNS settings take effect on a later reconnect or reboot.
 - The older `linux_freeipa_enroll_restart_networkmanager_after_dns_config` boolean is still accepted as a compatibility alias when the new strategy variable is left unset.
 - `linux_freeipa_enroll_refresh_apt_cache` defaults to `true`, so Debian-family guests refresh APT metadata before the upstream role installs `freeipa-client` packages. This avoids stale mirror indexes that otherwise surface as `404 Not Found` package fetch failures during enrollment.
+- `linux_freeipa_enroll_wait_for_cloud_init` defaults to `true`, so Debian-family guests first wait for `/var/lib/cloud/instance/boot-finished` when cloud-init is present. This avoids racing Ubuntu first-boot package operations during enrollment.
+- `linux_freeipa_enroll_cloud_init_timeout` defaults to `900`, which bounds that cloud-init completion wait before the role continues to the generic APT lock wait and diagnostics path.
 - `linux_freeipa_enroll_apt_lock_timeout` defaults to `300`, so Debian-family guests first wait for active `apt` or `dpkg` lock holders to clear, then give the APT metadata refresh a longer lock window. This covers transient package-manager activity from cloud-init, unattended upgrades, or other guest bootstrap steps before failing the enrollment.
 - `linux_freeipa_enroll_preflight_json_probe_enabled` defaults to `true`, so the role probes `https://<ipa-server>:<linux_freeipa_enroll_https_port>/ipa/json` with a short timeout before the upstream join and fails fast on a slow or hung IPA web/API endpoint.
 - When some IPA servers answer that preflight promptly and others do not, the role automatically drops the unhealthy candidates from the upstream join retry plan instead of wasting retries on them.

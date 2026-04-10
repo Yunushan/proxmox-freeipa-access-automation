@@ -838,6 +838,33 @@
   when: ansible_check_mode
   changed_when: false
 
+- name: Detect cloud-init state directory on Debian-family guests
+  ansible.builtin.stat:
+    path: /var/lib/cloud/instance
+  register: linux_freeipa_enroll_cloud_init_instance_dir
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_effective_install_packages | bool
+    - linux_freeipa_enroll_refresh_apt_cache | bool
+    - linux_freeipa_enroll_wait_for_cloud_init | bool
+    - (ansible_facts.get('pkg_mgr', '') | string) == 'apt'
+
+- name: Wait for cloud-init to finish before refreshing Debian package metadata
+  ansible.builtin.wait_for:
+    path: /var/lib/cloud/instance/boot-finished
+    state: present
+    timeout: "{{ linux_freeipa_enroll_cloud_init_timeout | int }}"
+  register: linux_freeipa_enroll_cloud_init_boot_finished
+  changed_when: false
+  failed_when: false
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_effective_install_packages | bool
+    - linux_freeipa_enroll_refresh_apt_cache | bool
+    - linux_freeipa_enroll_wait_for_cloud_init | bool
+    - (ansible_facts.get('pkg_mgr', '') | string) == 'apt'
+    - linux_freeipa_enroll_cloud_init_instance_dir.stat.exists | default(false)
+
 - name: Wait for active APT or DPKG lock holders before refreshing Debian package metadata
   ansible.builtin.shell: |
     set -eu
