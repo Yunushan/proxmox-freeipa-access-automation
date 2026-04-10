@@ -1652,9 +1652,6 @@
   when:
     - not ansible_check_mode
     - linux_freeipa_enroll_should_manage_split_dns | default(false) | bool
-    - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
-    - "'systemd-resolved.service' in (ansible_facts.services | default({}))"
-    - (ansible_facts.services['systemd-resolved.service'].state | default('')) == 'running'
 
 - name: Configure optional SSSD access propagation tuning after a successful IPA join
   ansible.builtin.include_tasks: configure-sssd-access-propagation.yml
