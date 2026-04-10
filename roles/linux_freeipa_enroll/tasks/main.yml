@@ -913,6 +913,11 @@
     - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
 
 - name: Wait for active APT or DPKG lock holders before refreshing Debian package metadata
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_effective_install_packages | bool
+    - linux_freeipa_enroll_refresh_apt_cache | bool
+    - (ansible_facts.get('pkg_mgr', '') | string) == 'apt'
   block:
     - name: Wait for active APT or DPKG lock holders before refreshing Debian package metadata
       ansible.builtin.include_tasks: wait-apt-lock.yml
@@ -1026,11 +1031,6 @@
             ) in ['active', 'activating', 'deactivating', 'reloading']
           )
         )
-  when:
-    - not ansible_check_mode
-    - linux_freeipa_enroll_effective_install_packages | bool
-    - linux_freeipa_enroll_refresh_apt_cache | bool
-    - (ansible_facts.get('pkg_mgr', '') | string) == 'apt'
 
 - name: Refresh APT metadata before installing FreeIPA client packages on Debian-family guests
   ansible.builtin.apt:
