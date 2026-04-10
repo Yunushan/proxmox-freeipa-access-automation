@@ -45,6 +45,11 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - `linux_freeipa_enroll_local_sudo_group_domain_variants`
 - `linux_freeipa_enroll_local_sudo_sync_ipa_group_members`
 - `linux_freeipa_enroll_local_sudo_nopasswd`
+- `linux_freeipa_enroll_sssd_access_update_mode`
+- `linux_freeipa_enroll_sssd_fast_memcache_timeout`
+- `linux_freeipa_enroll_sssd_fast_entry_cache_timeout`
+- `linux_freeipa_enroll_sssd_fast_negative_cache_timeout`
+- `linux_freeipa_enroll_sssd_fast_refresh_expired_interval`
 - `linux_freeipa_enroll_manage_local_sshd_allow_users`
 - `linux_freeipa_enroll_local_sshd_allow_users_extra`
 - `linux_ipa_servers`
@@ -91,6 +96,8 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - `linux_freeipa_enroll_local_sudo_group_domain_variants` defaults to `true`, so that local sudoers drop-in also writes IPA-qualified variants such as `linux-ssh-admins@example.com` and `linux-ssh-admins@EXAMPLE.COM` for guests where SSSD exposes group names in qualified form.
 - `linux_freeipa_enroll_local_sudo_sync_ipa_group_members` defaults to `true`, so the guest also queries FreeIPA for the direct members of those configured admin groups and writes explicit sudoers user entries for them. This makes `sudo` work even on guests where local group-name matching still differs from the IPA-side group naming.
 - `linux_freeipa_enroll_local_sudo_nopasswd` defaults to `false`, so group members still authenticate with their own password for commands such as `sudo su` unless you explicitly opt into passwordless sudo.
+- `linux_freeipa_enroll_sssd_access_update_mode` defaults to `stable`, which leaves SSSD cache timings at the upstream client defaults for the most conservative behavior. Set it to `fast` if you want the role to install an SSSD drop-in that reduces identity and group-membership cache delays for IPA GUI access changes.
+- `linux_freeipa_enroll_sssd_fast_memcache_timeout` defaults to `30`, `linux_freeipa_enroll_sssd_fast_entry_cache_timeout` defaults to `30`, `linux_freeipa_enroll_sssd_fast_negative_cache_timeout` defaults to `15`, and `linux_freeipa_enroll_sssd_fast_refresh_expired_interval` defaults to `15`. Those values are only applied when the access-update mode is `fast`.
 - `linux_freeipa_enroll_manage_local_sshd_allow_users` defaults to `true`, so successful Linux enrollments also enforce an `sshd` `AllowGroups` rule derived from those same Linux admin groups. This keeps SSH access tied to current IPA-backed group membership instead of the last playbook-rendered user snapshot.
 - `linux_freeipa_enroll_local_sshd_allow_users_extra` defaults to `['root']`, and the role also preserves the current Ansible connection user automatically by adding their primary groups to the generated `AllowGroups` rule so repository automation does not lock itself out.
 - `ipaclient_domain` must be the shared IPA DNS domain such as `example.com`, not an IPA server hostname such as `ipa01.example.com`.

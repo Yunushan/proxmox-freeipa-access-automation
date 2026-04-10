@@ -1,0 +1,37 @@
+---
+- name: Ensure the SSSD drop-in directory exists for Linux access propagation tuning
+  ansible.builtin.file:
+    path: /etc/sssd/conf.d
+    state: directory
+    mode: "0750"
+
+- name: Configure fast SSSD access propagation tuning for Linux IPA access changes
+  ansible.builtin.copy:
+    dest: /etc/sssd/conf.d/90-freeipa-access-propagation.conf
+    mode: "0600"
+    content: |
+      # Managed by Ansible: linux_freeipa_enroll
+      # Optional fast-propagation profile for IPA group access changes.
+      [nss]
+      memcache_timeout = {{ linux_freeipa_enroll_sssd_fast_memcache_timeout | int }}
+
+      [domain/{{ linux_freeipa_enroll_effective_domain | string | trim | lower }}]
+      entry_cache_timeout = {{ linux_freeipa_enroll_sssd_fast_entry_cache_timeout | int }}
+      entry_cache_user_timeout = {{ linux_freeipa_enroll_sssd_fast_entry_cache_timeout | int }}
+      entry_cache_group_timeout = {{ linux_freeipa_enroll_sssd_fast_entry_cache_timeout | int }}
+      entry_negative_timeout = {{ linux_freeipa_enroll_sssd_fast_negative_cache_timeout | int }}
+      refresh_expired_interval = {{ linux_freeipa_enroll_sssd_fast_refresh_expired_interval | int }}
+  notify: Refresh Linux IPA sudo access caches
+  when:
+    - (linux_freeipa_enroll_sssd_access_update_mode | string | trim | lower) == 'fast'
+
+- name: Remove fast SSSD access propagation tuning when stable mode is selected
+  ansible.builtin.file:
+    path: /etc/sssd/conf.d/90-freeipa-access-propagation.conf
+    state: absent
+  notify: Refresh Linux IPA sudo access caches
+  when:
+    - (linux_freeipa_enroll_sssd_access_update_mode | string | trim | lower) == 'stable'
+
+- name: Flush Linux IPA access propagation handlers
+  ansible.builtin.meta: flush_handlers
