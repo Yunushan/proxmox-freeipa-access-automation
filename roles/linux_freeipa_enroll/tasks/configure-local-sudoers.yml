@@ -176,6 +176,14 @@
     state: directory
     mode: "0755"
 
+- name: Ensure the system sudoers file includes the sudoers drop-in directory
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    regexp: '^(#|@)includedir\s+/etc/sudoers\.d\s*$'
+    line: '#includedir /etc/sudoers.d'
+    state: present
+    validate: /usr/sbin/visudo -cf %s
+
 - name: Configure local sudoers access for Linux IPA admin groups
   ansible.builtin.copy:
     dest: /etc/sudoers.d/90-freeipa-linux-admin-groups
