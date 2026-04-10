@@ -913,51 +913,119 @@
     - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
 
 - name: Wait for active APT or DPKG lock holders before refreshing Debian package metadata
-  ansible.builtin.shell: |
-    set -eu
+  block:
+    - name: Wait for active APT or DPKG lock holders before refreshing Debian package metadata
+      ansible.builtin.include_tasks: wait-apt-lock.yml
+      vars:
+        linux_freeipa_enroll_apt_lock_wait_timeout: "{{ linux_freeipa_enroll_apt_lock_timeout | int }}"
 
-    timeout_seconds="{{ linux_freeipa_enroll_apt_lock_timeout | int }}"
-    sleep_seconds=5
-    elapsed=0
-    lock_files="/var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend"
+  rescue:
+    - name: Read apt-daily.service state after Debian package metadata lock timeout
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - show
+          - -p
+          - ActiveState
+          - --value
+          - apt-daily.service
+      register: linux_freeipa_enroll_apt_daily_state
+      changed_when: false
+      failed_when: false
+      when: (ansible_facts.get('service_mgr', '') | string) == 'systemd'
 
-    while true; do
-      if command -v fuser >/dev/null 2>&1; then
-        if ! fuser $lock_files >/dev/null 2>&1; then
-          exit 0
-        fi
-      elif command -v pgrep >/dev/null 2>&1; then
-        if ! pgrep -x apt >/dev/null 2>&1 \
-          && ! pgrep -x apt-get >/dev/null 2>&1 \
-          && ! pgrep -x dpkg >/dev/null 2>&1 \
-          && ! pgrep -x unattended-upgrade >/dev/null 2>&1; then
-          exit 0
-        fi
-      else
-        exit 0
-      fi
+    - name: Terminate stale apt-daily.service after Debian package metadata lock timeout
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - kill
+          - apt-daily.service
+      changed_when: true
+      when:
+        - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
+        - linux_freeipa_enroll_recover_stuck_apt_daily | bool
+        - >-
+          (
+            linux_freeipa_enroll_apt_daily_state.stdout
+            | default('', true)
+            | string
+            | trim
+          ) in ['active', 'activating', 'deactivating', 'reloading']
 
-      if [ "$elapsed" -ge "$timeout_seconds" ]; then
-        echo "APT or DPKG lock remained busy for ${timeout_seconds}s." >&2
-        if command -v fuser >/dev/null 2>&1; then
-          fuser -v $lock_files >&2 || true
-        elif command -v pgrep >/dev/null 2>&1; then
-          pgrep -a -x apt >&2 || true
-          pgrep -a -x apt-get >&2 || true
-          pgrep -a -x dpkg >&2 || true
-          pgrep -a -x unattended-upgrade >&2 || true
-        else
-          echo "Neither fuser nor pgrep is available to inspect the lock holder." >&2
-        fi
-        exit 1
-      fi
+    - name: Reset apt-daily.service failure state after forced termination
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - reset-failed
+          - apt-daily.service
+      changed_when: false
+      failed_when: false
+      when:
+        - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
+        - linux_freeipa_enroll_recover_stuck_apt_daily | bool
+        - >-
+          (
+            linux_freeipa_enroll_apt_daily_state.stdout
+            | default('', true)
+            | string
+            | trim
+          ) in ['active', 'activating', 'deactivating', 'reloading']
 
-      sleep "$sleep_seconds"
-      elapsed=$((elapsed + sleep_seconds))
-    done
-  args:
-    executable: /bin/sh
-  changed_when: false
+    - name: Wait for active APT or DPKG lock holders after terminating stale apt-daily.service
+      ansible.builtin.include_tasks: wait-apt-lock.yml
+      vars:
+        linux_freeipa_enroll_apt_lock_wait_timeout: "{{ linux_freeipa_enroll_apt_lock_recovery_timeout | int }}"
+      when:
+        - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
+        - linux_freeipa_enroll_recover_stuck_apt_daily | bool
+        - >-
+          (
+            linux_freeipa_enroll_apt_daily_state.stdout
+            | default('', true)
+            | string
+            | trim
+          ) in ['active', 'activating', 'deactivating', 'reloading']
+
+    - name: Fail when Debian package metadata lock contention is not recoverable
+      ansible.builtin.fail:
+        msg: >-
+          APT or DPKG lock remained busy for {{ linux_freeipa_enroll_apt_lock_timeout | int }} seconds.
+          {% if (ansible_facts.get('service_mgr', '') | string) == 'systemd' %}
+          apt-daily.service state:
+          {{
+            linux_freeipa_enroll_apt_daily_state.stdout
+            | default('unknown', true)
+            | string
+            | trim
+            | default('unknown', true)
+          }}.
+          {% endif %}
+          {% if linux_freeipa_enroll_recover_stuck_apt_daily | bool %}
+          Automatic apt-daily recovery was not applicable.
+          {% else %}
+          Automatic apt-daily recovery is disabled.
+          {% endif %}
+          Last error:
+          {{
+            ansible_failed_result.msg
+            | default(
+                ansible_failed_result.stderr
+                | default('unknown APT lock failure')
+              )
+          }}
+      when: >-
+        not (
+          ((ansible_facts.get('service_mgr', '') | string) == 'systemd')
+          and (linux_freeipa_enroll_recover_stuck_apt_daily | bool)
+          and (
+            (
+              linux_freeipa_enroll_apt_daily_state.stdout
+              | default('', true)
+              | string
+              | trim
+            ) in ['active', 'activating', 'deactivating', 'reloading']
+          )
+        )
   when:
     - not ansible_check_mode
     - linux_freeipa_enroll_effective_install_packages | bool
