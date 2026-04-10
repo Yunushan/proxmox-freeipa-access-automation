@@ -841,16 +841,14 @@
 - name: Refresh APT metadata before installing FreeIPA client packages on Debian-family guests
   ansible.builtin.apt:
     update_cache: true
-    lock_timeout: 60
-  register: linux_freeipa_enroll_apt_cache_refresh
-  retries: 3
-  delay: 5
-  until: linux_freeipa_enroll_apt_cache_refresh is succeeded
+    lock_timeout: "{{ linux_freeipa_enroll_apt_lock_timeout | int }}"
+    update_cache_retries: 5
+    update_cache_retry_max_delay: 12
   when:
     - not ansible_check_mode
     - linux_freeipa_enroll_effective_install_packages | bool
     - linux_freeipa_enroll_refresh_apt_cache | bool
-    - (ansible_facts.get('pkg_mgr', ansible_pkg_mgr | default('')) | string) == 'apt'
+    - (ansible_facts.get('pkg_mgr', '') | string) == 'apt'
 
 - name: Initialize Linux IPA enrollment join state
   ansible.builtin.set_fact:
@@ -1005,7 +1003,7 @@
     - not ansible_check_mode
     - linux_freeipa_enroll_should_refresh_networkmanager_dns | default(false) | bool
     - linux_freeipa_enroll_effective_networkmanager_dns_refresh_strategy == 'apply'
-    - ansible_service_mgr == 'systemd'
+    - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
     - "'NetworkManager.service' in (ansible_facts.services | default({}))"
     - (ansible_facts.services['NetworkManager.service'].state | default('')) == 'running'
     - linux_freeipa_enroll_networkmanager_dns_refresh_interface | length > 0
@@ -1015,7 +1013,7 @@
     - not ansible_check_mode
     - linux_freeipa_enroll_should_refresh_networkmanager_dns | default(false) | bool
     - linux_freeipa_enroll_effective_networkmanager_dns_refresh_strategy == 'apply'
-    - ansible_service_mgr == 'systemd'
+    - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
     - "'NetworkManager.service' in (ansible_facts.services | default({}))"
     - (ansible_facts.services['NetworkManager.service'].state | default('')) == 'running'
     - linux_freeipa_enroll_networkmanager_dns_refresh_interface | length > 0
@@ -1057,7 +1055,7 @@
     - not ansible_check_mode
     - linux_freeipa_enroll_should_refresh_networkmanager_dns | default(false) | bool
     - linux_freeipa_enroll_effective_networkmanager_dns_refresh_strategy == 'apply'
-    - ansible_service_mgr == 'systemd'
+    - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
     - "'NetworkManager.service' in (ansible_facts.services | default({}))"
     - (ansible_facts.services['NetworkManager.service'].state | default('')) == 'running'
     - linux_freeipa_enroll_networkmanager_dns_refresh_interface | length > 0
@@ -1070,7 +1068,7 @@
     - not ansible_check_mode
     - linux_freeipa_enroll_should_refresh_networkmanager_dns | default(false) | bool
     - linux_freeipa_enroll_effective_networkmanager_dns_refresh_strategy == 'restart'
-    - ansible_service_mgr == 'systemd'
+    - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
     - "'NetworkManager.service' in (ansible_facts.services | default({}))"
     - (ansible_facts.services['NetworkManager.service'].state | default('')) == 'running'
 
@@ -1082,7 +1080,7 @@
     - not ansible_check_mode
     - linux_freeipa_enroll_should_refresh_networkmanager_dns | default(false) | bool
     - linux_freeipa_enroll_effective_networkmanager_dns_refresh_strategy == 'restart'
-    - ansible_service_mgr == 'systemd'
+    - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
     - "'NetworkManager.service' in (ansible_facts.services | default({}))"
     - (ansible_facts.services['NetworkManager.service'].state | default('')) == 'running'
 
