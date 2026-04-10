@@ -97,6 +97,21 @@
           | list
         )
       }}
+    linux_freeipa_enroll_local_sshd_extra_users: >-
+      {{
+        (
+          linux_freeipa_enroll_local_sshd_allow_users_extra
+          if (
+            linux_freeipa_enroll_local_sshd_allow_users_extra is sequence
+            and linux_freeipa_enroll_local_sshd_allow_users_extra is not string
+          )
+          else [linux_freeipa_enroll_local_sshd_allow_users_extra]
+        )
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
   ansible.builtin.set_fact:
     linux_freeipa_enroll_local_sshd_allow_users_effective: >-
       {{
@@ -106,8 +121,7 @@
             if (linux_freeipa_enroll_local_sshd_resolved_users | length > 0)
             else (linux_freeipa_enroll_local_sshd_allow_user_candidates | default([]))
           )
-          +
-          (linux_freeipa_enroll_local_sshd_allow_users_extra | default([]))
+          + linux_freeipa_enroll_local_sshd_extra_users
           +
           (
             [linux_freeipa_enroll_local_sshd_connection_user]
