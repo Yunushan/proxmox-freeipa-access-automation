@@ -1,0 +1,8 @@
+---
+- name: Reset the Ansible SSH connection after NetworkManager DNS refresh
+  ansible.builtin.meta: reset_connection
+
+- name: Wait for the Linux guest to reconnect after NetworkManager DNS refresh
+  ansible.builtin.wait_for_connection:
+    timeout: 60
+    sleep: 2

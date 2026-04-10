@@ -1525,16 +1525,8 @@
     - "'NetworkManager.service' in (ansible_facts.services | default({}))"
     - (ansible_facts.services['NetworkManager.service'].state | default('')) == 'running'
 
-- name: Reset the Ansible SSH connection after NetworkManager DNS refresh
-  ansible.builtin.meta: reset_connection
-  when:
-    - not ansible_check_mode
-    - linux_freeipa_enroll_networkmanager_dns_refresh_performed | default(false) | bool
-
-- name: Wait for the Linux guest to reconnect after NetworkManager DNS refresh
-  ansible.builtin.wait_for_connection:
-    timeout: 60
-    sleep: 2
+- name: Reset and re-establish the Ansible SSH connection after NetworkManager DNS refresh
+  ansible.builtin.include_tasks: reconnect-after-networkmanager.yml
   when:
     - not ansible_check_mode
     - linux_freeipa_enroll_networkmanager_dns_refresh_performed | default(false) | bool
