@@ -838,6 +838,55 @@
   when: ansible_check_mode
   changed_when: false
 
+- name: Wait for active APT or DPKG lock holders before refreshing Debian package metadata
+  ansible.builtin.shell: |
+    set -eu
+
+    timeout_seconds="{{ linux_freeipa_enroll_apt_lock_timeout | int }}"
+    sleep_seconds=5
+    elapsed=0
+    lock_files="/var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend"
+
+    while true; do
+      if command -v fuser >/dev/null 2>&1; then
+        if ! fuser $lock_files >/dev/null 2>&1; then
+          exit 0
+        fi
+      elif command -v pgrep >/dev/null 2>&1; then
+        if ! pgrep -x apt >/dev/null 2>&1 \
+          && ! pgrep -x apt-get >/dev/null 2>&1 \
+          && ! pgrep -x dpkg >/dev/null 2>&1 \
+          && ! pgrep -x unattended-upgrade >/dev/null 2>&1; then
+          exit 0
+        fi
+      else
+        exit 0
+      fi
+
+      if [ "$elapsed" -ge "$timeout_seconds" ]; then
+        echo "APT or DPKG lock remained busy for ${timeout_seconds}s." >&2
+        if command -v fuser >/dev/null 2>&1; then
+          fuser -v $lock_files >&2 || true
+        elif command -v pgrep >/dev/null 2>&1; then
+          ps -ef | grep -E 'apt|apt-get|dpkg|unattended-upgrade' | grep -v grep >&2 || true
+        else
+          echo "Neither fuser nor pgrep is available to inspect the lock holder." >&2
+        fi
+        exit 1
+      fi
+
+      sleep "$sleep_seconds"
+      elapsed=$((elapsed + sleep_seconds))
+    done
+  args:
+    executable: /bin/sh
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_effective_install_packages | bool
+    - linux_freeipa_enroll_refresh_apt_cache | bool
+    - (ansible_facts.get('pkg_mgr', '') | string) == 'apt'
+
 - name: Refresh APT metadata before installing FreeIPA client packages on Debian-family guests
   ansible.builtin.apt:
     update_cache: true
