@@ -939,13 +939,55 @@
       failed_when: false
       when: (ansible_facts.get('service_mgr', '') | string) == 'systemd'
 
+    - name: Stop apt-daily timers after Debian package metadata lock timeout
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - stop
+          - apt-daily.timer
+          - apt-daily-upgrade.timer
+      changed_when: true
+      failed_when: false
+      when:
+        - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
+        - linux_freeipa_enroll_recover_stuck_apt_daily | bool
+        - >-
+          (
+            linux_freeipa_enroll_apt_daily_state.stdout
+            | default('', true)
+            | string
+            | trim
+          ) in ['active', 'activating', 'deactivating', 'reloading']
+
+    - name: Stop apt-daily services after Debian package metadata lock timeout
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - stop
+          - apt-daily.service
+          - apt-daily-upgrade.service
+      changed_when: true
+      failed_when: false
+      when:
+        - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
+        - linux_freeipa_enroll_recover_stuck_apt_daily | bool
+        - >-
+          (
+            linux_freeipa_enroll_apt_daily_state.stdout
+            | default('', true)
+            | string
+            | trim
+          ) in ['active', 'activating', 'deactivating', 'reloading']
+
     - name: Terminate stale apt-daily.service after Debian package metadata lock timeout
       ansible.builtin.command:
         argv:
           - systemctl
           - kill
+          - --kill-who=all
           - apt-daily.service
       changed_when: true
+      failed_when: false
       when:
         - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
         - linux_freeipa_enroll_recover_stuck_apt_daily | bool
@@ -963,6 +1005,7 @@
           - systemctl
           - reset-failed
           - apt-daily.service
+          - apt-daily-upgrade.service
       changed_when: false
       failed_when: false
       when:
