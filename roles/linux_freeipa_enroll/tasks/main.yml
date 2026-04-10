@@ -1486,11 +1486,27 @@
         (linux_freeipa_enroll_join_timed_out | bool)
       )
 
+- name: Check whether the Linux guest is already enrolled in IPA
+  ansible.builtin.stat:
+    path: /etc/ipa/default.conf
+  register: linux_freeipa_enroll_client_default_conf
+  when: not ansible_check_mode
+
 - name: Prepare Linux guest NetworkManager DNS refresh state
   ansible.builtin.set_fact:
-    linux_freeipa_enroll_should_refresh_networkmanager_dns: >-
+    linux_freeipa_enroll_client_is_enrolled: >-
       {{
         (linux_freeipa_enroll_join_succeeded | bool)
+        or
+        (
+          linux_freeipa_enroll_client_default_conf.stat.exists
+          | default(false)
+          | bool
+        )
+      }}
+    linux_freeipa_enroll_should_refresh_networkmanager_dns: >-
+      {{
+        (linux_freeipa_enroll_client_is_enrolled | bool)
         and (linux_freeipa_enroll_effective_configure_dns_resolver | bool)
         and (linux_freeipa_enroll_effective_dns_servers | default([]) | length > 0)
         and (linux_freeipa_enroll_effective_networkmanager_dns_refresh_strategy in ['apply', 'restart'])
@@ -1503,14 +1519,14 @@
       }}
     linux_freeipa_enroll_should_manage_split_dns: >-
       {{
-        (linux_freeipa_enroll_join_succeeded | bool)
+        (linux_freeipa_enroll_client_is_enrolled | bool)
         and (linux_freeipa_enroll_split_dns_supported | default(false) | bool)
       }}
     linux_freeipa_enroll_networkmanager_dns_refresh_performed: false
   changed_when: false
   when:
     - not ansible_check_mode
-    - linux_freeipa_enroll_join_succeeded | bool
+    - linux_freeipa_enroll_client_default_conf is defined
 
 - name: Gather Linux guest service facts before refreshing DNS on NetworkManager hosts
   ansible.builtin.service_facts:
