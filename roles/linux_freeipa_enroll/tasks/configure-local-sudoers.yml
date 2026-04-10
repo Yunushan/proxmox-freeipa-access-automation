@@ -1,0 +1,18 @@
+---
+- name: Ensure the sudoers drop-in directory exists for Linux IPA group sudo access
+  ansible.builtin.file:
+    path: /etc/sudoers.d
+    state: directory
+    mode: "0755"
+
+- name: Configure local sudoers access for Linux IPA admin groups
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/90-freeipa-linux-admin-groups
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+    content: |
+      # Managed by Ansible: linux_freeipa_enroll
+      # Grant sudo on this guest to the configured IPA-backed admin groups.
+      {% for group_name in linux_freeipa_enroll_local_sudo_groups %}
+      %{{ group_name }} ALL=(ALL:ALL) {% if linux_freeipa_enroll_local_sudo_nopasswd | bool %}NOPASSWD:{% endif %}ALL
+      {% endfor %}
