@@ -79,15 +79,8 @@
   when: linux_freeipa_enroll_local_sshd_allow_user_candidates | default([]) | length > 0
 
 - name: Finalize the effective Linux SSH allow-user list
-  vars:
-    linux_freeipa_enroll_local_sshd_connection_user: >-
-      {{
-        ansible_user
-        | default(ansible_ssh_user | default('', true), true)
-        | string
-        | trim
-      }}
-    linux_freeipa_enroll_local_sshd_resolved_users: >-
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_local_sshd_resolved_users_effective: >-
       {{
         (
           linux_freeipa_enroll_local_sshd_allow_user_resolution.results
@@ -97,7 +90,7 @@
           | list
         )
       }}
-    linux_freeipa_enroll_local_sshd_extra_users: >-
+    linux_freeipa_enroll_local_sshd_extra_users_effective: >-
       {{
         (
           linux_freeipa_enroll_local_sshd_allow_users_extra
@@ -112,16 +105,27 @@
         | reject('equalto', '')
         | list
       }}
+  changed_when: false
+
+- name: Assemble the effective Linux SSH allow-user list
+  vars:
+    linux_freeipa_enroll_local_sshd_connection_user: >-
+      {{
+        ansible_user
+        | default(ansible_ssh_user | default('', true), true)
+        | string
+        | trim
+      }}
   ansible.builtin.set_fact:
     linux_freeipa_enroll_local_sshd_allow_users_effective: >-
       {{
         (
           (
-            linux_freeipa_enroll_local_sshd_resolved_users
-            if (linux_freeipa_enroll_local_sshd_resolved_users | length > 0)
+            linux_freeipa_enroll_local_sshd_resolved_users_effective
+            if (linux_freeipa_enroll_local_sshd_resolved_users_effective | length > 0)
             else (linux_freeipa_enroll_local_sshd_allow_user_candidates | default([]))
           )
-          + linux_freeipa_enroll_local_sshd_extra_users
+          + linux_freeipa_enroll_local_sshd_extra_users_effective
           +
           (
             [linux_freeipa_enroll_local_sshd_connection_user]
