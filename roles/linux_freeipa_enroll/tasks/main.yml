@@ -867,7 +867,7 @@
 
 - name: Wait for Debian background package services to finish before refreshing package metadata
   ansible.builtin.shell: |
-    set -eu
+    set -euo pipefail
 
     timeout_seconds="{{ linux_freeipa_enroll_apt_background_services_timeout | int }}"
     sleep_seconds=5
@@ -902,7 +902,7 @@
       elapsed=$((elapsed + sleep_seconds))
     done
   args:
-    executable: /bin/sh
+    executable: /bin/bash
   changed_when: false
   when:
     - not ansible_check_mode
