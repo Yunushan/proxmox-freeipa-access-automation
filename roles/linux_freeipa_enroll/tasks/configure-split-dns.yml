@@ -34,6 +34,7 @@
         exit 0
       fi
 
+      resolvectl revert "$iface" || true
       resolvectl dns "$iface" {{ linux_freeipa_enroll_split_dns_ipa_dns_servers | join(' ') }}
       resolvectl domain "$iface" "~{{ linux_freeipa_enroll_split_dns_route_domain }}" "{{ linux_freeipa_enroll_split_dns_route_domain }}"
       resolvectl default-route "$iface" false
