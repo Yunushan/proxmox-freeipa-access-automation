@@ -368,19 +368,6 @@
     - linux_freeipa_enroll_split_dns_enabled | bool
     - linux_freeipa_enroll_split_dns_resolvectl_check.rc | default(1) == 0
 
-- name: Revert existing per-link resolved DNS overrides before Linux split DNS discovery
-  ansible.builtin.command:
-    argv:
-      - resolvectl
-      - revert
-      - "{{ linux_freeipa_enroll_split_dns_interface }}"
-  changed_when: false
-  failed_when: false
-  when:
-    - linux_freeipa_enroll_split_dns_enabled | bool
-    - linux_freeipa_enroll_split_dns_resolvectl_check.rc | default(1) == 0
-    - linux_freeipa_enroll_split_dns_interface | length > 0
-
 - name: Read current link DNS servers before Linux split DNS automation
   ansible.builtin.command:
     argv:
@@ -388,6 +375,20 @@
       - dns
       - "{{ linux_freeipa_enroll_split_dns_interface }}"
   register: linux_freeipa_enroll_split_dns_link_dns_raw
+  changed_when: false
+  failed_when: false
+  when:
+    - linux_freeipa_enroll_split_dns_enabled | bool
+    - linux_freeipa_enroll_split_dns_resolvectl_check.rc | default(1) == 0
+    - linux_freeipa_enroll_split_dns_interface | length > 0
+
+- name: Read current link DNS domains before Linux split DNS automation
+  ansible.builtin.command:
+    argv:
+      - resolvectl
+      - domain
+      - "{{ linux_freeipa_enroll_split_dns_interface }}"
+  register: linux_freeipa_enroll_split_dns_link_domains_raw
   changed_when: false
   failed_when: false
   when:
@@ -463,6 +464,31 @@
           ) == 0
           else []
         )
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+    linux_freeipa_enroll_split_dns_link_domains_detected: >-
+      {{
+        (
+          (
+            linux_freeipa_enroll_split_dns_link_domains_raw.stdout_lines
+            | default([])
+            | select('match', '^Link\\s+')
+            | map('regex_replace', '^.*?:\\s*', '')
+            | map('split')
+            | flatten
+            | list
+          )
+          if (
+            linux_freeipa_enroll_split_dns_link_domains_raw.rc
+            | default(1)
+            | int
+          ) == 0
+          else []
+        )
+        | map('string')
+        | map('trim')
         | reject('equalto', '')
         | unique
         | list
@@ -543,6 +569,11 @@
               | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
             )
             if (
+              (
+                ('~' ~ linux_freeipa_enroll_split_dns_route_domain)
+                not in (linux_freeipa_enroll_split_dns_link_domains_detected | default([]))
+              )
+              and
               (
                 linux_freeipa_enroll_split_dns_link_dns_servers_detected
                 | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
