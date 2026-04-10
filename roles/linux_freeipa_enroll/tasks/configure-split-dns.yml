@@ -15,7 +15,7 @@
       DNS={{ linux_freeipa_enroll_split_dns_public_dns_servers_effective | join(' ') }}
       FallbackDNS=
       Domains=
-  register: linux_freeipa_enroll_split_dns_resolved_dropin
+  notify: Restart systemd-resolved for Linux split DNS
 
 - name: Install the Linux split DNS apply helper
   ansible.builtin.copy:
@@ -57,21 +57,10 @@
 
       [Install]
       WantedBy=multi-user.target
-  register: linux_freeipa_enroll_split_dns_unit
+  notify: Reload systemd for Linux split DNS unit changes
 
-- name: Reload systemd after Linux split DNS unit changes
-  ansible.builtin.command:
-    argv:
-      - systemctl
-      - daemon-reload
-  changed_when: false
-  when: linux_freeipa_enroll_split_dns_unit.changed
-
-- name: Restart systemd-resolved after Linux split DNS drop-in changes
-  ansible.builtin.systemd_service:
-    name: systemd-resolved
-    state: restarted
-  when: linux_freeipa_enroll_split_dns_resolved_dropin.changed
+- name: Flush Linux split DNS handlers before applying runtime changes
+  ansible.builtin.meta: flush_handlers
 
 - name: Apply Linux split DNS immediately on the guest
   ansible.builtin.command:

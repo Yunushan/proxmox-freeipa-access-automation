@@ -1,0 +1,12 @@
+---
+- name: Reload systemd for Linux split DNS unit changes
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - daemon-reload
+  changed_when: false
+
+- name: Restart systemd-resolved for Linux split DNS
+  ansible.builtin.systemd_service:
+    name: systemd-resolved
+    state: restarted
