@@ -865,6 +865,53 @@
     - (ansible_facts.get('pkg_mgr', '') | string) == 'apt'
     - linux_freeipa_enroll_cloud_init_instance_dir.stat.exists | default(false)
 
+- name: Wait for Debian background package services to finish before refreshing package metadata
+  ansible.builtin.shell: |
+    set -eu
+
+    timeout_seconds="{{ linux_freeipa_enroll_apt_background_services_timeout | int }}"
+    sleep_seconds=5
+    elapsed=0
+
+    while true; do
+      if ! command -v systemctl >/dev/null 2>&1; then
+        exit 0
+      fi
+
+      busy=0
+      for unit in apt-daily.service apt-daily-upgrade.service unattended-upgrades.service; do
+        state="$(systemctl show -p ActiveState --value "$unit" 2>/dev/null || true)"
+        case "$state" in
+          active|activating|deactivating|reloading)
+            busy=1
+            ;;
+        esac
+      done
+
+      if [ "$busy" -eq 0 ]; then
+        exit 0
+      fi
+
+      if [ "$elapsed" -ge "$timeout_seconds" ]; then
+        echo "Debian background package services remained active for ${timeout_seconds}s." >&2
+        systemctl --no-pager --full status apt-daily.service apt-daily-upgrade.service unattended-upgrades.service >&2 || true
+        exit 1
+      fi
+
+      sleep "$sleep_seconds"
+      elapsed=$((elapsed + sleep_seconds))
+    done
+  args:
+    executable: /bin/sh
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_effective_install_packages | bool
+    - linux_freeipa_enroll_refresh_apt_cache | bool
+    - linux_freeipa_enroll_wait_for_apt_background_services | bool
+    - (ansible_facts.get('pkg_mgr', '') | string) == 'apt'
+    - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
+
 - name: Wait for active APT or DPKG lock holders before refreshing Debian package metadata
   ansible.builtin.shell: |
     set -eu
