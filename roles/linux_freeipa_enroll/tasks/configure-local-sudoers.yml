@@ -93,7 +93,7 @@
                 linux_freeipa_enroll_local_sudo_group_show.results
                 | default([])
                 | map(attribute='stdout')
-                | map('regex_findall', '(?im)^\\s*member_user\\s*:\\s*(.+?)\\s*$')
+                | map('regex_findall', '(?im)^\\s*(?:member_user|memberindirect_user)\\s*:\\s*(.+?)\\s*$')
                 | list
                 | flatten
               )
@@ -103,7 +103,7 @@
                   linux_freeipa_enroll_local_sudo_group_show.results
                   | default([])
                   | map(attribute='stdout')
-                  | map('regex_findall', '(?im)^\\s*member_user\\s*:\\s*(.+?)\\s*$')
+                  | map('regex_findall', '(?im)^\\s*(?:member_user|memberindirect_user)\\s*:\\s*(.+?)\\s*$')
                   | list
                   | flatten
                   | map('regex_replace', '$', '@' ~ (linux_freeipa_enroll_effective_domain | string | trim | lower))
@@ -118,7 +118,7 @@
                   linux_freeipa_enroll_local_sudo_group_show.results
                   | default([])
                   | map(attribute='stdout')
-                  | map('regex_findall', '(?im)^\\s*member_user\\s*:\\s*(.+?)\\s*$')
+                  | map('regex_findall', '(?im)^\\s*(?:member_user|memberindirect_user)\\s*:\\s*(.+?)\\s*$')
                   | list
                   | flatten
                   | map('regex_replace', '$', '@' ~ (linux_freeipa_enroll_effective_realm | string | trim | upper))
