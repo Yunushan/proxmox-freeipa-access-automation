@@ -1527,7 +1527,14 @@
     linux_freeipa_enroll_should_manage_split_dns: >-
       {{
         (linux_freeipa_enroll_client_is_enrolled | bool)
-        and (linux_freeipa_enroll_split_dns_supported | default(false) | bool)
+        and (linux_freeipa_enroll_split_dns_enabled | bool)
+        and (linux_freeipa_enroll_split_dns_resolvectl_available | default(false) | bool)
+        and (linux_freeipa_enroll_split_dns_interface | length > 0)
+        and (
+          linux_freeipa_enroll_split_dns_ipa_dns_servers
+          | default([])
+          | length
+        ) > 0
       }}
     linux_freeipa_enroll_networkmanager_dns_refresh_performed: false
   changed_when: false

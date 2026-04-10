@@ -5,17 +5,67 @@
       {{
         (
           (
-            linux_freeipa_enroll_split_dns_public_dns_servers_effective
-            if (
-              linux_freeipa_enroll_split_dns_public_dns_servers_effective is sequence
-              and linux_freeipa_enroll_split_dns_public_dns_servers_effective is not string
-            )
-            else (
+            (
               linux_freeipa_enroll_split_dns_public_dns_servers_effective
-              | default('', true)
-              | string
-              | split(',')
+              if (
+                linux_freeipa_enroll_split_dns_public_dns_servers_effective
+                | default([])
+                | length
+              ) > 0
+              else (
+                (
+                  linux_freeipa_enroll_split_dns_link_dns_servers_detected
+                  | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
+                )
+                if (
+                  (
+                    ('~' ~ linux_freeipa_enroll_split_dns_route_domain)
+                    not in (linux_freeipa_enroll_split_dns_link_domains_detected | default([]))
+                  )
+                  and
+                  (
+                    (
+                      linux_freeipa_enroll_split_dns_link_dns_servers_detected
+                      | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
+                    )
+                    | length
+                  ) > 0
+                )
+                else (
+                  (
+                    linux_freeipa_enroll_split_dns_global_dns_servers_detected
+                    | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
+                  )
+                  if (
+                    (
+                      linux_freeipa_enroll_split_dns_global_dns_servers_detected
+                      | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
+                    )
+                    | length
+                  ) > 0
+                  else (
+                    ansible_facts.get('dns', {}).get('nameservers', [])
+                    | default([])
+                    | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
+                  )
+                )
+              )
             )
+            if (
+              (
+                linux_freeipa_enroll_split_dns_public_dns_servers_effective is sequence
+                and linux_freeipa_enroll_split_dns_public_dns_servers_effective is not string
+              )
+              or
+              (
+                linux_freeipa_enroll_split_dns_public_dns_servers_effective
+                | default('', true)
+                | string
+                | trim
+                | length
+              ) > 0
+            )
+            else []
           )
           | map('string')
           | map('trim')
