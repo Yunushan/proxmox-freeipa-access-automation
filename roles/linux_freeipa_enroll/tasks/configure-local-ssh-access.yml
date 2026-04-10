@@ -46,15 +46,8 @@
   changed_when: false
 
 - name: Normalize the extra Linux SSH preserved users
-  vars:
-    linux_freeipa_enroll_local_sshd_connection_user: >-
-      {{
-        ansible_user
-        | default(ansible_ssh_user | default('', true), true)
-        | string
-        | trim
-      }}
-    linux_freeipa_enroll_local_sshd_extra_users_normalized: >-
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_local_sshd_extra_users_effective: >-
       {{
         (
           linux_freeipa_enroll_local_sshd_allow_users_extra
@@ -69,17 +62,33 @@
         | reject('equalto', '')
         | list
       }}
+  changed_when: false
+
+- name: Normalize the active Linux SSH connection user
+  vars:
+    linux_freeipa_enroll_local_sshd_connection_user: >-
+      {{
+        ansible_user
+        | default(ansible_ssh_user | default('', true), true)
+        | string
+        | trim
+      }}
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_local_sshd_connection_user_effective: >-
+      {{
+        [linux_freeipa_enroll_local_sshd_connection_user]
+        if (linux_freeipa_enroll_local_sshd_connection_user | length > 0)
+        else []
+      }}
+  changed_when: false
+
+- name: Assemble the effective Linux SSH preserved users
   ansible.builtin.set_fact:
     linux_freeipa_enroll_local_sshd_preserved_users_effective: >-
       {{
         (
-          linux_freeipa_enroll_local_sshd_extra_users_normalized
-          +
-          (
-            [linux_freeipa_enroll_local_sshd_connection_user]
-            if (linux_freeipa_enroll_local_sshd_connection_user | length > 0)
-            else []
-          )
+          (linux_freeipa_enroll_local_sshd_extra_users_effective | default([]))
+          + (linux_freeipa_enroll_local_sshd_connection_user_effective | default([]))
         )
         | unique
         | sort
@@ -101,11 +110,9 @@
   failed_when: false
   when: linux_freeipa_enroll_local_sshd_preserved_users_effective | default([]) | length > 0
 
-- name: Finalize the effective Linux SSH allow-group list
-  vars:
-    linux_freeipa_enroll_local_sshd_base_groups: >-
-      {{ linux_freeipa_enroll_local_sshd_allow_groups_base | default([]) }}
-    linux_freeipa_enroll_local_sshd_preserved_groups: >-
+- name: Normalize the preserved Linux SSH primary groups
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_local_sshd_preserved_groups_effective: >-
       {{
         (
           linux_freeipa_enroll_local_sshd_preserved_user_groups.results
@@ -118,12 +125,15 @@
           | list
         )
       }}
+  changed_when: false
+
+- name: Finalize the effective Linux SSH allow-group list
   ansible.builtin.set_fact:
     linux_freeipa_enroll_local_sshd_allow_groups_effective: >-
       {{
         (
-          linux_freeipa_enroll_local_sshd_base_groups
-          + linux_freeipa_enroll_local_sshd_preserved_groups
+          (linux_freeipa_enroll_local_sshd_allow_groups_base | default([]))
+          + (linux_freeipa_enroll_local_sshd_preserved_groups_effective | default([]))
         )
         | map('string')
         | map('trim')
