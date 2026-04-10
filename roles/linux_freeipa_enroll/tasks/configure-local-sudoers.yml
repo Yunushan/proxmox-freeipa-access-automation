@@ -1,4 +1,47 @@
 ---
+- name: Build the effective Linux IPA sudoers group names
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_local_sudo_groups_effective: >-
+      {{
+        (
+          linux_freeipa_enroll_local_sudo_groups
+          +
+          (
+            (
+              linux_freeipa_enroll_local_sudo_groups
+              | map('regex_replace', '$', '@' ~ (linux_freeipa_enroll_effective_domain | string | trim | lower))
+              | list
+            )
+            if (linux_freeipa_enroll_local_sudo_group_domain_variants | bool)
+            else []
+          )
+          +
+          (
+            (
+              linux_freeipa_enroll_local_sudo_groups
+              | map('regex_replace', '$', '@' ~ (linux_freeipa_enroll_effective_realm | string | trim | upper))
+              | list
+            )
+            if (
+              (linux_freeipa_enroll_local_sudo_group_domain_variants | bool)
+              and
+              (
+                (linux_freeipa_enroll_effective_realm | string | trim | upper)
+                !=
+                (linux_freeipa_enroll_effective_domain | string | trim | lower)
+              )
+            )
+            else []
+          )
+        )
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+  changed_when: false
+
 - name: Ensure the sudoers drop-in directory exists for Linux IPA group sudo access
   ansible.builtin.file:
     path: /etc/sudoers.d
@@ -13,6 +56,10 @@
     content: |
       # Managed by Ansible: linux_freeipa_enroll
       # Grant sudo on this guest to the configured IPA-backed admin groups.
-      {% for group_name in linux_freeipa_enroll_local_sudo_groups %}
+      {% for group_name in linux_freeipa_enroll_local_sudo_groups_effective %}
       %{{ group_name }} ALL=(ALL:ALL) {% if linux_freeipa_enroll_local_sudo_nopasswd | bool %}NOPASSWD:{% endif %}ALL
       {% endfor %}
+  notify: Refresh Linux IPA sudo access caches
+
+- name: Flush Linux IPA sudo access handlers
+  ansible.builtin.meta: flush_handlers

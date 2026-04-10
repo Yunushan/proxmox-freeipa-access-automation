@@ -10,3 +10,34 @@
   ansible.builtin.systemd_service:
     name: systemd-resolved
     state: restarted
+
+- name: Check whether sss_cache is available for Linux IPA sudo refresh
+  ansible.builtin.command:
+    argv:
+      - which
+      - sss_cache
+  register: linux_freeipa_enroll_local_sudoers_sss_cache_binary
+  changed_when: false
+  failed_when: false
+  listen: Refresh Linux IPA sudo access caches
+
+- name: Gather service facts for Linux IPA sudo refresh
+  ansible.builtin.service_facts:
+  listen: Refresh Linux IPA sudo access caches
+
+- name: Clear SSSD caches after Linux IPA sudoers changes
+  ansible.builtin.command:
+    argv:
+      - sss_cache
+      - -E
+  changed_when: false
+  when: linux_freeipa_enroll_local_sudoers_sss_cache_binary.rc | default(1) == 0
+  listen: Refresh Linux IPA sudo access caches
+
+- name: Restart SSSD after Linux IPA sudoers changes
+  ansible.builtin.service:
+    name: sssd
+    state: restarted
+  when:
+    - "'sssd.service' in (ansible_facts.services | default({})) or 'sssd' in (ansible_facts.services | default({}))"
+  listen: Refresh Linux IPA sudo access caches

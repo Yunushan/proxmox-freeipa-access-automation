@@ -42,6 +42,7 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - `linux_freeipa_enroll_split_dns_public_dns_servers`
 - `linux_freeipa_enroll_manage_local_group_sudoers`
 - `linux_freeipa_enroll_local_sudo_groups`
+- `linux_freeipa_enroll_local_sudo_group_domain_variants`
 - `linux_freeipa_enroll_local_sudo_nopasswd`
 - `linux_ipa_servers`
 - `linux_ipaadmin_principal`
@@ -84,6 +85,7 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - The repository-owned split-DNS path is independent of `linux_ipaclient_configure_dns_resolver`, so the default repository workflow can keep the upstream flat resolver management disabled and still apply split DNS automatically on supported `systemd-resolved` guests after enrollment.
 - `linux_freeipa_enroll_manage_local_group_sudoers` defaults to `true`, so successful Linux enrollments also install a local sudoers drop-in for the configured IPA-backed admin groups. This makes group members such as `linux-ssh-admins` able to run `sudo` through normal NSS/SSSD group resolution even when the guest-side IPA sudo-rule responder path is inconsistent.
 - `linux_freeipa_enroll_local_sudo_groups` defaults to `['linux-ssh-admins']`.
+- `linux_freeipa_enroll_local_sudo_group_domain_variants` defaults to `true`, so that local sudoers drop-in also writes IPA-qualified variants such as `linux-ssh-admins@karel.local` and `linux-ssh-admins@KAREL.LOCAL` for guests where SSSD exposes group names in qualified form.
 - `linux_freeipa_enroll_local_sudo_nopasswd` defaults to `false`, so group members still authenticate with their own password for commands such as `sudo su` unless you explicitly opt into passwordless sudo.
 - `ipaclient_domain` must be the shared IPA DNS domain such as `example.com`, not an IPA server hostname such as `ipa01.example.com`.
 - `linux_ipa_servers` should preferably be a YAML list of IPA server FQDNs. Comma-separated strings are normalized, but list syntax is the preferred form.
