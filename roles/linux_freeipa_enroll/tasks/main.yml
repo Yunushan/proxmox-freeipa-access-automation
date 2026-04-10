@@ -879,7 +879,7 @@
       fi
 
       busy=0
-      for unit in apt-daily.service apt-daily-upgrade.service unattended-upgrades.service; do
+      for unit in apt-daily.service apt-daily-upgrade.service; do
         state="$(systemctl show -p ActiveState --value "$unit" 2>/dev/null || true)"
         case "$state" in
           active|activating|deactivating|reloading)
@@ -894,7 +894,7 @@
 
       if [ "$elapsed" -ge "$timeout_seconds" ]; then
         echo "Debian background package services remained active for ${timeout_seconds}s." >&2
-        systemctl --no-pager --full status apt-daily.service apt-daily-upgrade.service unattended-upgrades.service >&2 || true
+        systemctl --no-pager --full status apt-daily.service apt-daily-upgrade.service >&2 || true
         exit 1
       fi
 
