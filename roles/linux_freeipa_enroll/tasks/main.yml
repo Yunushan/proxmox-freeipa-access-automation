@@ -838,6 +838,20 @@
   when: ansible_check_mode
   changed_when: false
 
+- name: Refresh APT metadata before installing FreeIPA client packages on Debian-family guests
+  ansible.builtin.apt:
+    update_cache: true
+    lock_timeout: 60
+  register: linux_freeipa_enroll_apt_cache_refresh
+  retries: 3
+  delay: 5
+  until: linux_freeipa_enroll_apt_cache_refresh is succeeded
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_effective_install_packages | bool
+    - linux_freeipa_enroll_refresh_apt_cache | bool
+    - (ansible_facts.get('pkg_mgr', ansible_pkg_mgr | default('')) | string) == 'apt'
+
 - name: Initialize Linux IPA enrollment join state
   ansible.builtin.set_fact:
     linux_freeipa_enroll_join_succeeded: false
