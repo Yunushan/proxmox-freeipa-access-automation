@@ -1492,7 +1492,7 @@
   register: linux_freeipa_enroll_client_default_conf
   when: not ansible_check_mode
 
-- name: Prepare Linux guest NetworkManager DNS refresh state
+- name: Determine whether the Linux guest is enrolled in IPA for post-join reconciliation
   ansible.builtin.set_fact:
     linux_freeipa_enroll_client_is_enrolled: >-
       {{
@@ -1504,6 +1504,13 @@
           | bool
         )
       }}
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_client_default_conf is defined
+
+- name: Prepare Linux guest NetworkManager DNS refresh state
+  ansible.builtin.set_fact:
     linux_freeipa_enroll_should_refresh_networkmanager_dns: >-
       {{
         (linux_freeipa_enroll_client_is_enrolled | bool)
