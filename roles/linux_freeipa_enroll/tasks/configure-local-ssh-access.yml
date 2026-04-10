@@ -21,39 +21,41 @@
           | list
         )
       }}
+    linux_freeipa_enroll_local_sshd_domain_variants: >-
+      {{
+        (
+          linux_freeipa_enroll_local_sshd_user_bases
+          | map('regex_replace', '$', '@' ~ (linux_freeipa_enroll_effective_domain | string | trim | lower))
+          | list
+        )
+        if (linux_freeipa_enroll_local_sudo_group_domain_variants | bool)
+        else []
+      }}
+    linux_freeipa_enroll_local_sshd_realm_variants: >-
+      {{
+        (
+          linux_freeipa_enroll_local_sshd_user_bases
+          | map('regex_replace', '$', '@' ~ (linux_freeipa_enroll_effective_realm | string | trim | upper))
+          | list
+        )
+        if (
+          (linux_freeipa_enroll_local_sudo_group_domain_variants | bool)
+          and
+          (
+            (linux_freeipa_enroll_effective_realm | string | trim | upper)
+            !=
+            (linux_freeipa_enroll_effective_domain | string | trim | lower)
+          )
+        )
+        else []
+      }}
   ansible.builtin.set_fact:
     linux_freeipa_enroll_local_sshd_allow_user_candidates: >-
       {{
         (
           linux_freeipa_enroll_local_sshd_user_bases
-          +
-          (
-            (
-              linux_freeipa_enroll_local_sshd_user_bases
-              | map('regex_replace', '$', '@' ~ (linux_freeipa_enroll_effective_domain | string | trim | lower))
-              | list
-            )
-            if (linux_freeipa_enroll_local_sudo_group_domain_variants | bool)
-            else []
-          )
-          +
-          (
-            (
-              linux_freeipa_enroll_local_sshd_user_bases
-              | map('regex_replace', '$', '@' ~ (linux_freeipa_enroll_effective_realm | string | trim | upper))
-              | list
-            )
-            if (
-              (linux_freeipa_enroll_local_sudo_group_domain_variants | bool)
-              and
-              (
-                (linux_freeipa_enroll_effective_realm | string | trim | upper)
-                !=
-                (linux_freeipa_enroll_effective_domain | string | trim | lower)
-              )
-            )
-            else []
-          )
+          + linux_freeipa_enroll_local_sshd_domain_variants
+          + linux_freeipa_enroll_local_sshd_realm_variants
         )
         | map('string')
         | map('trim')
@@ -62,34 +64,16 @@
         | sort
         | list
       }}
-  changed_when: false
-
-- name: Resolve guest-visible Linux SSH allow-user names
-  ansible.builtin.command:
-    argv:
-      - getent
-      - passwd
-      - "{{ item }}"
-  loop: "{{ linux_freeipa_enroll_local_sshd_allow_user_candidates | default([]) }}"
-  loop_control:
-    label: "{{ item }}"
-  register: linux_freeipa_enroll_local_sshd_allow_user_resolution
-  changed_when: false
-  failed_when: false
-  when: linux_freeipa_enroll_local_sshd_allow_user_candidates | default([]) | length > 0
-
-- name: Finalize the effective Linux SSH allow-user list
-  ansible.builtin.set_fact:
-    linux_freeipa_enroll_local_sshd_resolved_users_effective: >-
+    linux_freeipa_enroll_local_sshd_connection_user_effective: >-
       {{
-        (
-          linux_freeipa_enroll_local_sshd_allow_user_resolution.results
-          | default([])
-          | selectattr('rc', 'equalto', 0)
-          | map(attribute='item')
-          | list
-        )
+        [linux_freeipa_enroll_local_sshd_connection_user]
+        if (linux_freeipa_enroll_local_sshd_connection_user | length > 0)
+        else []
       }}
+  changed_when: false
+
+- name: Normalize the extra Linux SSH allow-user list
+  ansible.builtin.set_fact:
     linux_freeipa_enroll_local_sshd_extra_users_effective: >-
       {{
         (
@@ -107,31 +91,21 @@
       }}
   changed_when: false
 
-- name: Assemble the effective Linux SSH allow-user list
+- name: Finalize the effective Linux SSH allow-user list
   vars:
-    linux_freeipa_enroll_local_sshd_connection_user: >-
-      {{
-        ansible_user
-        | default(ansible_ssh_user | default('', true), true)
-        | string
-        | trim
-      }}
+    linux_freeipa_enroll_local_sshd_candidate_users: >-
+      {{ linux_freeipa_enroll_local_sshd_allow_user_candidates | default([]) }}
+    linux_freeipa_enroll_local_sshd_extra_users: >-
+      {{ linux_freeipa_enroll_local_sshd_extra_users_effective | default([]) }}
+    linux_freeipa_enroll_local_sshd_connection_users: >-
+      {{ linux_freeipa_enroll_local_sshd_connection_user_effective | default([]) }}
   ansible.builtin.set_fact:
     linux_freeipa_enroll_local_sshd_allow_users_effective: >-
       {{
         (
-          (
-            linux_freeipa_enroll_local_sshd_resolved_users_effective
-            if (linux_freeipa_enroll_local_sshd_resolved_users_effective | length > 0)
-            else (linux_freeipa_enroll_local_sshd_allow_user_candidates | default([]))
-          )
-          + linux_freeipa_enroll_local_sshd_extra_users_effective
-          +
-          (
-            [linux_freeipa_enroll_local_sshd_connection_user]
-            if (linux_freeipa_enroll_local_sshd_connection_user | length > 0)
-            else []
-          )
+          linux_freeipa_enroll_local_sshd_candidate_users
+          + linux_freeipa_enroll_local_sshd_extra_users
+          + linux_freeipa_enroll_local_sshd_connection_users
         )
         | map('string')
         | map('trim')
