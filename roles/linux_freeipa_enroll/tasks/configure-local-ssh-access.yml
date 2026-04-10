@@ -1,61 +1,38 @@
 ---
-- name: Build the effective Linux SSH allow-user list
+- name: Build the effective Linux SSH allow-group base list
   vars:
-    linux_freeipa_enroll_local_sshd_connection_user: >-
-      {{
-        ansible_user
-        | default(ansible_ssh_user | default('', true), true)
-        | string
-        | trim
-      }}
-    linux_freeipa_enroll_local_sshd_user_bases: >-
+    linux_freeipa_enroll_local_sshd_admin_groups: >-
       {{
         (
-          linux_freeipa_enroll_local_sudo_users_effective | default([])
-          | map('string')
-          | map('trim')
-          | reject('equalto', '')
-          | map('regex_replace', '@.*$', '')
-          | reject('equalto', '')
-          | unique
-          | list
-        )
-      }}
-    linux_freeipa_enroll_local_sshd_domain_variants: >-
-      {{
-        (
-          linux_freeipa_enroll_local_sshd_user_bases
-          | map('regex_replace', '$', '@' ~ (linux_freeipa_enroll_effective_domain | string | trim | lower))
-          | list
-        )
-        if (linux_freeipa_enroll_local_sudo_group_domain_variants | bool)
-        else []
-      }}
-    linux_freeipa_enroll_local_sshd_realm_variants: >-
-      {{
-        (
-          linux_freeipa_enroll_local_sshd_user_bases
-          | map('regex_replace', '$', '@' ~ (linux_freeipa_enroll_effective_realm | string | trim | upper))
-          | list
-        )
-        if (
-          (linux_freeipa_enroll_local_sudo_group_domain_variants | bool)
-          and
+          linux_freeipa_enroll_local_sudo_groups
+          +
           (
-            (linux_freeipa_enroll_effective_realm | string | trim | upper)
-            !=
-            (linux_freeipa_enroll_effective_domain | string | trim | lower)
+            (
+              linux_freeipa_enroll_local_sudo_groups
+              | map('regex_replace', '$', '@' ~ (linux_freeipa_enroll_effective_domain | string | trim | lower))
+              | list
+            )
+            if (linux_freeipa_enroll_local_sudo_group_domain_variants | bool)
+            else []
           )
-        )
-        else []
-      }}
-  ansible.builtin.set_fact:
-    linux_freeipa_enroll_local_sshd_allow_user_candidates: >-
-      {{
-        (
-          linux_freeipa_enroll_local_sshd_user_bases
-          + linux_freeipa_enroll_local_sshd_domain_variants
-          + linux_freeipa_enroll_local_sshd_realm_variants
+          +
+          (
+            (
+              linux_freeipa_enroll_local_sudo_groups
+              | map('regex_replace', '$', '@' ~ (linux_freeipa_enroll_effective_realm | string | trim | upper))
+              | list
+            )
+            if (
+              (linux_freeipa_enroll_local_sudo_group_domain_variants | bool)
+              and
+              (
+                (linux_freeipa_enroll_effective_realm | string | trim | upper)
+                !=
+                (linux_freeipa_enroll_effective_domain | string | trim | lower)
+              )
+            )
+            else []
+          )
         )
         | map('string')
         | map('trim')
@@ -64,17 +41,20 @@
         | sort
         | list
       }}
-    linux_freeipa_enroll_local_sshd_connection_user_effective: >-
-      {{
-        [linux_freeipa_enroll_local_sshd_connection_user]
-        if (linux_freeipa_enroll_local_sshd_connection_user | length > 0)
-        else []
-      }}
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_local_sshd_allow_groups_base: "{{ linux_freeipa_enroll_local_sshd_admin_groups }}"
   changed_when: false
 
-- name: Normalize the extra Linux SSH allow-user list
-  ansible.builtin.set_fact:
-    linux_freeipa_enroll_local_sshd_extra_users_effective: >-
+- name: Normalize the extra Linux SSH preserved users
+  vars:
+    linux_freeipa_enroll_local_sshd_connection_user: >-
+      {{
+        ansible_user
+        | default(ansible_ssh_user | default('', true), true)
+        | string
+        | trim
+      }}
+    linux_freeipa_enroll_local_sshd_extra_users_normalized: >-
       {{
         (
           linux_freeipa_enroll_local_sshd_allow_users_extra
@@ -89,23 +69,61 @@
         | reject('equalto', '')
         | list
       }}
-  changed_when: false
-
-- name: Finalize the effective Linux SSH allow-user list
-  vars:
-    linux_freeipa_enroll_local_sshd_candidate_users: >-
-      {{ linux_freeipa_enroll_local_sshd_allow_user_candidates | default([]) }}
-    linux_freeipa_enroll_local_sshd_extra_users: >-
-      {{ linux_freeipa_enroll_local_sshd_extra_users_effective | default([]) }}
-    linux_freeipa_enroll_local_sshd_connection_users: >-
-      {{ linux_freeipa_enroll_local_sshd_connection_user_effective | default([]) }}
   ansible.builtin.set_fact:
-    linux_freeipa_enroll_local_sshd_allow_users_effective: >-
+    linux_freeipa_enroll_local_sshd_preserved_users_effective: >-
       {{
         (
-          linux_freeipa_enroll_local_sshd_candidate_users
-          + linux_freeipa_enroll_local_sshd_extra_users
-          + linux_freeipa_enroll_local_sshd_connection_users
+          linux_freeipa_enroll_local_sshd_extra_users_normalized
+          +
+          (
+            [linux_freeipa_enroll_local_sshd_connection_user]
+            if (linux_freeipa_enroll_local_sshd_connection_user | length > 0)
+            else []
+          )
+        )
+        | unique
+        | sort
+        | list
+      }}
+  changed_when: false
+
+- name: Resolve primary groups for preserved Linux SSH users
+  ansible.builtin.command:
+    argv:
+      - id
+      - -gn
+      - "{{ item }}"
+  loop: "{{ linux_freeipa_enroll_local_sshd_preserved_users_effective | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+  register: linux_freeipa_enroll_local_sshd_preserved_user_groups
+  changed_when: false
+  failed_when: false
+  when: linux_freeipa_enroll_local_sshd_preserved_users_effective | default([]) | length > 0
+
+- name: Finalize the effective Linux SSH allow-group list
+  vars:
+    linux_freeipa_enroll_local_sshd_base_groups: >-
+      {{ linux_freeipa_enroll_local_sshd_allow_groups_base | default([]) }}
+    linux_freeipa_enroll_local_sshd_preserved_groups: >-
+      {{
+        (
+          linux_freeipa_enroll_local_sshd_preserved_user_groups.results
+          | default([])
+          | selectattr('rc', 'equalto', 0)
+          | map(attribute='stdout')
+          | map('string')
+          | map('trim')
+          | reject('equalto', '')
+          | list
+        )
+      }}
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_local_sshd_allow_groups_effective: >-
+      {{
+        (
+          linux_freeipa_enroll_local_sshd_base_groups
+          + linux_freeipa_enroll_local_sshd_preserved_groups
         )
         | map('string')
         | map('trim')
@@ -116,12 +134,12 @@
       }}
   changed_when: false
 
-- name: Configure local SSH access allowlist for Linux IPA admin users
+- name: Configure local SSH access allowlist for Linux IPA admin groups
   ansible.builtin.blockinfile:
     path: /etc/ssh/sshd_config
     marker: "# {mark} ANSIBLE MANAGED BLOCK: linux_freeipa_enroll access"
     block: |
-      AllowUsers {{ linux_freeipa_enroll_local_sshd_allow_users_effective | join(' ') }}
+      AllowGroups {{ linux_freeipa_enroll_local_sshd_allow_groups_effective | join(' ') }}
     validate: /usr/sbin/sshd -t -f %s
   notify: Reload SSH daemon for Linux access changes
 
