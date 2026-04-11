@@ -209,7 +209,7 @@
     linux_freeipa_enroll_split_dns_public_dns_servers_final: >-
       {{
         (
-          linux_freeipa_enroll_split_dns_public_dns_servers_requested_normalized
+          linux_freeipa_enroll_split_dns_public_dns_servers_effective
           if (linux_freeipa_enroll_split_dns_public_dns_mode_effective == 'explicit')
           else (linux_freeipa_enroll_split_dns_public_dns_servers_preserved_final | default([]))
         )
@@ -235,7 +235,8 @@
       Linux split DNS could not determine any public/default DNS servers for interface
       {{ linux_freeipa_enroll_split_dns_interface | default('unknown', true) }}.
       {% if linux_freeipa_enroll_split_dns_public_dns_mode_effective == 'explicit' %}
-      Set linux_freeipa_enroll_split_dns_public_dns_servers explicitly to the desired public resolvers.
+      Set linux_freeipa_enroll_split_dns_public_dns_servers explicitly to the desired public resolvers,
+      or switch the split-DNS mode to preserve if you want the guest's existing public DNS kept automatically.
       {% else %}
       Set linux_freeipa_enroll_split_dns_public_dns_servers explicitly or switch the split-DNS mode back to explicit.
       {% endif %}

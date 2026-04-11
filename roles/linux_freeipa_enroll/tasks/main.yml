@@ -576,6 +576,11 @@
           if (
             linux_freeipa_enroll_split_dns_public_dns_mode_effective
             == 'explicit'
+            and (
+              linux_freeipa_enroll_split_dns_public_dns_servers_requested_normalized
+              | default([])
+              | length
+            ) > 0
           )
           else
           (
@@ -608,6 +613,21 @@
         | list
       }}
   changed_when: false
+
+- name: Note when Linux split DNS explicit mode is falling back to the guest's current public DNS
+  ansible.builtin.debug:
+    msg: >-
+      linux_freeipa_enroll_split_dns_public_dns_servers was not configured in explicit mode,
+      so Linux split DNS is reusing the guest's currently detected non-IPA public/default
+      resolvers: {{ linux_freeipa_enroll_split_dns_public_dns_servers_effective | join(', ') }}.
+      Set linux_freeipa_enroll_split_dns_public_dns_servers for deterministic public DNS values
+      on every enrolled guest.
+  changed_when: false
+  when:
+    - linux_freeipa_enroll_split_dns_enabled | bool
+    - linux_freeipa_enroll_split_dns_public_dns_mode_effective == 'explicit'
+    - (linux_freeipa_enroll_split_dns_public_dns_servers_requested_normalized | default([]) | length) == 0
+    - (linux_freeipa_enroll_split_dns_public_dns_servers_effective | default([]) | length) > 0
 
 - name: Determine whether Linux split DNS automation can run on this guest
   ansible.builtin.set_fact:
