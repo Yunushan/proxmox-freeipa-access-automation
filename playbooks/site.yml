@@ -40,6 +40,13 @@
     - inventory
     - ssh_bootstrap
 
+- name: Ensure QEMU Guest Agent on Linux guests that became reachable after bootstrap for the combined site workflow
+  import_playbook: includes/ensure_linux_guest_qemu_agent.yml
+  tags:
+    - linux
+    - inventory
+    - qga_install
+
 - name: Resolve Linux hostnames for the combined site workflow
   import_playbook: includes/resolve_linux_hostnames.yml
   tags:

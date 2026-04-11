@@ -15,7 +15,6 @@
     - role: guest_qemu_agent_install
       when:
         - guest_qemu_agent_install_enabled | bool
-        - linux_ipa_proxmox_vmid is not defined
       tags:
         - linux
         - linux_enroll

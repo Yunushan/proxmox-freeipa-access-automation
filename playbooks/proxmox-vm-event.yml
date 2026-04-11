@@ -42,6 +42,14 @@
     - ssh_bootstrap
     - event
 
+- name: Ensure QEMU Guest Agent on Linux guests that became reachable after bootstrap for a Proxmox VM event
+  import_playbook: includes/ensure_linux_guest_qemu_agent.yml
+  tags:
+    - linux
+    - inventory
+    - qga_install
+    - event
+
 - name: Resolve Linux hostnames for a Proxmox VM event
   import_playbook: includes/resolve_linux_hostnames.yml
   tags:

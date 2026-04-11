@@ -36,6 +36,15 @@
     - inventory
     - ssh_bootstrap
 
+- name: Ensure QEMU Guest Agent on Linux guests that became reachable after bootstrap for the FreeIPA workflow
+  import_playbook: includes/ensure_linux_guest_qemu_agent.yml
+  tags:
+    - freeipa
+    - freeipa_access
+    - linux
+    - inventory
+    - qga_install
+
 - name: Build FreeIPA access model only
   hosts: ipa_servers
   become: true
