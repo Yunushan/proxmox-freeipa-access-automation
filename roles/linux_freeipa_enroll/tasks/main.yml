@@ -354,26 +354,41 @@
       }}
   changed_when: false
 
+- name: Check Linux split DNS inventory group vars file for role-local fallback
+  ansible.builtin.stat:
+    path: "{{ linux_freeipa_enroll_split_dns_group_vars_file }}"
+  register: linux_freeipa_enroll_split_dns_group_vars_file_stat
+  changed_when: false
+
+- name: Load Linux split DNS inventory group vars into a native mapping for role-local fallback
+  ansible.builtin.include_vars:
+    file: "{{ linux_freeipa_enroll_split_dns_group_vars_file }}"
+    name: linux_freeipa_enroll_runtime_split_dns_group_vars_loaded
+  when: linux_freeipa_enroll_split_dns_group_vars_file_stat.stat.exists | default(false)
+
 - name: Build effective Linux split DNS runtime group vars inside the role
   ansible.builtin.set_fact:
     linux_freeipa_enroll_runtime_split_dns_group_vars_effective: >-
       {{
         (
-          linux_freeipa_enroll_runtime_split_dns_group_vars
-          | default(
-              (
-                lookup(
-                  'ansible.builtin.file',
-                  linux_freeipa_enroll_split_dns_group_vars_file,
-                  errors='ignore'
-                )
-                | default('{}', true)
-                | from_yaml
-              ),
-              true
+          (
+            linux_freeipa_enroll_runtime_split_dns_group_vars_loaded
+            if (
+              linux_freeipa_enroll_runtime_split_dns_group_vars_loaded is defined
+              and linux_freeipa_enroll_runtime_split_dns_group_vars_loaded is mapping
             )
+            else (
+              linux_freeipa_enroll_runtime_split_dns_group_vars
+              if (
+                linux_freeipa_enroll_runtime_split_dns_group_vars is defined
+                and linux_freeipa_enroll_runtime_split_dns_group_vars is mapping
+              )
+              else {}
+            )
+          )
+          | to_json
+          | from_json
         )
-        | default({}, true)
       }}
   changed_when: false
 
