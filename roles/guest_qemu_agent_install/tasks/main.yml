@@ -3,9 +3,9 @@
   ansible.builtin.set_fact:
     guest_qemu_agent_install_is_windows: >-
       {{
-        (ansible_connection | default('ssh')) in ['winrm', 'psrp']
-        or (ansible_shell_type | default('sh')) in ['cmd', 'powershell']
-        or (ansible_os_family | default('')) == 'Windows'
+        (hostvars[inventory_hostname].ansible_connection | default('ssh')) in ['winrm', 'psrp']
+        or (hostvars[inventory_hostname].ansible_shell_type | default('sh')) in ['cmd', 'powershell']
+        or (ansible_facts.get('os_family', '') | string) == 'Windows'
       }}
 
 - name: Install and enable QEMU Guest Agent on Linux guests

@@ -2289,6 +2289,14 @@
     - linux_freeipa_enroll_join_succeeded | bool
     - linux_freeipa_enroll_manage_local_sshd_allow_users | bool
 
+- name: Install and enable QEMU Guest Agent on Linux guests after successful IPA enrollment
+  ansible.builtin.include_role:
+    name: guest_qemu_agent_install
+  when:
+    - not ansible_check_mode
+    - guest_qemu_agent_install_enabled | bool
+    - linux_freeipa_enroll_client_is_enrolled | default(false) | bool
+
 - name: Mark Linux guest as successfully enrolled for later FreeIPA hostgroup updates
   ansible.builtin.add_host:
     name: "{{ inventory_hostname }}"
