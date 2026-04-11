@@ -2,6 +2,16 @@
 - name: Initialize Linux IPA inventory source hosts
   ansible.builtin.set_fact:
     linux_ipa_inventory_source_hosts: []
+    linux_ipa_runtime_split_dns_public_dns_mode: >-
+      {{
+        linux_freeipa_enroll_split_dns_public_dns_mode
+        | default('explicit', true)
+        | string
+        | trim
+        | lower
+      }}
+    linux_ipa_runtime_split_dns_public_dns_servers: "{{ linux_freeipa_enroll_split_dns_public_dns_servers | default([], true) }}"
+  changed_when: false
 
 - name: Validate Linux IPA SSH host key policy
   ansible.builtin.assert:
