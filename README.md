@@ -72,7 +72,7 @@ This is a good fit when you want onboarding and offboarding to be mostly:
 - Proxmox RBAC bindings for synced directory groups
 - Linux guest enrollment into FreeIPA with static inventory, IP-only targets, or Proxmox VM discovery
 - optional no-reboot SSH bootstrap through the Proxmox QEMU Guest Agent
-- optional SSH or WinRM fallback installation of QEMU Guest Agent for guests that are already reachable or become reachable later in the same workflow
+- optional SSH or WinRM fallback installation of QEMU Guest Agent for guests that are already reachable, become reachable after bootstrap, or are retried again after Linux enrollment
 - optional first-touch SSH public-key bootstrap for Linux guests
 - automatic SSSD cache refresh on managed Linux clients after FreeIPA access-model changes
 - optional event-driven Linux onboarding from Proxmox VM hook and webhook triggers
@@ -458,7 +458,7 @@ Notes:
 - when guests use short hostnames such as `app-server-01`, you can set `linux_ipa_identity_hostname_suffix` and optionally `linux_freeipa_enroll_manage_hostname: true` so the project resolves and applies a full hostname such as `app-server-01.example.net` before enrollment
 - when FreeIPA DNS is authoritative for your guest hostnames, you can set `linux_freeipa_enroll_manage_authoritative_dns: true` so the project repairs the specific guest A and PTR records and removes link-local `fe80::/10` AAAA records before enrollment
 - when DNS is not ready yet, you can set `linux_ipa_manage_etc_hosts: true` and provide `linux_ipa_etc_hosts_entries` so the role adds a managed `/etc/hosts` bootstrap block for IPA servers and guest FQDNs before enrollment checks
-- `guest_qemu_agent_install_enabled` installs QEMU Guest Agent on guests that are already reachable over SSH or WinRM, and retries on Linux guests that become reachable later in the same workflow, so later Proxmox agent-dependent workflows can use it
+- `guest_qemu_agent_install_enabled` installs QEMU Guest Agent on guests that are already reachable over SSH or WinRM, retries on Linux guests that become reachable later in the same workflow, and retries again after Linux enrollment, so later Proxmox agent-dependent workflows can use it
 - `linux_ipa_ssh_host_key_policy` defaults to `accept_new` for Linux guest connections so newly discovered VMs can be contacted without disabling host key checking entirely; changed host keys still fail and require operator review
 - `linux_ipa_qga_ssh_bootstrap_enabled` is the preferred no-reboot bootstrap path for Proxmox-backed guests because it can create a dedicated key-only automation user through the QEMU Guest Agent before any SSH login exists
 - `linux_ipa_qga_ssh_bootstrap_qm_path` defaults to `qm`, and the bootstrap flow also probes common fallback paths on the Proxmox node before failing

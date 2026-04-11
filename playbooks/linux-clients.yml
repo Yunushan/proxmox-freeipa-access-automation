@@ -111,3 +111,10 @@
       tags:
         - linux
         - linux_enroll
+
+- name: Ensure QEMU Guest Agent on Linux guests after enrollment for the Linux client workflow
+  import_playbook: includes/ensure_linux_guest_qemu_agent.yml
+  tags:
+    - linux
+    - inventory
+    - qga_install

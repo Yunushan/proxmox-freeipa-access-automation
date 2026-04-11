@@ -159,6 +159,13 @@
         - linux
         - linux_enroll
 
+- name: Ensure QEMU Guest Agent on Linux guests after enrollment for the combined site workflow
+  import_playbook: includes/ensure_linux_guest_qemu_agent.yml
+  tags:
+    - linux
+    - inventory
+    - qga_install
+
 - name: Add Linux guests to runtime-backed FreeIPA hostgroups
   hosts: ipa_servers
   become: true
