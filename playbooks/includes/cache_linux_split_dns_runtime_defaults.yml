@@ -1,0 +1,29 @@
+---
+- name: Cache Linux split DNS runtime defaults from inventory-backed hosts
+  hosts: ipa_servers:proxmox_primary
+  gather_facts: false
+  tags:
+    - linux
+    - linux_enroll
+    - inventory
+    - discovery
+  tasks:
+    - name: Cache Linux split DNS runtime defaults on localhost
+      ansible.builtin.set_fact:
+        linux_ipa_runtime_split_dns_public_dns_mode: >-
+          {{
+            linux_freeipa_enroll_split_dns_public_dns_mode
+            | default('explicit', true)
+            | string
+            | trim
+            | lower
+          }}
+        linux_ipa_runtime_split_dns_public_dns_servers: >-
+          {{
+            linux_freeipa_enroll_split_dns_public_dns_servers
+            | default([], true)
+          }}
+      delegate_to: localhost
+      delegate_facts: true
+      run_once: true
+      changed_when: false

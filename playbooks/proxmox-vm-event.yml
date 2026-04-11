@@ -7,6 +7,15 @@
     - discovery
     - event
 
+- name: Cache Linux split DNS runtime defaults for a Proxmox VM event
+  import_playbook: includes/cache_linux_split_dns_runtime_defaults.yml
+  tags:
+    - linux
+    - linux_enroll
+    - inventory
+    - discovery
+    - event
+
 - name: Ensure QEMU Guest Agent on reachable guests for a Proxmox VM event
   import_playbook: includes/ensure_guest_qemu_agent.yml
   tags:
@@ -45,6 +54,19 @@
   hosts: linux_ipa_clients_runtime
   become: true
   gather_facts: true
+  vars:
+    linux_freeipa_enroll_runtime_split_dns_public_dns_mode: >-
+      {{
+        hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_mode
+        | default(linux_freeipa_enroll_split_dns_public_dns_mode, true)
+        | default('explicit', true)
+      }}
+    linux_freeipa_enroll_runtime_split_dns_public_dns_servers: >-
+      {{
+        hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_servers
+        | default(linux_freeipa_enroll_split_dns_public_dns_servers, true)
+        | default([], true)
+      }}
   serial: "{{ linux_freeipa_enroll_serial | default(10) | int }}"
   max_fail_percentage: "{{ linux_freeipa_enroll_max_fail_percentage | default(0) | int }}"
   tags:

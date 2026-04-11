@@ -2,15 +2,70 @@
 - name: Initialize Linux IPA inventory source hosts
   ansible.builtin.set_fact:
     linux_ipa_inventory_source_hosts: []
+    linux_ipa_inventory_runtime_reference_host: >-
+      {{
+        (
+          groups['ipa_servers']
+          | default([])
+          | reject('equalto', 'localhost')
+          | list
+          | first
+        )
+        | default(
+            (
+              groups['proxmox_primary']
+              | default([])
+              | reject('equalto', 'localhost')
+              | list
+              | first
+            ),
+            true
+          )
+        | default(
+            (
+              groups['all']
+              | default([])
+              | reject('equalto', 'localhost')
+              | list
+              | first
+            ),
+            true
+          )
+        | default('', true)
+      }}
+  changed_when: false
+
+- name: Cache Linux split DNS runtime defaults for later dynamic host reuse
+  ansible.builtin.set_fact:
     linux_ipa_runtime_split_dns_public_dns_mode: >-
       {{
-        linux_freeipa_enroll_split_dns_public_dns_mode
+        (
+          hostvars[linux_ipa_inventory_runtime_reference_host].linux_freeipa_enroll_split_dns_public_dns_mode
+          if (
+            (linux_ipa_inventory_runtime_reference_host | default('', true) | length) > 0
+            and (linux_ipa_inventory_runtime_reference_host in hostvars)
+            and hostvars[linux_ipa_inventory_runtime_reference_host].linux_freeipa_enroll_split_dns_public_dns_mode is defined
+          )
+          else linux_freeipa_enroll_split_dns_public_dns_mode
+        )
         | default('explicit', true)
         | string
         | trim
         | lower
       }}
-    linux_ipa_runtime_split_dns_public_dns_servers: "{{ linux_freeipa_enroll_split_dns_public_dns_servers | default([], true) }}"
+    linux_ipa_runtime_split_dns_public_dns_servers: >-
+      {{
+        (
+          hostvars[linux_ipa_inventory_runtime_reference_host].linux_freeipa_enroll_split_dns_public_dns_servers
+          if (
+            (linux_ipa_inventory_runtime_reference_host | default('', true) | length) > 0
+            and (linux_ipa_inventory_runtime_reference_host in hostvars)
+            and hostvars[linux_ipa_inventory_runtime_reference_host].linux_freeipa_enroll_split_dns_public_dns_servers is defined
+          )
+          else linux_freeipa_enroll_split_dns_public_dns_servers
+        )
+        | default([], true)
+      }}
   changed_when: false
 
 - name: Validate Linux IPA SSH host key policy
@@ -67,8 +122,18 @@
     ansible_ssh_private_key_file: "{{ hostvars[item].ansible_ssh_private_key_file | default(omit) }}"
     linux_ipa_proxmox_node_inventory_host: "{{ hostvars[item].linux_ipa_proxmox_node_inventory_host | default(omit) }}"
     linux_ipa_proxmox_vmid: "{{ hostvars[item].linux_ipa_proxmox_vmid | default(omit) }}"
-    linux_freeipa_enroll_split_dns_public_dns_mode: "{{ hostvars[item].linux_freeipa_enroll_split_dns_public_dns_mode | default(omit) }}"
-    linux_freeipa_enroll_split_dns_public_dns_servers: "{{ hostvars[item].linux_freeipa_enroll_split_dns_public_dns_servers | default(omit) }}"
+    linux_freeipa_enroll_split_dns_public_dns_mode: >-
+      {{
+        hostvars[item].linux_freeipa_enroll_split_dns_public_dns_mode
+        | default(hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_mode, true)
+        | default(omit)
+      }}
+    linux_freeipa_enroll_split_dns_public_dns_servers: >-
+      {{
+        hostvars[item].linux_freeipa_enroll_split_dns_public_dns_servers
+        | default(hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_servers, true)
+        | default(omit)
+      }}
     ansible_ssh_common_args: >-
       {{
         (
@@ -142,8 +207,18 @@
     ansible_ssh_private_key_file: "{{ item.ansible_ssh_private_key_file | default(omit) }}"
     linux_ipa_proxmox_node_inventory_host: "{{ item.linux_ipa_proxmox_node_inventory_host | default(omit) }}"
     linux_ipa_proxmox_vmid: "{{ item.linux_ipa_proxmox_vmid | default(omit) }}"
-    linux_freeipa_enroll_split_dns_public_dns_mode: "{{ item.linux_freeipa_enroll_split_dns_public_dns_mode | default(linux_freeipa_enroll_split_dns_public_dns_mode, true) | default(omit) }}"
-    linux_freeipa_enroll_split_dns_public_dns_servers: "{{ item.linux_freeipa_enroll_split_dns_public_dns_servers | default(linux_freeipa_enroll_split_dns_public_dns_servers, true) | default(omit) }}"
+    linux_freeipa_enroll_split_dns_public_dns_mode: >-
+      {{
+        item.linux_freeipa_enroll_split_dns_public_dns_mode
+        | default(hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_mode, true)
+        | default(omit)
+      }}
+    linux_freeipa_enroll_split_dns_public_dns_servers: >-
+      {{
+        item.linux_freeipa_enroll_split_dns_public_dns_servers
+        | default(hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_servers, true)
+        | default(omit)
+      }}
     ansible_ssh_common_args: >-
       {{
         (
