@@ -447,18 +447,75 @@
               if (
                 linux_freeipa_enroll_split_dns_inventory_reference_host in hostvars
                 and hostvars[linux_freeipa_enroll_split_dns_inventory_reference_host].linux_freeipa_enroll_split_dns_public_dns_servers is defined
+                and (
+                  (
+                    hostvars[linux_freeipa_enroll_split_dns_inventory_reference_host].linux_freeipa_enroll_split_dns_public_dns_servers is sequence
+                    and hostvars[linux_freeipa_enroll_split_dns_inventory_reference_host].linux_freeipa_enroll_split_dns_public_dns_servers is not string
+                    and (
+                      hostvars[linux_freeipa_enroll_split_dns_inventory_reference_host].linux_freeipa_enroll_split_dns_public_dns_servers
+                      | length
+                    ) > 0
+                  )
+                  or
+                  (
+                    hostvars[linux_freeipa_enroll_split_dns_inventory_reference_host].linux_freeipa_enroll_split_dns_public_dns_servers is string
+                    and (
+                      hostvars[linux_freeipa_enroll_split_dns_inventory_reference_host].linux_freeipa_enroll_split_dns_public_dns_servers
+                      | trim
+                      | length
+                    ) > 0
+                  )
+                )
               )
               else (
                 hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_servers
                 if (
                   'localhost' in hostvars
                   and hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_servers is defined
+                  and (
+                    (
+                      hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_servers is sequence
+                      and hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_servers is not string
+                      and (
+                        hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_servers
+                        | length
+                      ) > 0
+                    )
+                    or
+                    (
+                      hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_servers is string
+                      and (
+                        hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_servers
+                        | trim
+                        | length
+                      ) > 0
+                    )
+                  )
                 )
                 else (
                   hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers
                   if (
                     'localhost' in hostvars
                     and hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers is defined
+                    and (
+                      (
+                        hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers is sequence
+                        and hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers is not string
+                        and (
+                          hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers
+                          | length
+                        ) > 0
+                      )
+                      or
+                      (
+                        hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers is string
+                        and (
+                          hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers
+                          | trim
+                          | length
+                        ) > 0
+                      )
+                    )
                   )
                   else []
                 )
