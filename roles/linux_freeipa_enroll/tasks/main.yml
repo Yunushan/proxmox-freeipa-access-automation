@@ -41,6 +41,14 @@
         ) in ['stable', 'fast']
       - >-
         (
+          linux_freeipa_enroll_split_dns_public_dns_mode
+          | default('explicit', true)
+          | string
+          | trim
+          | lower
+        ) in ['explicit', 'preserve']
+      - >-
+        (
           (linux_ipa_servers | length > 0)
           or (linux_freeipa_enroll_inventory_server_fallback_count | int > 0)
           or not (linux_ipaclient_no_dns_lookup | bool)
@@ -342,6 +350,14 @@
         | trim
       }}
     linux_freeipa_enroll_split_dns_route_domain: "{{ linux_freeipa_enroll_effective_domain_normalized }}"
+    linux_freeipa_enroll_split_dns_public_dns_mode_effective: >-
+      {{
+        linux_freeipa_enroll_split_dns_public_dns_mode
+        | default('explicit', true)
+        | string
+        | trim
+        | lower
+      }}
   changed_when: false
 
 - name: Check whether resolvectl is available for Linux split DNS automation
@@ -558,10 +574,9 @@
         (
           linux_freeipa_enroll_split_dns_public_dns_servers_requested_normalized
           if (
-            linux_freeipa_enroll_split_dns_public_dns_servers_requested_normalized
-            | default([])
-            | length
-          ) > 0
+            linux_freeipa_enroll_split_dns_public_dns_mode_effective
+            == 'explicit'
+          )
           else
           (
             (

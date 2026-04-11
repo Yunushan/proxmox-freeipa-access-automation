@@ -39,6 +39,7 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - `linux_freeipa_enroll_authoritative_dns_remove_link_local_aaaa`
 - `linux_freeipa_enroll_pin_local_hostname_in_etc_hosts`
 - `linux_freeipa_enroll_split_dns_enabled`
+- `linux_freeipa_enroll_split_dns_public_dns_mode`
 - `linux_freeipa_enroll_split_dns_public_dns_servers`
 - `linux_freeipa_enroll_manage_local_group_sudoers`
 - `linux_freeipa_enroll_local_sudo_groups`
@@ -90,7 +91,9 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - `linux_freeipa_enroll_collect_join_timeout_diagnostics` defaults to `true`, so a final JSON-RPC timeout also writes a bounded `ipa-join -d` replay log on the guest and includes a short diagnostics summary in the final failure or timeout note.
 - `linux_freeipa_enroll_split_dns_enabled` defaults to `true`, so `systemd-resolved` guests automatically keep public DNS as the global/default resolver path and route only the IPA DNS domain such as `example.com` to the IPA DNS servers after a successful enrollment.
 - The same split-DNS reconciliation also runs on later playbook executions for guests that are already IPA-enrolled, so stale resolver state from an older run can be repaired without forcing a fresh re-enrollment.
-- `linux_freeipa_enroll_split_dns_public_dns_servers` defaults to an empty list, so the role auto-detects the current active-link DNS servers when that link is not already carrying the route-only IPA domain and falls back to the current global DNS servers otherwise. Set it explicitly if you want fixed public resolver IPs instead of automatic detection.
+- `linux_freeipa_enroll_split_dns_public_dns_mode` defaults to `explicit`. In that mode, set `linux_freeipa_enroll_split_dns_public_dns_servers` to the public/default resolver IPs you want every split-DNS guest to keep globally.
+- Set `linux_freeipa_enroll_split_dns_public_dns_mode: preserve` if you want the role to try to preserve each guest's existing public/default DNS instead. In preserve mode, the role prefers current link/global resolver data and falls back to recovered link or netplan DNS when needed.
+- `linux_freeipa_enroll_split_dns_public_dns_servers` defaults to an empty list. That is valid only when the split-DNS public DNS mode is `preserve`. In the default `explicit` mode, leave it empty only if you want the role to fail fast and force an explicit public DNS declaration.
 - The repository-owned split-DNS path is independent of `linux_ipaclient_configure_dns_resolver`, so the default repository workflow can keep the upstream flat resolver management disabled and still apply split DNS automatically on supported `systemd-resolved` guests after enrollment.
 - `linux_freeipa_enroll_manage_local_group_sudoers` defaults to `true`, so successful Linux enrollments also install a local sudoers drop-in for the configured IPA-backed admin groups. This makes group members such as `linux-ssh-admins` able to run `sudo` through normal NSS/SSSD group resolution even when the guest-side IPA sudo-rule responder path is inconsistent.
 - `linux_freeipa_enroll_local_sudo_groups` defaults to `['linux-ssh-admins']`.

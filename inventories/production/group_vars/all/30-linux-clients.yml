@@ -30,6 +30,7 @@ linux_freeipa_enroll_authoritative_dns_delegate_host: ""
 linux_freeipa_enroll_authoritative_dns_query_server: 127.0.0.1
 linux_freeipa_enroll_authoritative_dns_remove_link_local_aaaa: true
 linux_freeipa_enroll_pin_local_hostname_in_etc_hosts: true
+linux_freeipa_enroll_split_dns_public_dns_mode: explicit
 linux_freeipa_enroll_split_dns_public_dns_servers:
   - 1.1.1.1
   - 1.0.0.1
