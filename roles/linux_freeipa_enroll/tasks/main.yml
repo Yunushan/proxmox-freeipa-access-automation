@@ -412,6 +412,55 @@
     - linux_freeipa_enroll_split_dns_resolvectl_check.rc | default(1) == 0
     - linux_freeipa_enroll_split_dns_interface | length > 0
 
+- name: Read the active NetworkManager connection profile for Linux split DNS source discovery
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - -g
+      - GENERAL.CONNECTION
+      - device
+      - show
+      - "{{ linux_freeipa_enroll_split_dns_interface }}"
+  register: linux_freeipa_enroll_split_dns_networkmanager_connection_name_raw
+  changed_when: false
+  failed_when: false
+  when:
+    - linux_freeipa_enroll_split_dns_enabled | bool
+    - linux_freeipa_enroll_split_dns_interface | length > 0
+
+- name: Read active NetworkManager device DNS servers for Linux split DNS source discovery
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - -g
+      - IP4.DNS,IP6.DNS
+      - device
+      - show
+      - "{{ linux_freeipa_enroll_split_dns_interface }}"
+  register: linux_freeipa_enroll_split_dns_networkmanager_device_dns_raw
+  changed_when: false
+  failed_when: false
+  when:
+    - linux_freeipa_enroll_split_dns_enabled | bool
+    - linux_freeipa_enroll_split_dns_interface | length > 0
+
+- name: Read NetworkManager connection DNS servers for Linux split DNS source discovery
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - -g
+      - ipv4.dns,ipv6.dns
+      - connection
+      - show
+      - "{{ linux_freeipa_enroll_split_dns_networkmanager_connection_name_raw.stdout | default('', true) | trim }}"
+  register: linux_freeipa_enroll_split_dns_networkmanager_connection_dns_raw
+  changed_when: false
+  failed_when: false
+  when:
+    - linux_freeipa_enroll_split_dns_enabled | bool
+    - linux_freeipa_enroll_split_dns_interface | length > 0
+    - linux_freeipa_enroll_split_dns_networkmanager_connection_name_raw.stdout | default('', true) | trim | length > 0
+
 - name: Resolve IPA DNS server addresses for Linux split DNS automation
   ansible.builtin.command:
     argv:
@@ -509,6 +558,54 @@
         | unique
         | list
       }}
+    linux_freeipa_enroll_split_dns_networkmanager_device_dns_servers_detected: >-
+      {{
+        (
+          (
+            linux_freeipa_enroll_split_dns_networkmanager_device_dns_raw.stdout_lines
+            | default([])
+            | map(
+                'regex_findall',
+                '(?i)(?:\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b|\\b(?:[0-9a-f]{0,4}:){2,}[0-9a-f:]*\\b)'
+              )
+            | flatten
+            | list
+          )
+          if (
+            linux_freeipa_enroll_split_dns_networkmanager_device_dns_raw.rc
+            | default(1)
+            | int
+          ) == 0
+          else []
+        )
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+    linux_freeipa_enroll_split_dns_networkmanager_connection_dns_servers_detected: >-
+      {{
+        (
+          (
+            linux_freeipa_enroll_split_dns_networkmanager_connection_dns_raw.stdout_lines
+            | default([])
+            | map(
+                'regex_findall',
+                '(?i)(?:\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b|\\b(?:[0-9a-f]{0,4}:){2,}[0-9a-f:]*\\b)'
+              )
+            | flatten
+            | list
+          )
+          if (
+            linux_freeipa_enroll_split_dns_networkmanager_connection_dns_raw.rc
+            | default(1)
+            | int
+          ) == 0
+          else []
+        )
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
     linux_freeipa_enroll_split_dns_public_dns_servers_requested_normalized: >-
       {{
         (
@@ -601,8 +698,34 @@
               ) > 0
             )
             else (
-              linux_freeipa_enroll_split_dns_global_dns_servers_detected
-              | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
+              (
+                linux_freeipa_enroll_split_dns_global_dns_servers_detected
+                | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
+              )
+              if (
+                (
+                  linux_freeipa_enroll_split_dns_global_dns_servers_detected
+                  | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
+                  | length
+                ) > 0
+              )
+              else (
+                (
+                  linux_freeipa_enroll_split_dns_networkmanager_device_dns_servers_detected
+                  | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
+                )
+                if (
+                  (
+                    linux_freeipa_enroll_split_dns_networkmanager_device_dns_servers_detected
+                    | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
+                    | length
+                  ) > 0
+                )
+                else (
+                  linux_freeipa_enroll_split_dns_networkmanager_connection_dns_servers_detected
+                  | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
+                )
+              )
             )
           )
         )

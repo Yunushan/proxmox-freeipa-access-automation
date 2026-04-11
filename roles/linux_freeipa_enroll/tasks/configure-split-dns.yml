@@ -70,6 +70,50 @@
     - (linux_freeipa_enroll_split_dns_public_dns_servers_effective | default([]) | length) == 0
     - (linux_freeipa_enroll_split_dns_public_dns_servers_recovered | default([]) | length) == 0
 
+- name: Read the existing Linux split DNS drop-in for public resolver recovery
+  ansible.builtin.slurp:
+    path: /etc/systemd/resolved.conf.d/90-freeipa-split-dns.conf
+  register: linux_freeipa_enroll_split_dns_existing_dropin_raw
+  failed_when: false
+  when:
+    - (linux_freeipa_enroll_split_dns_public_dns_servers_effective | default([]) | length) == 0
+    - (linux_freeipa_enroll_split_dns_public_dns_servers_recovered | default([]) | length) == 0
+
+- name: Summarize the existing Linux split DNS drop-in public resolvers
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_split_dns_public_dns_servers_existing_dropin: >-
+      {{
+        (
+          (
+            linux_freeipa_enroll_split_dns_existing_dropin_raw.content
+            | default('', true)
+            | b64decode
+            | splitlines()
+            | select('match', '^DNS=')
+            | map(
+                'regex_findall',
+                '(?i)(?:\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b|\\b(?:[0-9a-f]{0,4}:){2,}[0-9a-f:]*\\b)'
+              )
+            | flatten
+            | list
+          )
+          if (
+            linux_freeipa_enroll_split_dns_existing_dropin_raw.failed
+            | default(true)
+            | bool
+          ) == false
+          else []
+        )
+        | reject('equalto', '')
+        | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
+        | unique
+        | list
+      }}
+  changed_when: false
+  when:
+    - (linux_freeipa_enroll_split_dns_public_dns_servers_effective | default([]) | length) == 0
+    - (linux_freeipa_enroll_split_dns_public_dns_servers_recovered | default([]) | length) == 0
+
 - name: Read netplan configuration files for Linux split DNS public resolver recovery
   ansible.builtin.slurp:
     path: "{{ item.path }}"
@@ -81,6 +125,7 @@
   when:
     - (linux_freeipa_enroll_split_dns_public_dns_servers_effective | default([]) | length) == 0
     - (linux_freeipa_enroll_split_dns_public_dns_servers_recovered | default([]) | length) == 0
+    - (linux_freeipa_enroll_split_dns_public_dns_servers_existing_dropin | default([]) | length) == 0
     - linux_freeipa_enroll_split_dns_netplan_files.matched | default(0) | int > 0
 
 - name: Summarize netplan DNS servers for Linux split DNS public resolver recovery
@@ -146,6 +191,7 @@
   when:
     - (linux_freeipa_enroll_split_dns_public_dns_servers_effective | default([]) | length) == 0
     - (linux_freeipa_enroll_split_dns_public_dns_servers_recovered | default([]) | length) == 0
+    - (linux_freeipa_enroll_split_dns_public_dns_servers_existing_dropin | default([]) | length) == 0
     - linux_freeipa_enroll_split_dns_netplan_slurped is defined
 
 - name: Finalize preserved public DNS server list for Linux split DNS
@@ -168,16 +214,24 @@
                 | length
               ) > 0
               else (
-                linux_freeipa_enroll_split_dns_public_dns_servers_netplan
+                linux_freeipa_enroll_split_dns_public_dns_servers_existing_dropin
                 if (
-                  linux_freeipa_enroll_split_dns_public_dns_servers_netplan
+                  linux_freeipa_enroll_split_dns_public_dns_servers_existing_dropin
                   | default([])
                   | length
                 ) > 0
                 else (
-                  ansible_facts.get('dns', {}).get('nameservers', [])
-                  | default([])
-                  | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
+                  linux_freeipa_enroll_split_dns_public_dns_servers_netplan
+                  if (
+                    linux_freeipa_enroll_split_dns_public_dns_servers_netplan
+                    | default([])
+                    | length
+                  ) > 0
+                  else (
+                    ansible_facts.get('dns', {}).get('nameservers', [])
+                    | default([])
+                    | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]))
+                  )
                 )
               )
             )
@@ -226,6 +280,24 @@
         | list
       }}
   changed_when: false
+
+- name: Show Linux split DNS public resolver recovery diagnostics before failing
+  ansible.builtin.debug:
+    msg:
+      interface: "{{ linux_freeipa_enroll_split_dns_interface | default('unknown', true) }}"
+      requested_public_dns: "{{ linux_freeipa_enroll_split_dns_public_dns_servers_requested_normalized | default([]) }}"
+      detected_link_dns: "{{ linux_freeipa_enroll_split_dns_link_dns_servers_detected | default([]) }}"
+      detected_global_dns: "{{ linux_freeipa_enroll_split_dns_global_dns_servers_detected | default([]) }}"
+      detected_nm_device_dns: "{{ linux_freeipa_enroll_split_dns_networkmanager_device_dns_servers_detected | default([]) }}"
+      detected_nm_connection_dns: "{{ linux_freeipa_enroll_split_dns_networkmanager_connection_dns_servers_detected | default([]) }}"
+      recovered_link_dns: "{{ linux_freeipa_enroll_split_dns_public_dns_servers_recovered | default([]) }}"
+      existing_dropin_dns: "{{ linux_freeipa_enroll_split_dns_public_dns_servers_existing_dropin | default([]) }}"
+      netplan_dns: "{{ linux_freeipa_enroll_split_dns_public_dns_servers_netplan | default([]) }}"
+      fact_dns: "{{ ansible_facts.get('dns', {}).get('nameservers', []) | default([]) }}"
+      ipa_dns: "{{ linux_freeipa_enroll_split_dns_ipa_dns_servers | default([]) }}"
+      final_public_dns: "{{ linux_freeipa_enroll_split_dns_public_dns_servers_final | default([]) }}"
+  changed_when: false
+  when: (linux_freeipa_enroll_split_dns_public_dns_servers_final | default([]) | length) == 0
 
 - name: Assert Linux split DNS has a usable public resolver set
   ansible.builtin.assert:
