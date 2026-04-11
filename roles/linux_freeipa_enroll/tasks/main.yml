@@ -341,6 +341,42 @@
   when:
     - linux_freeipa_enroll_etc_hosts_lines | default([]) | length > 0
 
+- name: Resolve Linux split DNS inventory group vars file path for role-local fallback
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_split_dns_group_vars_file: >-
+      {{
+        (
+          inventory_dir
+          if (inventory_dir | default('', true) | string | trim | length) > 0
+          else (playbook_dir ~ '/../inventories/production')
+        )
+        ~ '/group_vars/all/30-linux-clients.yml'
+      }}
+  changed_when: false
+
+- name: Build effective Linux split DNS runtime group vars inside the role
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_runtime_split_dns_group_vars_effective: >-
+      {{
+        (
+          linux_freeipa_enroll_runtime_split_dns_group_vars
+          | default(
+              (
+                lookup(
+                  'ansible.builtin.file',
+                  linux_freeipa_enroll_split_dns_group_vars_file,
+                  errors='ignore'
+                )
+                | default('{}', true)
+                | from_yaml
+              ),
+              true
+            )
+        )
+        | default({}, true)
+      }}
+  changed_when: false
+
 - name: Prepare Linux split DNS source state
   ansible.builtin.set_fact:
     linux_freeipa_enroll_split_dns_interface: >-
@@ -379,10 +415,10 @@
           linux_freeipa_enroll_runtime_split_dns_public_dns_mode
           if (linux_freeipa_enroll_runtime_split_dns_public_dns_mode is defined)
           else (
-            linux_freeipa_enroll_runtime_split_dns_group_vars.linux_freeipa_enroll_split_dns_public_dns_mode
+            linux_freeipa_enroll_runtime_split_dns_group_vars_effective.linux_freeipa_enroll_split_dns_public_dns_mode
             if (
-              linux_freeipa_enroll_runtime_split_dns_group_vars is defined
-              and linux_freeipa_enroll_runtime_split_dns_group_vars.linux_freeipa_enroll_split_dns_public_dns_mode is defined
+              linux_freeipa_enroll_runtime_split_dns_group_vars_effective is defined
+              and linux_freeipa_enroll_runtime_split_dns_group_vars_effective.linux_freeipa_enroll_split_dns_public_dns_mode is defined
             )
             else (
               linux_freeipa_enroll_split_dns_public_dns_mode
@@ -433,24 +469,24 @@
             )
           )
           else (
-            linux_freeipa_enroll_runtime_split_dns_group_vars.linux_freeipa_enroll_split_dns_public_dns_servers
+            linux_freeipa_enroll_runtime_split_dns_group_vars_effective.linux_freeipa_enroll_split_dns_public_dns_servers
             if (
-              linux_freeipa_enroll_runtime_split_dns_group_vars is defined
-              and linux_freeipa_enroll_runtime_split_dns_group_vars.linux_freeipa_enroll_split_dns_public_dns_servers is defined
+              linux_freeipa_enroll_runtime_split_dns_group_vars_effective is defined
+              and linux_freeipa_enroll_runtime_split_dns_group_vars_effective.linux_freeipa_enroll_split_dns_public_dns_servers is defined
               and (
                 (
-                  linux_freeipa_enroll_runtime_split_dns_group_vars.linux_freeipa_enroll_split_dns_public_dns_servers is sequence
-                  and linux_freeipa_enroll_runtime_split_dns_group_vars.linux_freeipa_enroll_split_dns_public_dns_servers is not string
+                  linux_freeipa_enroll_runtime_split_dns_group_vars_effective.linux_freeipa_enroll_split_dns_public_dns_servers is sequence
+                  and linux_freeipa_enroll_runtime_split_dns_group_vars_effective.linux_freeipa_enroll_split_dns_public_dns_servers is not string
                   and (
-                    linux_freeipa_enroll_runtime_split_dns_group_vars.linux_freeipa_enroll_split_dns_public_dns_servers
+                    linux_freeipa_enroll_runtime_split_dns_group_vars_effective.linux_freeipa_enroll_split_dns_public_dns_servers
                     | length > 0
                   )
                 )
                 or
                 (
-                  linux_freeipa_enroll_runtime_split_dns_group_vars.linux_freeipa_enroll_split_dns_public_dns_servers is string
+                  linux_freeipa_enroll_runtime_split_dns_group_vars_effective.linux_freeipa_enroll_split_dns_public_dns_servers is string
                   and (
-                    linux_freeipa_enroll_runtime_split_dns_group_vars.linux_freeipa_enroll_split_dns_public_dns_servers
+                    linux_freeipa_enroll_runtime_split_dns_group_vars_effective.linux_freeipa_enroll_split_dns_public_dns_servers
                     | trim | length > 0
                   )
                 )
