@@ -98,15 +98,45 @@
   become: true
   gather_facts: true
   vars:
+    linux_freeipa_enroll_runtime_split_dns_group_vars_file: >-
+      {{
+        (
+          inventory_dir
+          if (inventory_dir | default('', true) | string | trim | length) > 0
+          else (playbook_dir ~ '/../inventories/production')
+        )
+        ~ '/group_vars/all/30-linux-clients.yml'
+      }}
+    linux_freeipa_enroll_runtime_split_dns_group_vars: >-
+      {{
+        (
+          lookup(
+            'ansible.builtin.file',
+            linux_freeipa_enroll_runtime_split_dns_group_vars_file,
+            errors='ignore'
+          )
+          | default('{}', true)
+          | from_yaml
+        )
+        | default({}, true)
+      }}
     linux_freeipa_enroll_runtime_split_dns_public_dns_mode: >-
       {{
-        hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_mode
+        linux_freeipa_enroll_runtime_split_dns_group_vars.linux_freeipa_enroll_split_dns_public_dns_mode
+        | default(
+            hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_mode,
+            true
+          )
         | default(linux_freeipa_enroll_split_dns_public_dns_mode, true)
         | default('explicit', true)
       }}
     linux_freeipa_enroll_runtime_split_dns_public_dns_servers: >-
       {{
-        hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_servers
+        linux_freeipa_enroll_runtime_split_dns_group_vars.linux_freeipa_enroll_split_dns_public_dns_servers
+        | default(
+            hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_servers,
+            true
+          )
         | default(linux_freeipa_enroll_split_dns_public_dns_servers, true)
         | default([], true)
       }}
