@@ -329,6 +329,105 @@
       netplan={{ linux_freeipa_enroll_split_dns_public_dns_servers_netplan | default([]) | join(', ') | default('none', true) }},
       facts={{ ansible_facts.get('dns', {}).get('nameservers', []) | default([]) | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([])) | join(', ') | default('none', true) }}.
 
+- name: Split Linux split DNS public resolvers by address family for NetworkManager persistence
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_split_dns_public_dns_servers_ipv4: >-
+      {{
+        linux_freeipa_enroll_split_dns_public_dns_servers_final
+        | default([])
+        | select('match', '^([0-9]{1,3}\\.){3}[0-9]{1,3}$')
+        | list
+      }}
+    linux_freeipa_enroll_split_dns_public_dns_servers_ipv6: >-
+      {{
+        linux_freeipa_enroll_split_dns_public_dns_servers_final
+        | default([])
+        | select('match', '^[0-9A-Fa-f:]+$')
+        | list
+      }}
+  changed_when: false
+
+- name: Read the active NetworkManager connection for Linux split DNS public resolver persistence
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - -g
+      - GENERAL.CONNECTION
+      - device
+      - show
+      - "{{ linux_freeipa_enroll_split_dns_interface }}"
+  register: linux_freeipa_enroll_split_dns_networkmanager_active_connection_name
+  changed_when: false
+  failed_when: false
+  when:
+    - linux_freeipa_enroll_split_dns_restore_networkmanager_public_dns | bool
+    - linux_freeipa_enroll_split_dns_public_dns_mode_effective == 'explicit'
+    - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
+    - "'NetworkManager.service' in (ansible_facts.services | default({}))"
+    - (ansible_facts.services['NetworkManager.service'].state | default('')) == 'running'
+    - linux_freeipa_enroll_split_dns_interface | default('', true) | string | trim | length > 0
+
+- name: Persist Linux split DNS public IPv4 resolvers on the active NetworkManager connection
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - connection
+      - modify
+      - "{{ linux_freeipa_enroll_split_dns_networkmanager_active_connection_name.stdout | default('', true) | trim }}"
+      - ipv4.ignore-auto-dns
+      - "yes"
+      - ipv4.dns
+      - "{{ linux_freeipa_enroll_split_dns_public_dns_servers_ipv4 | join(' ') }}"
+  changed_when: true
+  when:
+    - linux_freeipa_enroll_split_dns_restore_networkmanager_public_dns | bool
+    - linux_freeipa_enroll_split_dns_public_dns_mode_effective == 'explicit'
+    - linux_freeipa_enroll_split_dns_public_dns_servers_ipv4 | default([]) | length > 0
+    - linux_freeipa_enroll_split_dns_networkmanager_active_connection_name is defined
+    - linux_freeipa_enroll_split_dns_networkmanager_active_connection_name.rc | default(1) == 0
+    - linux_freeipa_enroll_split_dns_networkmanager_active_connection_name.stdout | default('', true) | trim | length > 0
+
+- name: Persist Linux split DNS public IPv6 resolvers on the active NetworkManager connection
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - connection
+      - modify
+      - "{{ linux_freeipa_enroll_split_dns_networkmanager_active_connection_name.stdout | default('', true) | trim }}"
+      - ipv6.ignore-auto-dns
+      - "yes"
+      - ipv6.dns
+      - "{{ linux_freeipa_enroll_split_dns_public_dns_servers_ipv6 | join(' ') }}"
+  changed_when: true
+  when:
+    - linux_freeipa_enroll_split_dns_restore_networkmanager_public_dns | bool
+    - linux_freeipa_enroll_split_dns_public_dns_mode_effective == 'explicit'
+    - linux_freeipa_enroll_split_dns_public_dns_servers_ipv6 | default([]) | length > 0
+    - linux_freeipa_enroll_split_dns_networkmanager_active_connection_name is defined
+    - linux_freeipa_enroll_split_dns_networkmanager_active_connection_name.rc | default(1) == 0
+    - linux_freeipa_enroll_split_dns_networkmanager_active_connection_name.stdout | default('', true) | trim | length > 0
+
+- name: Reapply the active NetworkManager device after Linux split DNS public resolver persistence
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - device
+      - reapply
+      - "{{ linux_freeipa_enroll_split_dns_interface }}"
+  changed_when: true
+  failed_when: false
+  when:
+    - linux_freeipa_enroll_split_dns_restore_networkmanager_public_dns | bool
+    - linux_freeipa_enroll_split_dns_public_dns_mode_effective == 'explicit'
+    - (
+        (linux_freeipa_enroll_split_dns_public_dns_servers_ipv4 | default([]) | length > 0)
+        or
+        (linux_freeipa_enroll_split_dns_public_dns_servers_ipv6 | default([]) | length > 0)
+      )
+    - linux_freeipa_enroll_split_dns_networkmanager_active_connection_name is defined
+    - linux_freeipa_enroll_split_dns_networkmanager_active_connection_name.rc | default(1) == 0
+    - linux_freeipa_enroll_split_dns_networkmanager_active_connection_name.stdout | default('', true) | trim | length > 0
+
 - name: Ensure the systemd-resolved drop-in directory exists for Linux split DNS
   ansible.builtin.file:
     path: /etc/systemd/resolved.conf.d

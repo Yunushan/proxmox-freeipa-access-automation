@@ -36,6 +36,7 @@ linux_freeipa_enroll_pin_local_hostname_in_etc_hosts: true
 linux_freeipa_enroll_split_dns_enabled: true
 linux_freeipa_enroll_split_dns_public_dns_mode: explicit
 linux_freeipa_enroll_split_dns_public_dns_servers: []
+linux_freeipa_enroll_split_dns_restore_networkmanager_public_dns: true
 linux_freeipa_enroll_manage_local_group_sudoers: true
 linux_freeipa_enroll_local_sudo_groups:
   - linux-ssh-admins
