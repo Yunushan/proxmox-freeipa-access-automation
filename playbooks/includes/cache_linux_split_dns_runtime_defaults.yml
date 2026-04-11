@@ -1,18 +1,49 @@
 ---
 - name: Cache Linux split DNS runtime defaults from inventory-backed hosts
-  hosts: ipa_servers:proxmox_primary
+  hosts: localhost
+  connection: local
   gather_facts: false
   tags:
     - linux
     - linux_enroll
     - inventory
     - discovery
+  vars:
+    linux_ipa_runtime_split_dns_reference_host: >-
+      {{
+        (
+          (
+            groups['ipa_servers']
+            | default([])
+            | reject('equalto', 'localhost')
+            | list
+          )
+          +
+          (
+            groups['proxmox_primary']
+            | default([])
+            | reject('equalto', 'localhost')
+            | list
+          )
+        )
+        | unique
+        | first
+        | default('localhost', true)
+      }}
   tasks:
     - name: Cache Linux split DNS runtime defaults on localhost
       ansible.builtin.set_fact:
         linux_ipa_runtime_split_dns_public_dns_mode: >-
           {{
-            linux_freeipa_enroll_split_dns_public_dns_mode
+            (
+              hostvars[linux_ipa_runtime_split_dns_reference_host].linux_freeipa_enroll_split_dns_public_dns_mode
+              if (
+                linux_ipa_runtime_split_dns_reference_host != 'localhost'
+                and (linux_ipa_runtime_split_dns_reference_host in hostvars)
+                and hostvars[linux_ipa_runtime_split_dns_reference_host].linux_freeipa_enroll_split_dns_public_dns_mode is defined
+              )
+              else linux_freeipa_enroll_split_dns_public_dns_mode
+            )
             | default('explicit', true)
             | string
             | trim
@@ -20,10 +51,15 @@
           }}
         linux_ipa_runtime_split_dns_public_dns_servers: >-
           {{
-            linux_freeipa_enroll_split_dns_public_dns_servers
+            (
+              hostvars[linux_ipa_runtime_split_dns_reference_host].linux_freeipa_enroll_split_dns_public_dns_servers
+              if (
+                linux_ipa_runtime_split_dns_reference_host != 'localhost'
+                and (linux_ipa_runtime_split_dns_reference_host in hostvars)
+                and hostvars[linux_ipa_runtime_split_dns_reference_host].linux_freeipa_enroll_split_dns_public_dns_servers is defined
+              )
+              else linux_freeipa_enroll_split_dns_public_dns_servers
+            )
             | default([], true)
           }}
-      delegate_to: localhost
-      delegate_facts: true
-      run_once: true
       changed_when: false
