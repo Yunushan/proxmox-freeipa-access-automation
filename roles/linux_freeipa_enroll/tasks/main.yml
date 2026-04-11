@@ -352,7 +352,18 @@
     linux_freeipa_enroll_split_dns_route_domain: "{{ linux_freeipa_enroll_effective_domain_normalized }}"
     linux_freeipa_enroll_split_dns_public_dns_mode_effective: >-
       {{
-        linux_freeipa_enroll_split_dns_public_dns_mode
+        (
+          linux_freeipa_enroll_split_dns_public_dns_mode
+          if (linux_freeipa_enroll_split_dns_public_dns_mode is defined)
+          else (
+            hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_mode
+            if (
+              'localhost' in hostvars
+              and hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_mode is defined
+            )
+            else 'explicit'
+          )
+        )
         | default('explicit', true)
         | string
         | trim
@@ -610,13 +621,118 @@
       {{
         (
           (
-            linux_freeipa_enroll_split_dns_public_dns_servers
+            (
+              linux_freeipa_enroll_split_dns_public_dns_servers
+              if (
+                linux_freeipa_enroll_split_dns_public_dns_servers is defined
+                and (
+                  (
+                    linux_freeipa_enroll_split_dns_public_dns_servers is sequence
+                    and linux_freeipa_enroll_split_dns_public_dns_servers is not string
+                    and (linux_freeipa_enroll_split_dns_public_dns_servers | length > 0)
+                  )
+                  or
+                  (
+                    linux_freeipa_enroll_split_dns_public_dns_servers is string
+                    and (linux_freeipa_enroll_split_dns_public_dns_servers | trim | length > 0)
+                  )
+                )
+              )
+              else (
+                hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers
+                if (
+                  'localhost' in hostvars
+                  and hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers is defined
+                )
+                else []
+              )
+            )
             if (
-              linux_freeipa_enroll_split_dns_public_dns_servers is sequence
-              and linux_freeipa_enroll_split_dns_public_dns_servers is not string
+              (
+                (
+                  linux_freeipa_enroll_split_dns_public_dns_servers
+                  if (
+                    linux_freeipa_enroll_split_dns_public_dns_servers is defined
+                    and (
+                      (
+                        linux_freeipa_enroll_split_dns_public_dns_servers is sequence
+                        and linux_freeipa_enroll_split_dns_public_dns_servers is not string
+                        and (linux_freeipa_enroll_split_dns_public_dns_servers | length > 0)
+                      )
+                      or
+                      (
+                        linux_freeipa_enroll_split_dns_public_dns_servers is string
+                        and (linux_freeipa_enroll_split_dns_public_dns_servers | trim | length > 0)
+                      )
+                    )
+                  )
+                  else (
+                    hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers
+                    if (
+                      'localhost' in hostvars
+                      and hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers is defined
+                    )
+                    else []
+                  )
+                ) is sequence
+              )
+              and
+              (
+                (
+                  linux_freeipa_enroll_split_dns_public_dns_servers
+                  if (
+                    linux_freeipa_enroll_split_dns_public_dns_servers is defined
+                    and (
+                      (
+                        linux_freeipa_enroll_split_dns_public_dns_servers is sequence
+                        and linux_freeipa_enroll_split_dns_public_dns_servers is not string
+                        and (linux_freeipa_enroll_split_dns_public_dns_servers | length > 0)
+                      )
+                      or
+                      (
+                        linux_freeipa_enroll_split_dns_public_dns_servers is string
+                        and (linux_freeipa_enroll_split_dns_public_dns_servers | trim | length > 0)
+                      )
+                    )
+                  )
+                  else (
+                    hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers
+                    if (
+                      'localhost' in hostvars
+                      and hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers is defined
+                    )
+                    else []
+                  )
+                ) is not string
+              )
             )
             else (
-              linux_freeipa_enroll_split_dns_public_dns_servers
+              (
+                linux_freeipa_enroll_split_dns_public_dns_servers
+                if (
+                  linux_freeipa_enroll_split_dns_public_dns_servers is defined
+                  and (
+                    (
+                      linux_freeipa_enroll_split_dns_public_dns_servers is sequence
+                      and linux_freeipa_enroll_split_dns_public_dns_servers is not string
+                      and (linux_freeipa_enroll_split_dns_public_dns_servers | length > 0)
+                    )
+                    or
+                    (
+                      linux_freeipa_enroll_split_dns_public_dns_servers is string
+                      and (linux_freeipa_enroll_split_dns_public_dns_servers | trim | length > 0)
+                    )
+                  )
+                )
+                else (
+                  hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers
+                  if (
+                    'localhost' in hostvars
+                    and hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers is defined
+                  )
+                  else ''
+                )
+              )
               | default('', true)
               | string
               | split(',')

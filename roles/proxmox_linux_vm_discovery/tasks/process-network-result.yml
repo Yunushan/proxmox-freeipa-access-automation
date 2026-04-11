@@ -89,5 +89,7 @@
     linux_ipa_proxmox_node_inventory_host: "{{ inventory_hostname }}"
     linux_ipa_proxmox_vmid: "{{ linux_ipa_proxmox_guest_network_result.item.vmid }}"
     linux_ipa_proxmox_vm_name: "{{ linux_ipa_proxmox_guest_network_result.item.name | default('vm-' ~ linux_ipa_proxmox_guest_network_result.item.vmid) }}"
+    linux_freeipa_enroll_split_dns_public_dns_mode: "{{ linux_freeipa_enroll_split_dns_public_dns_mode | default(omit) }}"
+    linux_freeipa_enroll_split_dns_public_dns_servers: "{{ linux_freeipa_enroll_split_dns_public_dns_servers | default(omit) }}"
   when: linux_ipa_proxmox_discovered_ip | length > 0
   changed_when: false
