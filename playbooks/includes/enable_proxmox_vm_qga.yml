@@ -1,0 +1,59 @@
+---
+- name: Prepare Proxmox VM guest-agent enablement targets for Linux guests
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - linux
+    - inventory
+    - qga_install
+  tasks:
+    - name: Build the Proxmox VM guest-agent enablement node list
+      vars:
+        guest_qemu_agent_install_proxmox_target_nodes_yaml: |
+          {% set nodes = [] %}
+          {% for candidate in groups['linux_ipa_clients_runtime'] | default([]) %}
+          {%   set node = hostvars[candidate].linux_ipa_proxmox_node_inventory_host | default('', true) | string | trim %}
+          {%   set vmid = hostvars[candidate].linux_ipa_proxmox_vmid | default('', true) | string | trim %}
+          {%   if node | length > 0 and vmid | length > 0 %}
+          {%     set _ = nodes.append(node) %}
+          {%   endif %}
+          {% endfor %}
+          {{ nodes | unique | list | to_yaml }}
+      ansible.builtin.set_fact:
+        guest_qemu_agent_install_proxmox_target_nodes: >-
+          {{
+            guest_qemu_agent_install_proxmox_target_nodes_yaml
+            | from_yaml
+          }}
+      changed_when: false
+
+    - name: Seed Proxmox VM guest-agent enablement target nodes
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        groups: linux_ipa_proxmox_guest_agent_enable_nodes
+      loop: "{{ guest_qemu_agent_install_proxmox_target_nodes | default([]) }}"
+      loop_control:
+        label: "{{ item }}"
+      changed_when: false
+      when:
+        - guest_qemu_agent_install_manage_proxmox_vm_agent | default(true) | bool
+        - guest_qemu_agent_install_proxmox_target_nodes | default([]) | length > 0
+
+- name: Enable Proxmox VM guest-agent communication for Linux guests
+  hosts: linux_ipa_proxmox_guest_agent_enable_nodes
+  become: true
+  gather_facts: false
+  serial: "{{ linux_freeipa_enroll_serial | default(10) | int }}"
+  max_fail_percentage: "{{ linux_freeipa_enroll_max_fail_percentage | default(0) | int }}"
+  tags:
+    - linux
+    - inventory
+    - qga_install
+  roles:
+    - role: proxmox_qemu_guest_agent_enable
+      when: guest_qemu_agent_install_manage_proxmox_vm_agent | default(true) | bool
+      tags:
+        - linux
+        - inventory
+        - qga_install

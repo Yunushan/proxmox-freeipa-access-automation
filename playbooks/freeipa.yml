@@ -7,6 +7,15 @@
     - inventory
     - discovery
 
+- name: Enable Proxmox VM guest-agent communication for Linux guests in the FreeIPA workflow
+  import_playbook: includes/enable_proxmox_vm_qga.yml
+  tags:
+    - freeipa
+    - freeipa_access
+    - linux
+    - inventory
+    - qga_install
+
 - name: Ensure QEMU Guest Agent on reachable guests for the FreeIPA workflow
   import_playbook: includes/ensure_guest_qemu_agent.yml
   tags:

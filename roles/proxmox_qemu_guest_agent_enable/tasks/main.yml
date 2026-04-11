@@ -1,0 +1,171 @@
+---
+- name: Build the current Proxmox node QEMU guest-agent target list
+  vars:
+    proxmox_qemu_guest_agent_enable_target_hosts_yaml: |
+      {% set targets = [] %}
+      {% for candidate in groups[proxmox_qemu_guest_agent_enable_runtime_group] | default([]) %}
+      {%   set node = hostvars[candidate].linux_ipa_proxmox_node_inventory_host | default('', true) | string | trim %}
+      {%   set vmid = hostvars[candidate].linux_ipa_proxmox_vmid | default('', true) | string | trim %}
+      {%   if node == inventory_hostname and vmid | length > 0 %}
+      {%     set _ = targets.append(candidate) %}
+      {%   endif %}
+      {% endfor %}
+      {{ targets | to_yaml }}
+  ansible.builtin.set_fact:
+    proxmox_qemu_guest_agent_enable_target_hosts: >-
+      {{
+        proxmox_qemu_guest_agent_enable_target_hosts_yaml
+        | from_yaml
+      }}
+  changed_when: false
+
+- name: Build the Proxmox qm candidate path list for guest-agent enablement
+  vars:
+    proxmox_qemu_guest_agent_enable_qm_paths: >-
+      {{
+        (
+          [guest_qemu_agent_install_proxmox_qm_path]
+          if '/' in (guest_qemu_agent_install_proxmox_qm_path | string)
+          else []
+        )
+        +
+        (guest_qemu_agent_install_proxmox_qm_fallback_paths | default([]))
+      }}
+  ansible.builtin.set_fact:
+    proxmox_qemu_guest_agent_enable_qm_candidate_paths: "{{ proxmox_qemu_guest_agent_enable_qm_paths | unique }}"
+  changed_when: false
+  when: proxmox_qemu_guest_agent_enable_target_hosts | length > 0
+
+- name: Probe Proxmox qm candidate paths for guest-agent enablement
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: proxmox_qemu_guest_agent_enable_qm_path_stats
+  loop: "{{ proxmox_qemu_guest_agent_enable_qm_candidate_paths }}"
+  loop_control:
+    label: "{{ item }}"
+  changed_when: false
+  when: proxmox_qemu_guest_agent_enable_target_hosts | length > 0
+
+- name: Resolve qm from the current Proxmox node PATH for guest-agent enablement
+  ansible.builtin.shell: "command -v {{ guest_qemu_agent_install_proxmox_qm_path | quote }}"
+  args:
+    executable: /bin/sh
+  register: proxmox_qemu_guest_agent_enable_qm_path_lookup
+  changed_when: false
+  failed_when: false
+  when:
+    - proxmox_qemu_guest_agent_enable_target_hosts | length > 0
+    - "'/' not in (guest_qemu_agent_install_proxmox_qm_path | string)"
+
+- name: Set the resolved Proxmox qm path for guest-agent enablement
+  ansible.builtin.set_fact:
+    proxmox_qemu_guest_agent_enable_resolved_qm_path: >-
+      {{
+        (
+          proxmox_qemu_guest_agent_enable_qm_path_stats.results
+          | default([])
+          | selectattr('stat.exists')
+          | selectattr('stat.executable')
+          | map(attribute='item')
+          | list
+          | first
+        )
+        | default(
+            (
+              proxmox_qemu_guest_agent_enable_qm_path_lookup
+              | default({'stdout': ''})
+            ).stdout | trim,
+            true
+          )
+      }}
+  changed_when: false
+  when: proxmox_qemu_guest_agent_enable_target_hosts | length > 0
+
+- name: Assert a usable qm command exists for Proxmox guest-agent enablement
+  ansible.builtin.assert:
+    that:
+      - proxmox_qemu_guest_agent_enable_resolved_qm_path | default('', true) | length > 0
+    fail_msg: >-
+      Could not find a usable qm command on {{ inventory_hostname }} while enabling
+      Proxmox VM guest-agent communication.
+  when: proxmox_qemu_guest_agent_enable_target_hosts | length > 0
+
+- name: Read current Proxmox VM configuration for guest-agent enablement
+  ansible.builtin.command:
+    argv:
+      - "{{ proxmox_qemu_guest_agent_enable_resolved_qm_path }}"
+      - config
+      - "{{ hostvars[item].linux_ipa_proxmox_vmid | string }}"
+  register: proxmox_qemu_guest_agent_enable_vm_configs
+  changed_when: false
+  loop: "{{ proxmox_qemu_guest_agent_enable_target_hosts }}"
+  loop_control:
+    label: "{{ item }}"
+  when: proxmox_qemu_guest_agent_enable_target_hosts | length > 0
+
+- name: Enable Proxmox VM guest-agent communication
+  ansible.builtin.command:
+    argv:
+      - "{{ proxmox_qemu_guest_agent_enable_resolved_qm_path }}"
+      - set
+      - "{{ hostvars[item.item].linux_ipa_proxmox_vmid | string }}"
+      - --agent
+      - "1"
+  changed_when: true
+  loop: "{{ proxmox_qemu_guest_agent_enable_vm_configs.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - proxmox_qemu_guest_agent_enable_target_hosts | length > 0
+    - >-
+      not (
+        item.stdout | default('') | regex_search('(?im)^agent:\\s*(?:1|enabled=1(?:\\b|,).*)$')
+      )
+
+- name: Read Proxmox VM status after guest-agent communication changes
+  ansible.builtin.command:
+    argv:
+      - "{{ proxmox_qemu_guest_agent_enable_resolved_qm_path }}"
+      - status
+      - "{{ hostvars[item.item].linux_ipa_proxmox_vmid | string }}"
+  register: proxmox_qemu_guest_agent_enable_vm_status
+  changed_when: false
+  loop: "{{ proxmox_qemu_guest_agent_enable_vm_configs.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - proxmox_qemu_guest_agent_enable_target_hosts | length > 0
+    - >-
+      not (
+        item.stdout | default('') | regex_search('(?im)^agent:\\s*(?:1|enabled=1(?:\\b|,).*)$')
+      )
+
+- name: Warn when Proxmox VM guest-agent communication was enabled on a running VM
+  ansible.builtin.debug:
+    msg: >-
+      Proxmox VM guest-agent communication was enabled for {{ item.item }} on {{ inventory_hostname }},
+      but the VM is currently running. Proxmox documents that a fresh VM start is required before
+      the host can use the guest-agent channel. Reboot the VM manually, or set
+      guest_qemu_agent_install_reboot_after_proxmox_vm_agent_enable: true.
+  loop: "{{ proxmox_qemu_guest_agent_enable_vm_status.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - proxmox_qemu_guest_agent_enable_target_hosts | length > 0
+    - not (guest_qemu_agent_install_reboot_after_proxmox_vm_agent_enable | bool)
+    - item.stdout | default('') | regex_search('(?im)^status:\\s*running$')
+
+- name: Reboot running Proxmox VMs after enabling guest-agent communication
+  ansible.builtin.command:
+    argv:
+      - "{{ proxmox_qemu_guest_agent_enable_resolved_qm_path }}"
+      - reboot
+      - "{{ hostvars[item.item].linux_ipa_proxmox_vmid | string }}"
+  changed_when: true
+  loop: "{{ proxmox_qemu_guest_agent_enable_vm_status.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - proxmox_qemu_guest_agent_enable_target_hosts | length > 0
+    - guest_qemu_agent_install_reboot_after_proxmox_vm_agent_enable | bool
+    - item.stdout | default('') | regex_search('(?im)^status:\\s*running$')

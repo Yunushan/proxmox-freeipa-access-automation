@@ -2,6 +2,13 @@
 guest_qemu_agent_install_enabled: false
 guest_qemu_agent_install_linux_package_name: qemu-guest-agent
 guest_qemu_agent_install_linux_service_name: qemu-guest-agent
+guest_qemu_agent_install_manage_proxmox_vm_agent: true
+guest_qemu_agent_install_reboot_after_proxmox_vm_agent_enable: false
+guest_qemu_agent_install_proxmox_qm_path: qm
+guest_qemu_agent_install_proxmox_qm_fallback_paths:
+  - /usr/sbin/qm
+  - /usr/bin/qm
+  - /sbin/qm
 guest_qemu_agent_install_windows_service_name: QEMU-GA
 guest_qemu_agent_install_windows_arch: x86_64
 guest_qemu_agent_install_windows_package_base_url: https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-qemu-ga
