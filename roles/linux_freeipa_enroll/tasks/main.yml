@@ -602,6 +602,50 @@
       }}
   changed_when: false
 
+- name: Normalize Linux split DNS explicit public DNS source from role-local inventory fallback
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_split_dns_public_dns_servers_source: >-
+      {{
+        linux_freeipa_enroll_runtime_split_dns_group_vars_effective.linux_freeipa_enroll_split_dns_public_dns_servers
+      }}
+  changed_when: false
+  when:
+    - linux_freeipa_enroll_split_dns_public_dns_mode_effective == 'explicit'
+    - >
+      (
+        linux_freeipa_enroll_split_dns_public_dns_servers_source is not defined
+      )
+      or
+      (
+        linux_freeipa_enroll_split_dns_public_dns_servers_source is sequence
+        and linux_freeipa_enroll_split_dns_public_dns_servers_source is not string
+        and (linux_freeipa_enroll_split_dns_public_dns_servers_source | length == 0)
+      )
+      or
+      (
+        linux_freeipa_enroll_split_dns_public_dns_servers_source is string
+        and (linux_freeipa_enroll_split_dns_public_dns_servers_source | trim | length == 0)
+      )
+    - linux_freeipa_enroll_runtime_split_dns_group_vars_effective is defined
+    - linux_freeipa_enroll_runtime_split_dns_group_vars_effective.linux_freeipa_enroll_split_dns_public_dns_servers is defined
+    - >
+      (
+        linux_freeipa_enroll_runtime_split_dns_group_vars_effective.linux_freeipa_enroll_split_dns_public_dns_servers is sequence
+        and linux_freeipa_enroll_runtime_split_dns_group_vars_effective.linux_freeipa_enroll_split_dns_public_dns_servers is not string
+        and (
+          linux_freeipa_enroll_runtime_split_dns_group_vars_effective.linux_freeipa_enroll_split_dns_public_dns_servers
+          | length > 0
+        )
+      )
+      or
+      (
+        linux_freeipa_enroll_runtime_split_dns_group_vars_effective.linux_freeipa_enroll_split_dns_public_dns_servers is string
+        and (
+          linux_freeipa_enroll_runtime_split_dns_group_vars_effective.linux_freeipa_enroll_split_dns_public_dns_servers
+          | trim | length > 0
+        )
+      )
+
 - name: Check whether resolvectl is available for Linux split DNS automation
   ansible.builtin.command:
     argv:
