@@ -317,6 +317,10 @@
         | join(', ')
         | default('none', true)
       }}.
+      Inventory reference host: {{
+        linux_freeipa_enroll_split_dns_inventory_reference_host
+        | default('none', true)
+      }}.
       Detected non-IPA sources:
       link={{ linux_freeipa_enroll_split_dns_link_dns_servers_detected | default([]) | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([])) | join(', ') | default('none', true) }},
       global={{ linux_freeipa_enroll_split_dns_global_dns_servers_detected | default([]) | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([])) | join(', ') | default('none', true) }},

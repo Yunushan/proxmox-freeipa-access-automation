@@ -350,24 +350,54 @@
         | trim
       }}
     linux_freeipa_enroll_split_dns_route_domain: "{{ linux_freeipa_enroll_effective_domain_normalized }}"
+    linux_freeipa_enroll_split_dns_inventory_reference_host: >-
+      {{
+        (
+          (
+            groups['ipa_servers']
+            | default([])
+            | reject('equalto', inventory_hostname)
+            | list
+          )
+          | first
+        )
+        | default(
+            (
+              groups['proxmox_primary']
+              | default([])
+              | reject('equalto', inventory_hostname)
+              | list
+              | first
+            ),
+            true
+          )
+        | default('localhost', true)
+      }}
     linux_freeipa_enroll_split_dns_public_dns_mode_source: >-
       {{
         (
           linux_freeipa_enroll_split_dns_public_dns_mode
           if (linux_freeipa_enroll_split_dns_public_dns_mode is defined)
           else (
-            hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_mode
+            hostvars[linux_freeipa_enroll_split_dns_inventory_reference_host].linux_freeipa_enroll_split_dns_public_dns_mode
             if (
-              'localhost' in hostvars
-              and hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_mode is defined
+              linux_freeipa_enroll_split_dns_inventory_reference_host in hostvars
+              and hostvars[linux_freeipa_enroll_split_dns_inventory_reference_host].linux_freeipa_enroll_split_dns_public_dns_mode is defined
             )
             else (
-              hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_mode
+              hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_mode
               if (
                 'localhost' in hostvars
-                and hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_mode is defined
+                and hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_mode is defined
               )
-              else 'explicit'
+              else (
+                hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_mode
+                if (
+                  'localhost' in hostvars
+                  and hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_mode is defined
+                )
+                else 'explicit'
+              )
             )
           )
         )
@@ -389,21 +419,28 @@
                 linux_freeipa_enroll_split_dns_public_dns_servers is string
                 and (linux_freeipa_enroll_split_dns_public_dns_servers | trim | length > 0)
               )
-            )
+          )
           )
           else (
-            hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_servers
+            hostvars[linux_freeipa_enroll_split_dns_inventory_reference_host].linux_freeipa_enroll_split_dns_public_dns_servers
             if (
-              'localhost' in hostvars
-              and hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_servers is defined
+              linux_freeipa_enroll_split_dns_inventory_reference_host in hostvars
+              and hostvars[linux_freeipa_enroll_split_dns_inventory_reference_host].linux_freeipa_enroll_split_dns_public_dns_servers is defined
             )
             else (
-              hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers
+              hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_servers
               if (
                 'localhost' in hostvars
-                and hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers is defined
+                and hostvars['localhost'].linux_ipa_runtime_split_dns_public_dns_servers is defined
               )
-              else []
+              else (
+                hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers
+                if (
+                  'localhost' in hostvars
+                  and hostvars['localhost'].linux_freeipa_enroll_split_dns_public_dns_servers is defined
+                )
+                else []
+              )
             )
           )
         )
