@@ -100,5 +100,7 @@
       {{
         linux_ipa_ssh_bootstrap_effective_private_key_file
       }}
+    linux_freeipa_enroll_split_dns_public_dns_mode: "{{ hostvars[inventory_hostname].linux_freeipa_enroll_split_dns_public_dns_mode | default(omit) }}"
+    linux_freeipa_enroll_split_dns_public_dns_servers: "{{ hostvars[inventory_hostname].linux_freeipa_enroll_split_dns_public_dns_servers | default(omit) }}"
   delegate_to: localhost
   changed_when: false

@@ -295,6 +295,8 @@
     ansible_user: "{{ linux_ipa_qga_ssh_bootstrap_user }}"
     ansible_become_method: sudo
     ansible_ssh_private_key_file: "{{ linux_ipa_qga_ssh_bootstrap_private_key_file }}"
+    linux_freeipa_enroll_split_dns_public_dns_mode: "{{ hostvars[item].linux_freeipa_enroll_split_dns_public_dns_mode | default(omit) }}"
+    linux_freeipa_enroll_split_dns_public_dns_servers: "{{ hostvars[item].linux_freeipa_enroll_split_dns_public_dns_servers | default(omit) }}"
   delegate_to: localhost
   loop: "{{ linux_ipa_qga_ssh_bootstrap_bootstrapped_hosts }}"
   loop_control:

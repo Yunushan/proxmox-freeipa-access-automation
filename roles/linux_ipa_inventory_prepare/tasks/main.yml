@@ -57,6 +57,8 @@
     ansible_ssh_private_key_file: "{{ hostvars[item].ansible_ssh_private_key_file | default(omit) }}"
     linux_ipa_proxmox_node_inventory_host: "{{ hostvars[item].linux_ipa_proxmox_node_inventory_host | default(omit) }}"
     linux_ipa_proxmox_vmid: "{{ hostvars[item].linux_ipa_proxmox_vmid | default(omit) }}"
+    linux_freeipa_enroll_split_dns_public_dns_mode: "{{ hostvars[item].linux_freeipa_enroll_split_dns_public_dns_mode | default(omit) }}"
+    linux_freeipa_enroll_split_dns_public_dns_servers: "{{ hostvars[item].linux_freeipa_enroll_split_dns_public_dns_servers | default(omit) }}"
     ansible_ssh_common_args: >-
       {{
         (
@@ -130,6 +132,8 @@
     ansible_ssh_private_key_file: "{{ item.ansible_ssh_private_key_file | default(omit) }}"
     linux_ipa_proxmox_node_inventory_host: "{{ item.linux_ipa_proxmox_node_inventory_host | default(omit) }}"
     linux_ipa_proxmox_vmid: "{{ item.linux_ipa_proxmox_vmid | default(omit) }}"
+    linux_freeipa_enroll_split_dns_public_dns_mode: "{{ item.linux_freeipa_enroll_split_dns_public_dns_mode | default(linux_freeipa_enroll_split_dns_public_dns_mode, true) | default(omit) }}"
+    linux_freeipa_enroll_split_dns_public_dns_servers: "{{ item.linux_freeipa_enroll_split_dns_public_dns_servers | default(linux_freeipa_enroll_split_dns_public_dns_servers, true) | default(omit) }}"
     ansible_ssh_common_args: >-
       {{
         (
