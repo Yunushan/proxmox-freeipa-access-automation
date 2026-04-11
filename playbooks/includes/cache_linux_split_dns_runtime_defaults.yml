@@ -1,6 +1,7 @@
 ---
-- name: Cache Linux split DNS runtime defaults from inventory-backed hosts
-  hosts: ipa_servers:proxmox_primary
+- name: Cache Linux split DNS runtime defaults from inventory group vars
+  hosts: localhost
+  connection: local
   gather_facts: false
   tags:
     - linux
@@ -8,33 +9,45 @@
     - inventory
     - discovery
   vars:
-    linux_ipa_runtime_split_dns_reference_host: >-
+    linux_ipa_runtime_split_dns_group_vars_dir: >-
       {{
         (
-          groups['ipa_servers']
-          | default([])
-          | reject('equalto', 'localhost')
-          | list
-          | first
+          inventory_dir
+          if (inventory_dir | default('', true) | string | trim | length) > 0
+          else (playbook_dir ~ '/../inventories/production')
         )
-        | default(
-            (
-              groups['proxmox_primary']
-              | default([])
-              | reject('equalto', 'localhost')
-              | list
-              | first
-            ),
-            true
-          )
-        | default('', true)
+        ~ '/group_vars/all'
+      }}
+    linux_ipa_runtime_split_dns_linux_clients_vars_file: >-
+      {{
+        linux_ipa_runtime_split_dns_group_vars_dir
+        ~ '/30-linux-clients.yml'
       }}
   tasks:
+    - name: Check whether the Linux client group vars file exists for split DNS defaults
+      ansible.builtin.stat:
+        path: "{{ linux_ipa_runtime_split_dns_linux_clients_vars_file }}"
+      register: linux_ipa_runtime_split_dns_linux_clients_vars_file_stat
+      changed_when: false
+
+    - name: Load the Linux client group vars file for split DNS defaults
+      ansible.builtin.include_vars:
+        file: "{{ linux_ipa_runtime_split_dns_linux_clients_vars_file }}"
+        name: linux_ipa_runtime_split_dns_linux_clients_vars
+      when: linux_ipa_runtime_split_dns_linux_clients_vars_file_stat.stat.exists | default(false)
+
     - name: Cache Linux split DNS runtime defaults on localhost
       ansible.builtin.set_fact:
         linux_ipa_runtime_split_dns_public_dns_mode: >-
           {{
-            linux_freeipa_enroll_split_dns_public_dns_mode
+            (
+              linux_ipa_runtime_split_dns_linux_clients_vars.linux_freeipa_enroll_split_dns_public_dns_mode
+              if (
+                linux_ipa_runtime_split_dns_linux_clients_vars is defined
+                and linux_ipa_runtime_split_dns_linux_clients_vars.linux_freeipa_enroll_split_dns_public_dns_mode is defined
+              )
+              else linux_freeipa_enroll_split_dns_public_dns_mode
+            )
             | default('explicit', true)
             | string
             | trim
@@ -42,12 +55,26 @@
           }}
         linux_ipa_runtime_split_dns_public_dns_servers: >-
           {{
-            linux_freeipa_enroll_split_dns_public_dns_servers
+            (
+              linux_ipa_runtime_split_dns_linux_clients_vars.linux_freeipa_enroll_split_dns_public_dns_servers
+              if (
+                linux_ipa_runtime_split_dns_linux_clients_vars is defined
+                and linux_ipa_runtime_split_dns_linux_clients_vars.linux_freeipa_enroll_split_dns_public_dns_servers is defined
+              )
+              else linux_freeipa_enroll_split_dns_public_dns_servers
+            )
             | default([], true)
           }}
-      delegate_to: localhost
-      delegate_facts: true
       changed_when: false
-      when:
-        - linux_ipa_runtime_split_dns_reference_host | length > 0
-        - inventory_hostname == linux_ipa_runtime_split_dns_reference_host
+
+    - name: Assert cached Linux split DNS runtime defaults are usable in explicit mode
+      ansible.builtin.assert:
+        that:
+          - linux_ipa_runtime_split_dns_public_dns_mode != 'explicit' or (linux_ipa_runtime_split_dns_public_dns_servers | default([]) | length) > 0
+        fail_msg: >-
+          Linux split DNS explicit mode is enabled but no public DNS servers were cached on localhost.
+          Checked file: {{ linux_ipa_runtime_split_dns_linux_clients_vars_file }}.
+          Cached mode: {{ linux_ipa_runtime_split_dns_public_dns_mode | default('undefined', true) }}.
+          Cached public DNS: {{ linux_ipa_runtime_split_dns_public_dns_servers | default([]) | join(', ') | default('none', true) }}.
+          Set linux_freeipa_enroll_split_dns_public_dns_servers in the inventory group vars,
+          or switch linux_freeipa_enroll_split_dns_public_dns_mode to preserve.
