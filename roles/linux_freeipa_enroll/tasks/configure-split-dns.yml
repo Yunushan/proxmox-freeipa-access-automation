@@ -311,6 +311,21 @@
       {% else %}
       Set linux_freeipa_enroll_split_dns_public_dns_servers explicitly or switch the split-DNS mode back to explicit.
       {% endif %}
+      Requested explicit public DNS: {{
+        linux_freeipa_enroll_split_dns_public_dns_servers_requested_normalized
+        | default([])
+        | join(', ')
+        | default('none', true)
+      }}.
+      Detected non-IPA sources:
+      link={{ linux_freeipa_enroll_split_dns_link_dns_servers_detected | default([]) | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([])) | join(', ') | default('none', true) }},
+      global={{ linux_freeipa_enroll_split_dns_global_dns_servers_detected | default([]) | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([])) | join(', ') | default('none', true) }},
+      nm-device={{ linux_freeipa_enroll_split_dns_networkmanager_device_dns_servers_detected | default([]) | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([])) | join(', ') | default('none', true) }},
+      nm-connection={{ linux_freeipa_enroll_split_dns_networkmanager_connection_dns_servers_detected | default([]) | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([])) | join(', ') | default('none', true) }},
+      recovered-link={{ linux_freeipa_enroll_split_dns_public_dns_servers_recovered | default([]) | join(', ') | default('none', true) }},
+      existing-dropin={{ linux_freeipa_enroll_split_dns_public_dns_servers_existing_dropin | default([]) | join(', ') | default('none', true) }},
+      netplan={{ linux_freeipa_enroll_split_dns_public_dns_servers_netplan | default([]) | join(', ') | default('none', true) }},
+      facts={{ ansible_facts.get('dns', {}).get('nameservers', []) | default([]) | difference(linux_freeipa_enroll_split_dns_ipa_dns_servers | default([])) | join(', ') | default('none', true) }}.
 
 - name: Ensure the systemd-resolved drop-in directory exists for Linux split DNS
   ansible.builtin.file:
