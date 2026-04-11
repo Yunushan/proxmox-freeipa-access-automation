@@ -1208,6 +1208,18 @@
       }}
   changed_when: false
 
+- name: Derive effective Linux DNS management behavior for the upstream IPA client role
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_effective_manage_dns_with_upstream_role: >-
+      {{
+        (linux_freeipa_enroll_effective_configure_dns_resolver | bool)
+        and not (
+          (linux_freeipa_enroll_split_dns_disable_upstream_resolver_management | bool)
+          and (linux_freeipa_enroll_split_dns_supported | default(false) | bool)
+        )
+      }}
+  changed_when: false
+
 - name: Assert Linux IPA domain is not configured as an IPA server hostname
   ansible.builtin.assert:
     that:
@@ -1232,7 +1244,7 @@
   check_mode: false
   when:
     - linux_freeipa_enroll_effective_servers_normalized | length > 0
-    - not (linux_freeipa_enroll_effective_configure_dns_resolver | bool)
+    - not (linux_freeipa_enroll_effective_manage_dns_with_upstream_role | bool)
 
 - name: Assert configured IPA servers resolve from the Linux guest
   ansible.builtin.assert:
@@ -1246,7 +1258,7 @@
   loop: "{{ linux_freeipa_enroll_server_resolution.results | default([]) }}"
   loop_control:
     label: "{{ item.item }}"
-  when: not (linux_freeipa_enroll_effective_configure_dns_resolver | bool)
+  when: not (linux_freeipa_enroll_effective_manage_dns_with_upstream_role | bool)
 
 - name: Check LDAP reachability to configured IPA servers from the Linux guest
   ansible.builtin.wait_for:
@@ -2108,7 +2120,7 @@
     linux_freeipa_enroll_should_refresh_networkmanager_dns: >-
       {{
         (linux_freeipa_enroll_client_is_enrolled | bool)
-        and (linux_freeipa_enroll_effective_configure_dns_resolver | bool)
+        and (linux_freeipa_enroll_effective_manage_dns_with_upstream_role | bool)
         and (linux_freeipa_enroll_effective_dns_servers | default([]) | length > 0)
         and (linux_freeipa_enroll_effective_networkmanager_dns_refresh_strategy in ['apply', 'restart'])
       }}

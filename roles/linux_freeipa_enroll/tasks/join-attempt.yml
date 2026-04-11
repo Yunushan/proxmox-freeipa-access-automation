@@ -26,8 +26,16 @@
         ipaclient_no_sudo: "{{ linux_freeipa_enroll_effective_no_sudo }}"
         ipasssd_permit: "{{ linux_freeipa_enroll_effective_permit }}"
         ipaclient_install_packages: "{{ linux_freeipa_enroll_effective_install_packages }}"
-        ipaclient_configure_dns_resolver: "{{ linux_freeipa_enroll_effective_configure_dns_resolver }}"
-        ipaclient_dns_servers: "{{ linux_freeipa_enroll_effective_dns_servers if (linux_freeipa_enroll_effective_dns_servers | length > 0) else omit }}"
+        ipaclient_configure_dns_resolver: "{{ linux_freeipa_enroll_effective_manage_dns_with_upstream_role }}"
+        ipaclient_dns_servers: >-
+          {{
+            linux_freeipa_enroll_effective_dns_servers
+            if (
+              (linux_freeipa_enroll_effective_manage_dns_with_upstream_role | bool)
+              and (linux_freeipa_enroll_effective_dns_servers | length > 0)
+            )
+            else omit
+          }}
       no_log: true
 
     - name: Mark the current Linux IPA enrollment join attempt as successful
