@@ -1027,16 +1027,19 @@
         (
           (
             linux_freeipa_enroll_split_dns_public_dns_servers_source
-            if (
-              linux_freeipa_enroll_split_dns_public_dns_servers_source is sequence
-              and linux_freeipa_enroll_split_dns_public_dns_servers_source is not string
-            )
-            else (
-              linux_freeipa_enroll_split_dns_public_dns_servers_source
-              | default('', true)
-              | string
-              | split(',')
-            )
+            | default([])
+            | to_json
+            | from_json
+          )
+          if (
+            linux_freeipa_enroll_split_dns_public_dns_servers_source
+            | default([])
+          ) is not string
+          else (
+            linux_freeipa_enroll_split_dns_public_dns_servers_source
+            | default('', true)
+            | string
+            | split(',')
           )
           | map('string')
           | map('trim')
@@ -1049,6 +1052,23 @@
           | reject('equalto', '')
           | unique
           | list
+        )
+      }}
+    linux_freeipa_enroll_split_dns_public_dns_servers_source_debug_value: >-
+      {{
+        (
+          linux_freeipa_enroll_split_dns_public_dns_servers_source
+          | default([])
+          | to_json
+        )
+        if (
+          linux_freeipa_enroll_split_dns_public_dns_servers_source
+          | default([])
+        ) is not string
+        else (
+          linux_freeipa_enroll_split_dns_public_dns_servers_source
+          | default('', true)
+          | string
         )
       }}
     linux_freeipa_enroll_split_dns_ipa_dns_servers: >-

@@ -317,6 +317,10 @@
         | join(', ')
         | default('none', true)
       }}.
+      Source raw value: {{
+        linux_freeipa_enroll_split_dns_public_dns_servers_source_debug_value
+        | default('undefined', true)
+      }}.
       Inventory reference host: {{
         linux_freeipa_enroll_split_dns_inventory_reference_host
         | default('none', true)
