@@ -6,6 +6,13 @@
       - linux_ipa_proxmox_discovery_ip_preference in ['ipv4', 'ipv6', 'any']
       - linux_ipa_ssh_host_key_policy in ['strict', 'accept_new', 'disabled']
       - >-
+        not (linux_ipa_proxmox_discovery_allowlist_enabled | bool)
+        or (
+          (linux_ipa_proxmox_discovery_allowlist_vmids | default([]) | length > 0)
+          or (linux_ipa_proxmox_discovery_allowlist_ips | default([]) | length > 0)
+          or (linux_ipa_proxmox_discovery_allowlist_names | default([]) | length > 0)
+        )
+      - >-
         (
           linux_ipa_proxmox_discovery_ansible_port
           | default('', true)
@@ -22,7 +29,11 @@
     fail_msg: >-
       Set linux_ipa_proxmox_discovery_nodes and use a supported
       linux_ipa_proxmox_discovery_ip_preference value, and use a supported
-      linux_ipa_ssh_host_key_policy value. If
+      linux_ipa_ssh_host_key_policy value. When
+      linux_ipa_proxmox_discovery_allowlist_enabled is true, set at least one of
+      linux_ipa_proxmox_discovery_allowlist_vmids,
+      linux_ipa_proxmox_discovery_allowlist_ips, or
+      linux_ipa_proxmox_discovery_allowlist_names. If
       linux_ipa_proxmox_discovery_ansible_port is set, it must be numeric when
       linux_ipa_proxmox_discovery_enabled is true.
 
@@ -47,6 +58,41 @@
       linux_ipa_proxmox_discovery_vmids must only contain numeric VMID values.
       Invalid value: {{ item }}
   loop: "{{ linux_ipa_proxmox_discovery_vmids_normalized }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Normalize optional Proxmox discovery allowlist VMIDs
+  ansible.builtin.set_fact:
+    linux_ipa_proxmox_discovery_allowlist_vmids_normalized: >-
+      {{
+        (
+          linux_ipa_proxmox_discovery_allowlist_vmids
+          if (
+            linux_ipa_proxmox_discovery_allowlist_vmids is sequence
+            and linux_ipa_proxmox_discovery_allowlist_vmids is not string
+          )
+          else (
+            linux_ipa_proxmox_discovery_allowlist_vmids
+            | default('', true)
+            | string
+            | split(',')
+          )
+        )
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
+  changed_when: false
+
+- name: Validate optional Proxmox discovery allowlist VMIDs
+  ansible.builtin.assert:
+    that:
+      - item is match('^[0-9]+$')
+    fail_msg: >-
+      linux_ipa_proxmox_discovery_allowlist_vmids must only contain numeric VMID values.
+      Invalid value: {{ item }}
+  loop: "{{ linux_ipa_proxmox_discovery_allowlist_vmids_normalized }}"
   loop_control:
     label: "{{ item }}"
 
