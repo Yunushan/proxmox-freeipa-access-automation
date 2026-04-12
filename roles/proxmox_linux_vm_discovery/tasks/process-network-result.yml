@@ -34,8 +34,80 @@
       {%   endfor %}
       {% endif %}
       {{ addresses | first | default('') }}
+    linux_ipa_proxmox_discovered_ip_from_config_raw: >-
+      {% set addresses = [] %}
+      {% if linux_ipa_proxmox_guest_config_result.rc | default(1) == 0 and (linux_ipa_proxmox_guest_config_result.stdout | default('') | length > 0) %}
+      {%   for raw_line in (linux_ipa_proxmox_guest_config_result.stdout | default('') | split('\n')) %}
+      {%     set line = raw_line | trim %}
+      {%     if line.startswith('ipconfig') and ':' in line %}
+      {%       for raw_field in (line.split(':', 1)[1] | string).split(',') %}
+      {%         set current_field = raw_field | trim %}
+      {%         if current_field.startswith('ip=') %}
+      {%           set current_ip = (current_field | regex_replace('^ip=', '') | trim).split('/')[0] %}
+      {%           if linux_ipa_proxmox_discovery_ip_preference == 'ipv4'
+                  and current_ip is match('^([0-9]{1,3}\\.){3}[0-9]{1,3}$')
+                  and not current_ip.startswith('127.')
+                  and not current_ip.startswith('169.254.') %}
+      {%             set _ = addresses.append(current_ip) %}
+      {%           elif linux_ipa_proxmox_discovery_ip_preference == 'ipv6'
+                    and current_ip is match('^[0-9A-Fa-f:]+$')
+                    and current_ip != '::1'
+                    and not current_ip.startswith('fe80:') %}
+      {%             set _ = addresses.append(current_ip) %}
+      {%           elif linux_ipa_proxmox_discovery_ip_preference == 'any'
+                    and (
+                      (
+                        current_ip is match('^([0-9]{1,3}\\.){3}[0-9]{1,3}$')
+                        and not current_ip.startswith('127.')
+                        and not current_ip.startswith('169.254.')
+                      )
+                      or
+                      (
+                        current_ip is match('^[0-9A-Fa-f:]+$')
+                        and current_ip != '::1'
+                        and not current_ip.startswith('fe80:')
+                      )
+                    ) %}
+      {%             set _ = addresses.append(current_ip) %}
+      {%           endif %}
+      {%         endif %}
+      {%       endfor %}
+      {%     endif %}
+      {%   endfor %}
+      {% endif %}
+      {{ addresses | first | default('') }}
   ansible.builtin.set_fact:
-    linux_ipa_proxmox_discovered_ip: "{{ linux_ipa_proxmox_discovered_ip_raw | trim }}"
+    linux_ipa_proxmox_discovered_ip: >-
+      {{
+        (
+          linux_ipa_proxmox_discovered_ip_raw
+          if (linux_ipa_proxmox_discovered_ip_raw | trim | length > 0)
+          else linux_ipa_proxmox_discovered_ip_from_config_raw
+        )
+        | trim
+      }}
+    linux_ipa_proxmox_discovered_ip_source: >-
+      {{
+        'guest_agent'
+        if (linux_ipa_proxmox_discovered_ip_raw | trim | length > 0)
+        else (
+          'qm_config'
+          if (linux_ipa_proxmox_discovered_ip_from_config_raw | trim | length > 0)
+          else ''
+        )
+      }}
+
+- name: Warn when Proxmox discovery falls back to VM config IP data
+  ansible.builtin.debug:
+    msg: >-
+      Proxmox guest-agent network discovery did not return a usable IP for
+      VM {{ linux_ipa_proxmox_guest_network_result.item.name | default('vm-' ~ linux_ipa_proxmox_guest_network_result.item.vmid) }}.
+      Falling back to the static VM config IP {{ linux_ipa_proxmox_discovered_ip }}
+      so later SSH-based tasks can still try to manage the guest.
+  changed_when: false
+  when:
+    - linux_ipa_proxmox_discovered_ip | length > 0
+    - linux_ipa_proxmox_discovered_ip_source == 'qm_config'
 
 - name: Fail when a discovered VM has no usable guest-agent IP
   ansible.builtin.assert:
