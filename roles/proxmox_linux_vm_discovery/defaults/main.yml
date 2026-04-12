@@ -12,6 +12,10 @@ linux_ipa_proxmox_discovery_skip_missing_ip: true
 linux_ipa_proxmox_discovery_ip_preference: ipv4
 linux_ipa_proxmox_discovery_inventory_prefix: proxmox
 linux_ipa_proxmox_discovery_use_vm_name_as_hint: true
+linux_ipa_proxmox_discovery_ansible_user: ""
+linux_ipa_proxmox_discovery_ansible_port: ""
+linux_ipa_proxmox_discovery_ansible_password: ""
+linux_ipa_proxmox_discovery_ansible_ssh_private_key_file: ""
 linux_ipa_proxmox_discovery_neighbor_ip_fallback_enabled: true
 linux_ipa_proxmox_discovery_neighbor_ip_probe_enabled: true
 linux_ipa_proxmox_discovery_neighbor_ip_probe_interface_regex: '^vmbr'

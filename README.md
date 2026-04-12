@@ -446,6 +446,11 @@ linux_ipa_proxmox_discovery_nodes:
 linux_ipa_proxmox_discovery_only_running: true
 linux_ipa_proxmox_discovery_skip_missing_ip: true
 linux_ipa_proxmox_discovery_ip_preference: ipv4
+# Optional first-touch SSH settings for discovered guests when the guest agent
+# is not running yet and the repository must connect over SSH to install it.
+# linux_ipa_proxmox_discovery_ansible_user: ubuntu
+# linux_ipa_proxmox_discovery_ansible_password: "{{ vault_linux_ipa_ssh_bootstrap_password }}"
+# linux_ipa_proxmox_discovery_ansible_ssh_private_key_file: /home/automation/.ssh/id_ed25519
 ```
 
 Notes:
@@ -460,13 +465,14 @@ Notes:
 - when FreeIPA DNS is authoritative for your guest hostnames, you can set `linux_freeipa_enroll_manage_authoritative_dns: true` so the project repairs the specific guest A and PTR records and removes link-local `fe80::/10` AAAA records before enrollment
 - when DNS is not ready yet, you can set `linux_ipa_manage_etc_hosts: true` and provide `linux_ipa_etc_hosts_entries` so the role adds a managed `/etc/hosts` bootstrap block for IPA servers and guest FQDNs before enrollment checks
 - `guest_qemu_agent_install_enabled` installs QEMU Guest Agent on guests that are already reachable over SSH or WinRM, retries on Linux guests that become reachable later in the same workflow, and retries again after Linux enrollment, so later Proxmox agent-dependent workflows can use it
+- for Proxmox-discovered Linux guests that do not already have a working guest agent, set `linux_ipa_proxmox_discovery_ansible_user` and either `linux_ipa_proxmox_discovery_ansible_password` or `linux_ipa_proxmox_discovery_ansible_ssh_private_key_file` so the repository has a usable first-touch SSH path to install QEMU Guest Agent
 - `guest_qemu_agent_install_manage_proxmox_vm_agent` also enables Proxmox-side guest-agent communication (`qm set <vmid> --agent 1`) for Proxmox-backed Linux guests before the guest-side install path runs
 - when that Proxmox VM option changes on a running VM, the repository only warns by default because Proxmox may require a fresh VM start before the host can use the guest-agent channel; set `guest_qemu_agent_install_reboot_after_proxmox_vm_agent_enable: true` if you want the repository to reboot those running VMs automatically
 - `linux_ipa_ssh_host_key_policy` defaults to `accept_new` for Linux guest connections so newly discovered VMs can be contacted without disabling host key checking entirely; changed host keys still fail and require operator review
 - `linux_ipa_qga_ssh_bootstrap_enabled` is the preferred no-reboot bootstrap path for Proxmox-backed guests because it can create a dedicated key-only automation user through the QEMU Guest Agent before any SSH login exists
 - `linux_ipa_qga_ssh_bootstrap_qm_path` defaults to `qm`, and the bootstrap flow also probes common fallback paths on the Proxmox node before failing
 - guests that allow `guest-ping` but reject `guest-exec` are skipped by default during QGA bootstrap; keep another SSH path available for them, or set `linux_ipa_qga_ssh_bootstrap_fail_on_guest_exec_blocked: true` to fail fast instead
-- `linux_ipa_ssh_bootstrap_enabled` optionally installs the controller SSH public key onto Linux guests before hostname resolution and enrollment; for first-touch password logins, set `linux_ipa_ssh_bootstrap_password` in vaulted variables instead of plain inventory
+- `linux_ipa_ssh_bootstrap_enabled` optionally installs the controller SSH public key onto Linux guests before hostname resolution and enrollment; `linux_ipa_ssh_bootstrap_password` is also used as the shared first-touch password fallback for runtime Linux guests even when key bootstrap is disabled
 - Linux IPA enrollment retries upstream client joins that fail with a FreeIPA JSON-RPC timeout, and exposes `linux_ipaclient_kinit_attempts` for slower or busier IPA environments
 - Linux IPA enrollment also merges the `ipa_servers` inventory hostnames into the join server list by default, so clients can use the full IPA server set instead of a single configured endpoint
 - when more than one IPA server is available, each retry pass tries those IPA server candidates one at a time during Linux client enrollment
@@ -531,7 +537,7 @@ proxmox-admins-ipa
 - prefer TLS with certificate verification enabled
 - keep SSH host key checking enabled outside disposable lab environments
 - prefer `linux_ipa_qga_ssh_bootstrap_enabled` over shared temporary passwords when your Proxmox guests already have a working QEMU Guest Agent
-- use `guest_qemu_agent_install_enabled` only for guests that are already reachable; it cannot replace the initial management path
+- use `guest_qemu_agent_install_enabled` only when the repository already has a valid management path into the guest; for Proxmox discovery that means QGA is already running or `linux_ipa_proxmox_discovery_ansible_user` plus password or key access is configured
 - if you enable Linux SSH bootstrap, store any shared bootstrap password in vaulted variables and rotate or remove it once key-based access is established
 - do not reuse the IPA admin account as the Proxmox LDAP bind account
 - review `proxmox_ldap_filter` and `proxmox_ldap_group_filter` before production rollout to avoid importing too much

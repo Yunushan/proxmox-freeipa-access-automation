@@ -150,7 +150,13 @@
             | default('connection setup did not succeed')
             | string
             | trim
-          }}.
+          }}.{{
+            (
+              ' For Proxmox-discovered guests, set linux_ipa_proxmox_discovery_ansible_user and either linux_ipa_proxmox_discovery_ansible_password or linux_ipa_proxmox_discovery_ansible_ssh_private_key_file so the repository has a real first-touch SSH path.'
+              if (hostvars[inventory_hostname].linux_ipa_source | default('') == 'proxmox_discovery')
+              else ''
+            )
+          }}
       changed_when: false
       when:
         - linux_ipa_connection_ready_check is not defined

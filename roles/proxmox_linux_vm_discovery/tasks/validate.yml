@@ -5,10 +5,25 @@
       - linux_ipa_proxmox_discovery_nodes | length > 0
       - linux_ipa_proxmox_discovery_ip_preference in ['ipv4', 'ipv6', 'any']
       - linux_ipa_ssh_host_key_policy in ['strict', 'accept_new', 'disabled']
+      - >-
+        (
+          linux_ipa_proxmox_discovery_ansible_port
+          | default('', true)
+          | string
+          | trim
+          | length
+        ) == 0
+        or
+        (
+          linux_ipa_proxmox_discovery_ansible_port
+          | string
+          | trim
+        ) is match('^[0-9]+$')
     fail_msg: >-
       Set linux_ipa_proxmox_discovery_nodes and use a supported
       linux_ipa_proxmox_discovery_ip_preference value, and use a supported
-      linux_ipa_ssh_host_key_policy value when
+      linux_ipa_ssh_host_key_policy value. If
+      linux_ipa_proxmox_discovery_ansible_port is set, it must be numeric when
       linux_ipa_proxmox_discovery_enabled is true.
 
 - name: Normalize optional Proxmox discovery VMID filters

@@ -109,10 +109,7 @@
         )
         if (
           (hostvars[item].ansible_password | default('', true) | string | trim | length > 0)
-          or (
-            linux_ipa_ssh_bootstrap_enabled | bool
-            and (linux_ipa_ssh_bootstrap_password | default('', true) | string | trim | length > 0)
-          )
+          or (linux_ipa_ssh_bootstrap_password | default('', true) | string | trim | length > 0)
         )
         else omit
       }}
@@ -194,10 +191,7 @@
         )
         if (
           (item.ansible_password | default('', true) | string | trim | length > 0)
-          or (
-            linux_ipa_ssh_bootstrap_enabled | bool
-            and (linux_ipa_ssh_bootstrap_password | default('', true) | string | trim | length > 0)
-          )
+          or (linux_ipa_ssh_bootstrap_password | default('', true) | string | trim | length > 0)
         )
         else omit
       }}
