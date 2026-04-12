@@ -96,6 +96,37 @@
   loop_control:
     label: "{{ item.name | default('vm-' ~ item.vmid) }}"
 
+- name: Read the Proxmox host neighbor table for discovery IP fallback
+  ansible.builtin.command:
+    argv:
+      - ip
+      - -j
+      - neigh
+      - show
+  become: true
+  register: linux_ipa_proxmox_host_neighbors_raw
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  when: linux_ipa_proxmox_discovery_neighbor_ip_fallback_enabled | bool
+
+- name: Normalize the Proxmox host neighbor table for discovery IP fallback
+  vars:
+    linux_ipa_proxmox_host_neighbors_json: >-
+      {{
+        linux_ipa_proxmox_host_neighbors_raw.stdout
+        if (
+          linux_ipa_proxmox_host_neighbors_raw is defined
+          and (linux_ipa_proxmox_host_neighbors_raw.rc | default(1) == 0)
+          and (linux_ipa_proxmox_host_neighbors_raw.stdout | default('') | trim | length > 0)
+        )
+        else '[]'
+      }}
+  ansible.builtin.set_fact:
+    linux_ipa_proxmox_host_neighbors: "{{ linux_ipa_proxmox_host_neighbors_json | from_json }}"
+  changed_when: false
+  when: linux_ipa_proxmox_discovery_neighbor_ip_fallback_enabled | bool
+
 - name: Process discovered guest network results
   ansible.builtin.include_tasks: process-network-result.yml
   loop: "{{ range(0, (linux_ipa_proxmox_guest_networks.results | default([]) | length)) | list }}"

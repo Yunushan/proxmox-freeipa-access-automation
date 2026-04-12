@@ -114,6 +114,55 @@
       {%   endfor %}
       {% endif %}
       {{ addresses | first | default('') }}
+    linux_ipa_proxmox_discovered_ip_from_neighbors_raw: >-
+      {% set macs = [] %}
+      {% set addresses = [] %}
+      {% if linux_ipa_proxmox_discovery_neighbor_ip_fallback_enabled | bool %}
+      {%   if linux_ipa_proxmox_guest_config_result.rc | default(1) == 0 and (linux_ipa_proxmox_guest_config_result.stdout | default('') | length > 0) %}
+      {%     for raw_line in (linux_ipa_proxmox_guest_config_result.stdout | default('') | split('\n')) %}
+      {%       set line = raw_line | trim %}
+      {%       if line.startswith('net') and ':' in line %}
+      {%         set current_mac = (line | regex_search('(?i)([0-9a-f]{2}(?::[0-9a-f]{2}){5})') | default('', true) | string | lower) %}
+      {%         if current_mac | length > 0 %}
+      {%           set _ = macs.append(current_mac) %}
+      {%         endif %}
+      {%       endif %}
+      {%     endfor %}
+      {%   endif %}
+      {%   for neighbor in (linux_ipa_proxmox_host_neighbors | default([])) %}
+      {%     set current_mac = neighbor.lladdr | default('', true) | string | lower | trim %}
+      {%     set current_ip = neighbor.dst | default('', true) | string | trim %}
+      {%     if current_mac in macs %}
+      {%       if linux_ipa_proxmox_discovery_ip_preference == 'ipv4'
+              and current_ip is match('^([0-9]{1,3}\\.){3}[0-9]{1,3}$')
+              and not current_ip.startswith('127.')
+              and not current_ip.startswith('169.254.') %}
+      {%         set _ = addresses.append(current_ip) %}
+      {%       elif linux_ipa_proxmox_discovery_ip_preference == 'ipv6'
+                and current_ip is match('^[0-9A-Fa-f:]+$')
+                and current_ip != '::1'
+                and not current_ip.startswith('fe80:') %}
+      {%         set _ = addresses.append(current_ip) %}
+      {%       elif linux_ipa_proxmox_discovery_ip_preference == 'any'
+                and (
+                  (
+                    current_ip is match('^([0-9]{1,3}\\.){3}[0-9]{1,3}$')
+                    and not current_ip.startswith('127.')
+                    and not current_ip.startswith('169.254.')
+                  )
+                  or
+                  (
+                    current_ip is match('^[0-9A-Fa-f:]+$')
+                    and current_ip != '::1'
+                    and not current_ip.startswith('fe80:')
+                  )
+                ) %}
+      {%         set _ = addresses.append(current_ip) %}
+      {%       endif %}
+      {%     endif %}
+      {%   endfor %}
+      {% endif %}
+      {{ addresses | unique | first | default('') }}
   ansible.builtin.set_fact:
     linux_ipa_proxmox_discovered_ip: >-
       {{
@@ -123,7 +172,11 @@
           else (
             linux_ipa_proxmox_discovered_ip_from_config_raw
             if (linux_ipa_proxmox_discovered_ip_from_config_raw | trim | length > 0)
-            else linux_ipa_proxmox_discovered_ip_from_cloudinit_raw
+            else (
+              linux_ipa_proxmox_discovered_ip_from_cloudinit_raw
+              if (linux_ipa_proxmox_discovered_ip_from_cloudinit_raw | trim | length > 0)
+              else linux_ipa_proxmox_discovered_ip_from_neighbors_raw
+            )
           )
         )
         | trim
@@ -138,7 +191,11 @@
           else (
             'cloudinit_network'
             if (linux_ipa_proxmox_discovered_ip_from_cloudinit_raw | trim | length > 0)
-            else ''
+            else (
+              'neighbor_table'
+              if (linux_ipa_proxmox_discovered_ip_from_neighbors_raw | trim | length > 0)
+              else ''
+            )
           )
         )
       }}
@@ -167,6 +224,18 @@
     - linux_ipa_proxmox_discovered_ip | length > 0
     - linux_ipa_proxmox_discovered_ip_source == 'cloudinit_network'
 
+- name: Warn when Proxmox discovery falls back to host neighbor-table data
+  ansible.builtin.debug:
+    msg: >-
+      Proxmox guest-agent, VM config, and cloud-init network discovery did not return a usable IP for
+      VM {{ linux_ipa_proxmox_guest_network_result.item.name | default('vm-' ~ linux_ipa_proxmox_guest_network_result.item.vmid) }}.
+      Falling back to the Proxmox host neighbor-table IP {{ linux_ipa_proxmox_discovered_ip }}
+      matched from the VM NIC MAC address so later SSH-based tasks can still try to manage the guest.
+  changed_when: false
+  when:
+    - linux_ipa_proxmox_discovered_ip | length > 0
+    - linux_ipa_proxmox_discovered_ip_source == 'neighbor_table'
+
 - name: Fail when a discovered VM has no usable guest-agent IP
   ansible.builtin.assert:
     that:
@@ -186,7 +255,7 @@
       Skipping VM {{ linux_ipa_proxmox_guest_network_result.item.name | default('vm-' ~ linux_ipa_proxmox_guest_network_result.item.vmid) }}
       on node {{ linux_ipa_proxmox_node_shortname.stdout }} because no usable IP could be discovered.
       Proxmox discovery could not get an address from the guest agent, and the VM config does not expose
-      any static ipconfigN address or readable cloud-init network address either. A guest-side netplan file is not visible to Proxmox, so it cannot
+      any static ipconfigN address, readable cloud-init network address, or neighbor-table match either. A guest-side netplan file is not visible to Proxmox, so it cannot
       be used as an automatic discovery source from the host. Provide one of the following:
       enable qemu-guest-agent inside the VM, define the VM IP with qm ipconfig/cloud-init, or add the VM
       explicitly under linux_ipa_client_hosts with ansible_host.
