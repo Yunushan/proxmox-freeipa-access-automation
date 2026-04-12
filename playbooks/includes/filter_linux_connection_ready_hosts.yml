@@ -13,11 +13,26 @@
     - linux_enroll
   tasks:
     - name: Check whether the Linux guest management connection is ready
-      ansible.builtin.wait_for_connection:
-        timeout: 5
-      register: linux_ipa_connection_ready_check
-      changed_when: false
-      ignore_unreachable: true
+      block:
+        - name: Wait for the Linux guest management connection
+          ansible.builtin.wait_for_connection:
+            timeout: 5
+          register: linux_ipa_connection_ready_check
+          changed_when: false
+      rescue:
+        - name: Record the Linux guest management connection failure details
+          ansible.builtin.set_fact:
+            linux_ipa_connection_ready_check:
+              failed: true
+              unreachable: "{{ ansible_failed_result.unreachable | default(false) }}"
+              msg: >-
+                {{
+                  ansible_failed_result.msg
+                  | default('connection setup did not succeed')
+                  | string
+                  | trim
+                }}
+          changed_when: false
 
     - name: Add Linux guest to the manageable runtime group when the connection works
       ansible.builtin.add_host:
