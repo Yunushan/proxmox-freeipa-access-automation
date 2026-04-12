@@ -79,6 +79,23 @@
   loop_control:
     label: "{{ item.name | default('vm-' ~ item.vmid) }}"
 
+- name: Read Proxmox VM cloud-init network config for discovery IP fallback
+  ansible.builtin.command:
+    argv:
+      - qm
+      - cloudinit
+      - dump
+      - "{{ item.vmid | string }}"
+      - network
+  become: true
+  register: linux_ipa_proxmox_guest_cloudinit_networks
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  loop: "{{ linux_ipa_proxmox_node_guests }}"
+  loop_control:
+    label: "{{ item.name | default('vm-' ~ item.vmid) }}"
+
 - name: Process discovered guest network results
   ansible.builtin.include_tasks: process-network-result.yml
   loop: "{{ range(0, (linux_ipa_proxmox_guest_networks.results | default([]) | length)) | list }}"
@@ -88,3 +105,4 @@
   vars:
     linux_ipa_proxmox_guest_network_result: "{{ linux_ipa_proxmox_guest_networks.results[linux_ipa_proxmox_guest_result_index] }}"
     linux_ipa_proxmox_guest_config_result: "{{ (linux_ipa_proxmox_guest_configs.results | default([]))[linux_ipa_proxmox_guest_result_index] | default({}) }}"
+    linux_ipa_proxmox_guest_cloudinit_network_result: "{{ (linux_ipa_proxmox_guest_cloudinit_networks.results | default([]))[linux_ipa_proxmox_guest_result_index] | default({}) }}"
