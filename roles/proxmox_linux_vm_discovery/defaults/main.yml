@@ -12,6 +12,7 @@ linux_ipa_proxmox_discovery_skip_missing_ip: true
 linux_ipa_proxmox_discovery_ip_preference: ipv4
 linux_ipa_proxmox_discovery_inventory_prefix: proxmox
 linux_ipa_proxmox_discovery_use_vm_name_as_hint: true
+linux_ipa_proxmox_discovery_complete_short_vm_names_with_suffix: false
 linux_ipa_proxmox_discovery_allowlist_enabled: false
 linux_ipa_proxmox_discovery_allowlist_vmids: []
 linux_ipa_proxmox_discovery_allowlist_ips: []

@@ -468,6 +468,7 @@ Notes:
 - discovery adds VMs to the same `linux_ipa_clients_runtime` group used by the rest of the playbooks
 - IP discovery depends on the QEMU guest agent reporting network interfaces
 - `linux_ipa_proxmox_discovery_use_vm_name_as_hint` only trusts VM names that are already FQDNs
+- set `linux_ipa_proxmox_discovery_complete_short_vm_names_with_suffix: true` when you also want safe short Proxmox VM names such as `Teleport-Server-1` promoted automatically to hostname hints such as `teleport-server-1.example.com` through `linux_ipa_identity_hostname_suffix`
 - `linux_ipa_proxmox_discovery_vmids` is optional and mainly used by the event-driven hook/webhook workflow to scope discovery to one or more specific VMIDs
 - the guest still needs a final hostname, either already configured inside the VM or provided with `ipa_hostname` through a manual definition
 - the guest's real system hostname must also be valid for enrollment; placeholder values such as `localhost.localdomain` must be replaced on the VM before running `linux-clients` or `site`

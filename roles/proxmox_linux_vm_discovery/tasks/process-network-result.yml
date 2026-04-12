@@ -210,15 +210,51 @@
         ~ '-vm'
         ~ (linux_ipa_proxmox_guest_network_result.item.vmid | string)
       }}
-    linux_ipa_proxmox_discovery_requested_hostname_candidate_resolved: >-
+    linux_ipa_proxmox_discovery_vm_name_normalized_resolved: >-
       {{
         linux_ipa_proxmox_guest_network_result.item.name
+        | default('', true)
+        | string
+        | trim
+        | lower
+      }}
+    linux_ipa_proxmox_discovery_vm_name_sanitized_resolved: >-
+      {{
+        linux_ipa_proxmox_guest_network_result.item.name
+        | default('', true)
+        | string
+        | trim
+        | lower
+        | regex_replace('[^a-z0-9-]+', '-')
+        | regex_replace('^-+', '')
+        | regex_replace('-+$', '')
+        | regex_replace('-{2,}', '-')
+      }}
+    linux_ipa_proxmox_discovery_requested_hostname_candidate_resolved: >-
+      {{
+        linux_ipa_proxmox_discovery_vm_name_normalized_resolved
         if (
           linux_ipa_proxmox_discovery_use_vm_name_as_hint | bool
-          and '.' in (linux_ipa_proxmox_guest_network_result.item.name | default(''))
-          and (linux_ipa_proxmox_guest_network_result.item.name | default('') | length > 0)
+          and '.' in linux_ipa_proxmox_discovery_vm_name_normalized_resolved
+          and (linux_ipa_proxmox_discovery_vm_name_normalized_resolved | length > 0)
         )
-        else ''
+        else (
+          (
+            linux_ipa_proxmox_discovery_vm_name_sanitized_resolved
+            ~ '.'
+            ~ (linux_ipa_identity_hostname_suffix | trim | lower)
+          )
+          if (
+            linux_ipa_proxmox_discovery_use_vm_name_as_hint | bool
+            and linux_ipa_proxmox_discovery_complete_short_vm_names_with_suffix | bool
+            and '.' not in linux_ipa_proxmox_discovery_vm_name_normalized_resolved
+            and linux_ipa_identity_hostname_suffix | default('') | trim | length > 0
+            and linux_ipa_proxmox_discovery_vm_name_sanitized_resolved | length > 0
+            and linux_ipa_proxmox_discovery_vm_name_sanitized_resolved is match('^[a-z0-9][a-z0-9-]*$')
+            and not (linux_ipa_proxmox_discovery_vm_name_sanitized_resolved is match('^[0-9]+$'))
+          )
+          else ''
+        )
       }}
     linux_ipa_proxmox_discovery_allowlist_vmids_effective: >-
       {{
