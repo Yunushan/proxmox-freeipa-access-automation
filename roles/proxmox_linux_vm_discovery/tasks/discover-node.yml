@@ -115,8 +115,8 @@
 
 - name: Build eligible Proxmox subnet probes for neighbor-table fallback
   vars:
-    linux_ipa_proxmox_neighbor_probe_cidrs_yaml: |
-      {% set cidrs = [] %}
+    linux_ipa_proxmox_neighbor_probe_targets_yaml: |
+      {% set targets = [] %}
       {% for iface in (linux_ipa_proxmox_host_ipv4_addrs_raw.stdout | default('[]') | from_json) %}
       {%   set ifname = iface.ifname | default('', true) | string | trim %}
       {%   if ifname | length > 0 and ifname != 'lo' and (ifname is match(linux_ipa_proxmox_discovery_neighbor_ip_probe_interface_regex)) %}
@@ -134,14 +134,24 @@
               and prefix > 0
               and not local.startswith('127.')
               and not local.startswith('169.254.') %}
-      {%         set _ = cidrs.append(local ~ '/' ~ probe_prefix) %}
+      {%         set _ = targets.append({'ifname': ifname, 'cidr': (local ~ '/' ~ probe_prefix)}) %}
       {%       endif %}
       {%     endfor %}
       {%   endif %}
       {% endfor %}
-      {{ cidrs | unique | to_yaml }}
+      {{ targets | unique | to_yaml }}
   ansible.builtin.set_fact:
-    linux_ipa_proxmox_neighbor_probe_cidrs: "{{ linux_ipa_proxmox_neighbor_probe_cidrs_yaml | from_yaml }}"
+    linux_ipa_proxmox_neighbor_probe_targets: "{{ linux_ipa_proxmox_neighbor_probe_targets_yaml | from_yaml }}"
+    linux_ipa_proxmox_neighbor_probe_cidrs: >-
+      {{
+        (
+          linux_ipa_proxmox_neighbor_probe_targets_yaml
+          | from_yaml
+          | map(attribute='cidr')
+          | unique
+          | list
+        )
+      }}
   changed_when: false
   when:
     - linux_ipa_proxmox_discovery_neighbor_ip_fallback_enabled | bool
@@ -164,6 +174,21 @@
     - linux_ipa_proxmox_discovery_neighbor_ip_fallback_enabled | bool
     - linux_ipa_proxmox_discovery_neighbor_ip_probe_enabled | bool
     - linux_ipa_proxmox_neighbor_probe_cidrs | default([]) | length > 0
+
+- name: Resolve the Proxmox ARP sweep tool path
+  ansible.builtin.shell: |
+    set -euo pipefail
+    command -v arping >/dev/null 2>&1 && command -v arping
+  args:
+    executable: /bin/bash
+  register: linux_ipa_proxmox_neighbor_probe_arping_path
+  changed_when: false
+  failed_when: false
+  when:
+    - linux_ipa_proxmox_discovery_neighbor_ip_fallback_enabled | bool
+    - linux_ipa_proxmox_discovery_neighbor_ip_probe_enabled | bool
+    - linux_ipa_proxmox_discovery_neighbor_ip_probe_arping_enabled | bool
+    - linux_ipa_proxmox_neighbor_probe_targets | default([]) | length > 0
 
 - name: Probe eligible Proxmox subnets to refresh the neighbor table
   ansible.builtin.command:
@@ -203,6 +228,47 @@
     - linux_ipa_proxmox_neighbor_probe_cidrs | default([]) | length > 0
     - linux_ipa_proxmox_neighbor_probe_tool_path.stdout | default('') | trim | length > 0
     - (linux_ipa_proxmox_neighbor_probe_tool_path.stdout | trim | lower | basename) == 'nmap'
+
+- name: Probe eligible Proxmox subnets with an ARP sweep to refresh the neighbor table
+  ansible.builtin.shell: |
+    set -euo pipefail
+
+    ifname="{{ item.ifname }}"
+    cidr="{{ item.cidr }}"
+    parallelism="{{ linux_ipa_proxmox_discovery_neighbor_ip_probe_ping_parallelism | int }}"
+    timeout_seconds="{{ linux_ipa_proxmox_discovery_neighbor_ip_probe_ping_timeout | int }}"
+
+    if command -v python3 >/dev/null 2>&1; then
+      probe_python=python3
+    elif command -v python >/dev/null 2>&1; then
+      probe_python=python
+    else
+      exit 0
+    fi
+
+    "$probe_python" - "$cidr" <<'PY' | xargs -r -n 1 -P "$parallelism" sh -c '
+    "{{ linux_ipa_proxmox_neighbor_probe_arping_path.stdout | trim }}" -I "$1" -c 1 -w "$2" "$3" >/dev/null 2>&1 || true
+    ' _ "$ifname" "$timeout_seconds"
+    import ipaddress
+    import sys
+
+    for current_ip in ipaddress.ip_network(sys.argv[1], strict=False).hosts():
+        print(current_ip)
+    PY
+  args:
+    executable: /bin/bash
+  become: true
+  changed_when: false
+  failed_when: false
+  loop: "{{ linux_ipa_proxmox_neighbor_probe_targets | default([]) }}"
+  loop_control:
+    label: "{{ item.ifname }} {{ item.cidr }}"
+  when:
+    - linux_ipa_proxmox_discovery_neighbor_ip_fallback_enabled | bool
+    - linux_ipa_proxmox_discovery_neighbor_ip_probe_enabled | bool
+    - linux_ipa_proxmox_discovery_neighbor_ip_probe_arping_enabled | bool
+    - linux_ipa_proxmox_neighbor_probe_targets | default([]) | length > 0
+    - linux_ipa_proxmox_neighbor_probe_arping_path.stdout | default('') | trim | length > 0
 
 - name: Probe eligible Proxmox subnets with a ping sweep to refresh the neighbor table
   ansible.builtin.shell: |
