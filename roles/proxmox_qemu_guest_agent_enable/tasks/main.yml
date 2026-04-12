@@ -24,12 +24,12 @@
     proxmox_qemu_guest_agent_enable_qm_paths: >-
       {{
         (
-          [guest_qemu_agent_install_proxmox_qm_path]
-          if '/' in (guest_qemu_agent_install_proxmox_qm_path | string)
+          [proxmox_qemu_guest_agent_enable_qm_path]
+          if '/' in (proxmox_qemu_guest_agent_enable_qm_path | string)
           else []
         )
         +
-        (guest_qemu_agent_install_proxmox_qm_fallback_paths | default([]))
+        (proxmox_qemu_guest_agent_enable_qm_fallback_paths | default([]))
       }}
   ansible.builtin.set_fact:
     proxmox_qemu_guest_agent_enable_qm_candidate_paths: "{{ proxmox_qemu_guest_agent_enable_qm_paths | unique }}"
@@ -47,7 +47,7 @@
   when: proxmox_qemu_guest_agent_enable_target_hosts | length > 0
 
 - name: Resolve qm from the current Proxmox node PATH for guest-agent enablement
-  ansible.builtin.shell: "command -v {{ guest_qemu_agent_install_proxmox_qm_path | quote }}"
+  ansible.builtin.shell: "command -v {{ proxmox_qemu_guest_agent_enable_qm_path | quote }}"
   args:
     executable: /bin/sh
   register: proxmox_qemu_guest_agent_enable_qm_path_lookup
@@ -55,7 +55,7 @@
   failed_when: false
   when:
     - proxmox_qemu_guest_agent_enable_target_hosts | length > 0
-    - "'/' not in (guest_qemu_agent_install_proxmox_qm_path | string)"
+    - "'/' not in (proxmox_qemu_guest_agent_enable_qm_path | string)"
 
 - name: Set the resolved Proxmox qm path for guest-agent enablement
   ansible.builtin.set_fact:
@@ -152,7 +152,7 @@
     label: "{{ item.item }}"
   when:
     - proxmox_qemu_guest_agent_enable_target_hosts | length > 0
-    - not (guest_qemu_agent_install_reboot_after_proxmox_vm_agent_enable | bool)
+    - not (proxmox_qemu_guest_agent_enable_reboot_after_enable | bool)
     - item.stdout | default('') | regex_search('(?im)^status:\\s*running$')
 
 - name: Reboot running Proxmox VMs after enabling guest-agent communication
@@ -167,5 +167,5 @@
     label: "{{ item.item }}"
   when:
     - proxmox_qemu_guest_agent_enable_target_hosts | length > 0
-    - guest_qemu_agent_install_reboot_after_proxmox_vm_agent_enable | bool
+    - proxmox_qemu_guest_agent_enable_reboot_after_enable | bool
     - item.stdout | default('') | regex_search('(?im)^status:\\s*running$')

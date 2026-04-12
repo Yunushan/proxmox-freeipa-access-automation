@@ -1,2 +1,21 @@
 ---
 proxmox_qemu_guest_agent_enable_runtime_group: linux_ipa_clients_runtime
+proxmox_qemu_guest_agent_enable_qm_path: >-
+  {{
+    guest_qemu_agent_install_proxmox_qm_path
+    | default('qm')
+  }}
+proxmox_qemu_guest_agent_enable_qm_fallback_paths: >-
+  {{
+    guest_qemu_agent_install_proxmox_qm_fallback_paths
+    | default([
+        '/usr/sbin/qm',
+        '/usr/bin/qm',
+        '/sbin/qm'
+      ])
+  }}
+proxmox_qemu_guest_agent_enable_reboot_after_enable: >-
+  {{
+    guest_qemu_agent_install_reboot_after_proxmox_vm_agent_enable
+    | default(false)
+  }}
