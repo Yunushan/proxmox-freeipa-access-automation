@@ -36,24 +36,26 @@
       {{ members | reject('equalto', '') | unique | list | to_yaml }}
     freeipa_hostgroup_unresolved_hosts_yaml: |
       {% set unresolved = [] %}
-      {% for group_name in item.inventory_groups | default([]) %}
-      {%   for group_host in groups[group_name] | default([]) %}
-      {%     set explicit_hostname = hostvars[group_host].freeipa_hostgroup_hostname
-            | default(hostvars[group_host].ipa_hostname, true)
-            | default('', true)
-            | string
-            | trim
-            | lower %}
-      {%     set inventory_candidate = group_host | string | trim | lower %}
-      {%     if explicit_hostname | length == 0
-              and not (
-                inventory_candidate is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$')
-                and not (inventory_candidate is match('^[0-9.]+$'))
-              ) %}
-      {%       set _ = unresolved.append(group_host) %}
-      {%     endif %}
+      {% if freeipa_access_model_manage_inventory_group_host_membership | bool %}
+      {%   for group_name in item.inventory_groups | default([]) %}
+      {%     for group_host in groups[group_name] | default([]) %}
+      {%       set explicit_hostname = hostvars[group_host].freeipa_hostgroup_hostname
+              | default(hostvars[group_host].ipa_hostname, true)
+              | default('', true)
+              | string
+              | trim
+              | lower %}
+      {%       set inventory_candidate = group_host | string | trim | lower %}
+      {%       if explicit_hostname | length == 0
+                and not (
+                  inventory_candidate is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$')
+                  and not (inventory_candidate is match('^[0-9.]+$'))
+                ) %}
+      {%         set _ = unresolved.append(group_host) %}
+      {%       endif %}
+      {%     endfor %}
       {%   endfor %}
-      {% endfor %}
+      {% endif %}
       {{ unresolved | unique | list | to_yaml }}
   loop: "{{ freeipa_access_model_hostgroups }}"
   loop_control:
