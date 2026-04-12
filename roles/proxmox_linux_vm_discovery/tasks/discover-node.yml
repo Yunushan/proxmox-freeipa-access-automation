@@ -113,40 +113,121 @@
     - linux_ipa_proxmox_discovery_neighbor_ip_fallback_enabled | bool
     - linux_ipa_proxmox_discovery_neighbor_ip_probe_enabled | bool
 
+- name: Ensure Proxmox neighbor-table probe tools are installed
+  ansible.builtin.apt:
+    name: "{{ linux_ipa_proxmox_discovery_neighbor_ip_probe_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+  when:
+    - linux_ipa_proxmox_discovery_neighbor_ip_fallback_enabled | bool
+    - linux_ipa_proxmox_discovery_neighbor_ip_probe_enabled | bool
+    - linux_ipa_proxmox_discovery_neighbor_ip_probe_install_tools | bool
+
+- name: Read the Proxmox host neighbor table before neighbor-table probe fallback
+  ansible.builtin.command:
+    argv:
+      - ip
+      - -j
+      - neigh
+      - show
+  become: true
+  register: linux_ipa_proxmox_host_neighbors_preprobe_raw
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  when:
+    - linux_ipa_proxmox_discovery_neighbor_ip_fallback_enabled | bool
+    - linux_ipa_proxmox_discovery_neighbor_ip_probe_enabled | bool
+
 - name: Build eligible Proxmox subnet probes for neighbor-table fallback
-  vars:
-    linux_ipa_proxmox_neighbor_probe_targets_yaml: |
-      {% set targets = [] %}
-      {% for iface in (linux_ipa_proxmox_host_ipv4_addrs_raw.stdout | default('[]') | from_json) %}
-      {%   set ifname = iface.ifname | default('', true) | string | trim %}
-      {%   if ifname | length > 0 and ifname != 'lo' and (ifname is match(linux_ipa_proxmox_discovery_neighbor_ip_probe_interface_regex)) %}
-      {%     for addr in (iface.addr_info | default([])) %}
-      {%       set family = addr.family | default('', true) | string | trim %}
-      {%       set local = addr.local | default('', true) | string | trim %}
-      {%       set prefix = addr.prefixlen | default(0) | int %}
-      {%       set probe_prefix = (
-                 prefix
-                 if prefix >= (linux_ipa_proxmox_discovery_neighbor_ip_probe_min_prefix | int)
-                 else (linux_ipa_proxmox_discovery_neighbor_ip_probe_min_prefix | int)
-               ) %}
-      {%       if family == 'inet'
-              and local | length > 0
-              and prefix > 0
-              and not local.startswith('127.')
-              and not local.startswith('169.254.') %}
-      {%         set _ = targets.append({'ifname': ifname, 'cidr': (local ~ '/' ~ probe_prefix)}) %}
-      {%       endif %}
-      {%     endfor %}
-      {%   endif %}
-      {% endfor %}
-      {{ targets | unique | to_yaml }}
+  ansible.builtin.shell: |
+    set -euo pipefail
+
+    if command -v python3 >/dev/null 2>&1; then
+      probe_python=python3
+    elif command -v python >/dev/null 2>&1; then
+      probe_python=python
+    else
+      printf '[]'
+      exit 0
+    fi
+
+    "$probe_python" - <<'PY'
+    import ipaddress
+    import json
+    import os
+    import re
+
+    iface_pattern = re.compile(os.environ['IFACE_REGEX'])
+    min_prefix = int(os.environ['MIN_PREFIX'])
+    host_addrs = json.loads(os.environ['HOST_IPV4_ADDRS'])
+    host_neighbors = json.loads(os.environ['HOST_NEIGHBORS'])
+
+    targets = []
+    seen = set()
+
+    def add_target(ifname, cidr):
+        key = (ifname, cidr)
+        if key not in seen:
+            seen.add(key)
+            targets.append({'ifname': ifname, 'cidr': cidr})
+
+    for iface in host_addrs:
+        ifname = str(iface.get('ifname', '')).strip()
+        if not ifname or ifname == 'lo' or not iface_pattern.search(ifname):
+            continue
+        for addr in iface.get('addr_info', []):
+            if str(addr.get('family', '')).strip() != 'inet':
+                continue
+            local = str(addr.get('local', '')).strip()
+            if not local or local.startswith('127.') or local.startswith('169.254.'):
+                continue
+            prefix = int(addr.get('prefixlen', 0) or 0)
+            if prefix <= 0:
+                continue
+            probe_prefix = prefix if prefix >= min_prefix else min_prefix
+            add_target(ifname, str(ipaddress.ip_network(f'{local}/{probe_prefix}', strict=False)))
+
+    for neighbor in host_neighbors:
+        ifname = str(neighbor.get('dev', '')).strip()
+        dst = str(neighbor.get('dst', '')).strip()
+        if not ifname or ifname == 'lo' or not iface_pattern.search(ifname):
+            continue
+        try:
+            current_ip = ipaddress.ip_address(dst)
+        except ValueError:
+            continue
+        if current_ip.version != 4 or current_ip.is_loopback or current_ip.is_link_local:
+            continue
+        add_target(ifname, str(ipaddress.ip_network(f'{dst}/{min_prefix}', strict=False)))
+
+    print(json.dumps(targets))
+    PY
+  args:
+    executable: /bin/bash
+  environment:
+    HOST_IPV4_ADDRS: "{{ linux_ipa_proxmox_host_ipv4_addrs_raw.stdout | default('[]') }}"
+    HOST_NEIGHBORS: "{{ linux_ipa_proxmox_host_neighbors_preprobe_raw.stdout | default('[]') }}"
+    IFACE_REGEX: "{{ linux_ipa_proxmox_discovery_neighbor_ip_probe_interface_regex }}"
+    MIN_PREFIX: "{{ linux_ipa_proxmox_discovery_neighbor_ip_probe_min_prefix | int | string }}"
+  register: linux_ipa_proxmox_neighbor_probe_targets_raw
+  changed_when: false
+  failed_when: false
+  when:
+    - linux_ipa_proxmox_discovery_neighbor_ip_fallback_enabled | bool
+    - linux_ipa_proxmox_discovery_neighbor_ip_probe_enabled | bool
+
+- name: Normalize eligible Proxmox subnet probes for neighbor-table fallback
   ansible.builtin.set_fact:
-    linux_ipa_proxmox_neighbor_probe_targets: "{{ linux_ipa_proxmox_neighbor_probe_targets_yaml | from_yaml }}"
+    linux_ipa_proxmox_neighbor_probe_targets: "{{ linux_ipa_proxmox_neighbor_probe_targets_raw.stdout | default('[]') | from_json }}"
     linux_ipa_proxmox_neighbor_probe_cidrs: >-
       {{
         (
-          linux_ipa_proxmox_neighbor_probe_targets_yaml
-          | from_yaml
+          linux_ipa_proxmox_neighbor_probe_targets_raw.stdout
+          | default('[]')
+          | from_json
           | map(attribute='cidr')
           | unique
           | list
