@@ -12,27 +12,106 @@
     - hostnames
     - linux_enroll
   tasks:
-    - name: Check whether the Linux guest management connection is ready
-      block:
-        - name: Wait for the Linux guest management connection
-          ansible.builtin.wait_for_connection:
-            timeout: 5
-          register: linux_ipa_connection_ready_check
-          changed_when: false
-      rescue:
-        - name: Record the Linux guest management connection failure details
-          ansible.builtin.set_fact:
-            linux_ipa_connection_ready_check:
-              failed: true
-              unreachable: "{{ ansible_failed_result.unreachable | default(false) }}"
-              msg: >-
-                {{
-                  ansible_failed_result.msg
-                  | default('connection setup did not succeed')
+    - name: Check whether sshpass is available for password-based Linux connection probes
+      ansible.builtin.command:
+        argv:
+          - which
+          - sshpass
+      register: linux_ipa_connection_ready_sshpass_check
+      changed_when: false
+      failed_when: false
+      delegate_to: localhost
+      when: hostvars[inventory_hostname].ansible_password | default('', true) | string | trim | length > 0
+
+    - name: Probe the Linux guest management connection from the controller
+      vars:
+        linux_ipa_connection_ready_effective_user: "{{ hostvars[inventory_hostname].ansible_user | default('root') }}"
+        linux_ipa_connection_ready_effective_host: "{{ hostvars[inventory_hostname].ansible_host | default(inventory_hostname) }}"
+        linux_ipa_connection_ready_effective_port: "{{ hostvars[inventory_hostname].ansible_port | default(22) }}"
+        linux_ipa_connection_ready_effective_key_file: "{{ hostvars[inventory_hostname].ansible_ssh_private_key_file | default('', true) | string | trim }}"
+        linux_ipa_connection_ready_effective_common_args: "{{ hostvars[inventory_hostname].ansible_ssh_common_args | default('', true) | string | trim }}"
+        linux_ipa_connection_ready_has_password: "{{ hostvars[inventory_hostname].ansible_password | default('', true) | string | trim | length > 0 }}"
+        linux_ipa_connection_ready_probe_command: >-
+          {{
+            (
+              'sshpass -e '
+              if (linux_ipa_connection_ready_has_password | bool)
+              else ''
+            )
+            ~ 'ssh -o ConnectTimeout=5 -o NumberOfPasswordPrompts=1 '
+            ~ (
+              ''
+              if (linux_ipa_connection_ready_has_password | bool)
+              else '-o BatchMode=yes '
+            )
+            ~ (
+              linux_ipa_connection_ready_effective_common_args ~ ' '
+              if (linux_ipa_connection_ready_effective_common_args | length > 0)
+              else ''
+            )
+            ~ (
+              '-i ' ~ (linux_ipa_connection_ready_effective_key_file | quote) ~ ' '
+              if (linux_ipa_connection_ready_effective_key_file | length > 0)
+              else ''
+            )
+            ~ '-p ' ~ (linux_ipa_connection_ready_effective_port | string | quote) ~ ' '
+            ~ ((linux_ipa_connection_ready_effective_user ~ '@' ~ linux_ipa_connection_ready_effective_host) | quote)
+            ~ ' true'
+          }}
+      ansible.builtin.shell: "{{ linux_ipa_connection_ready_probe_command }}"
+      args:
+        executable: /bin/sh
+      environment:
+        SSHPASS: "{{ hostvars[inventory_hostname].ansible_password | default('', true) | string }}"
+      register: linux_ipa_connection_ready_probe_result
+      changed_when: false
+      failed_when: false
+      delegate_to: localhost
+      when:
+        - not (
+            (hostvars[inventory_hostname].ansible_password | default('', true) | string | trim | length > 0)
+            and (linux_ipa_connection_ready_sshpass_check.rc | default(1) | int != 0)
+          )
+
+    - name: Summarize whether the Linux guest management connection is ready
+      vars:
+        linux_ipa_connection_ready_has_password: "{{ hostvars[inventory_hostname].ansible_password | default('', true) | string | trim | length > 0 }}"
+      ansible.builtin.set_fact:
+        linux_ipa_connection_ready_check:
+          failed: >-
+            {{
+              (
+                (linux_ipa_connection_ready_has_password | bool)
+                and (linux_ipa_connection_ready_sshpass_check.rc | default(1) | int != 0)
+              )
+              or
+              (
+                linux_ipa_connection_ready_probe_result.rc
+                | default(1)
+                | int
+              ) != 0
+            }}
+          unreachable: false
+          msg: >-
+            {{
+              (
+                'sshpass is required on the controller for password-based Linux connection probes'
+                if (
+                  (linux_ipa_connection_ready_has_password | bool)
+                  and (linux_ipa_connection_ready_sshpass_check.rc | default(1) | int != 0)
+                )
+                else (
+                  (
+                    linux_ipa_connection_ready_probe_result.stderr
+                    | default(linux_ipa_connection_ready_probe_result.stdout, true)
+                    | default('connection probe succeeded', true)
+                  )
                   | string
                   | trim
-                }}
-          changed_when: false
+                )
+              )
+            }}
+      changed_when: false
 
     - name: Add Linux guest to the manageable runtime group when the connection works
       ansible.builtin.add_host:

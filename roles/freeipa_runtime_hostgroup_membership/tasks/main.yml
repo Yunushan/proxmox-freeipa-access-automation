@@ -26,6 +26,18 @@
     fail_msg: >-
       No resolved Linux runtime hostnames were available for event-driven FreeIPA hostgroup updates.
       Ensure the event playbook ran hostname resolution successfully for the discovered VM.
+  when: freeipa_runtime_hostgroup_membership_require_targets | bool
+
+- name: Skip runtime FreeIPA hostgroup updates when no resolved Linux hostnames are available
+  ansible.builtin.debug:
+    msg: >-
+      Skipping runtime FreeIPA hostgroup updates because no resolved Linux hostnames
+      were available in the runtime inventory group
+      {{ freeipa_runtime_hostgroup_membership_inventory_group }} for this run.
+  changed_when: false
+  when:
+    - not (freeipa_runtime_hostgroup_membership_require_targets | bool)
+    - freeipa_runtime_hostgroup_membership_target_hosts | default([]) | length == 0
 
 - name: Normalize FreeIPA hostgroup inventory-group selectors for runtime membership updates
   vars:

@@ -7,3 +7,4 @@ freeipa_runtime_hostgroup_membership_admin_principal: "{{ freeipa_admin_principa
 freeipa_runtime_hostgroup_membership_admin_password: "{{ freeipa_admin_password | default('') }}"
 freeipa_runtime_hostgroup_membership_api_context: "{{ freeipa_api_context | default('server') }}"
 freeipa_runtime_hostgroup_membership_hostgroups: "{{ freeipa_hostgroups | default([]) }}"
+freeipa_runtime_hostgroup_membership_require_targets: false
