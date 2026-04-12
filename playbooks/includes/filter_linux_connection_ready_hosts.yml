@@ -1,0 +1,64 @@
+---
+- name: Filter Linux guests with a working management connection
+  hosts: linux_ipa_clients_runtime
+  gather_facts: false
+  ignore_unreachable: true
+  serial: "{{ linux_freeipa_enroll_serial | default(10) | int }}"
+  max_fail_percentage: "{{ linux_freeipa_enroll_max_fail_percentage | default(0) | int }}"
+  tags:
+    - linux
+    - inventory
+    - qga_install
+    - hostnames
+    - linux_enroll
+  tasks:
+    - name: Check whether the Linux guest management connection is ready
+      ansible.builtin.wait_for_connection:
+        timeout: 5
+      register: linux_ipa_connection_ready_check
+      changed_when: false
+      ignore_unreachable: true
+
+    - name: Add Linux guest to the manageable runtime group when the connection works
+      ansible.builtin.add_host:
+        name: "{{ inventory_hostname }}"
+        groups: linux_ipa_clients_manageable_runtime
+      delegate_to: localhost
+      changed_when: false
+      when:
+        - linux_ipa_connection_ready_check is defined
+        - not (linux_ipa_connection_ready_check.unreachable | default(false))
+        - not (linux_ipa_connection_ready_check.failed | default(false))
+
+    - name: Track Linux guests skipped because the management connection is unavailable
+      ansible.builtin.add_host:
+        name: "{{ inventory_hostname }}"
+        groups: linux_ipa_clients_connection_unavailable_runtime
+      delegate_to: localhost
+      changed_when: false
+      when:
+        - linux_ipa_connection_ready_check is not defined
+          or (linux_ipa_connection_ready_check.unreachable | default(false))
+          or (linux_ipa_connection_ready_check.failed | default(false))
+
+    - name: Explain why the Linux guest is skipped for connection-dependent tasks
+      ansible.builtin.debug:
+        msg: >-
+          Skipping connection-dependent Linux automation for {{ inventory_hostname }}
+          because the configured management connection is not usable yet.
+          Current target: {{
+            (hostvars[inventory_hostname].ansible_user | default('root'))
+          }}@{{
+            hostvars[inventory_hostname].ansible_host | default(inventory_hostname)
+          }}.
+          Detail: {{
+            linux_ipa_connection_ready_check.msg
+            | default('connection setup did not succeed')
+            | string
+            | trim
+          }}.
+      changed_when: false
+      when:
+        - linux_ipa_connection_ready_check is not defined
+          or (linux_ipa_connection_ready_check.unreachable | default(false))
+          or (linux_ipa_connection_ready_check.failed | default(false))

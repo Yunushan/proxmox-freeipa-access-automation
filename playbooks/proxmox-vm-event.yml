@@ -50,6 +50,16 @@
     - ssh_bootstrap
     - event
 
+- name: Filter Linux guests with a working management connection for a Proxmox VM event
+  import_playbook: includes/filter_linux_connection_ready_hosts.yml
+  tags:
+    - linux
+    - inventory
+    - qga_install
+    - hostnames
+    - linux_enroll
+    - event
+
 - name: Ensure QEMU Guest Agent on Linux guests that became reachable after bootstrap for a Proxmox VM event
   import_playbook: includes/ensure_linux_guest_qemu_agent.yml
   tags:
@@ -67,7 +77,7 @@
     - event
 
 - name: Enroll event-target Linux guests into FreeIPA
-  hosts: linux_ipa_clients_runtime
+  hosts: linux_ipa_clients_manageable_runtime
   become: true
   gather_facts: true
   ignore_unreachable: true
@@ -161,7 +171,7 @@
         - event
 
 - name: Refresh SSSD on event-target Linux guests after FreeIPA updates
-  hosts: linux_ipa_clients_runtime
+  hosts: linux_ipa_clients_manageable_runtime
   become: true
   gather_facts: false
   ignore_unreachable: true

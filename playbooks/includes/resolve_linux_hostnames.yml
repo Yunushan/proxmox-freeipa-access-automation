@@ -1,6 +1,6 @@
 ---
 - name: Resolve Linux guest hostnames for FreeIPA
-  hosts: linux_ipa_clients_runtime
+  hosts: linux_ipa_clients_manageable_runtime
   gather_facts: false
   ignore_unreachable: true
   serial: "{{ linux_freeipa_enroll_serial | default(10) | int }}"

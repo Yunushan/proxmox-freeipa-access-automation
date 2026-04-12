@@ -1,6 +1,6 @@
 ---
 - name: Ensure QEMU Guest Agent on now-reachable Linux enrollment targets
-  hosts: linux_ipa_clients_runtime
+  hosts: linux_ipa_clients_manageable_runtime
   become: true
   gather_facts: false
   ignore_unreachable: true

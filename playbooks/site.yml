@@ -47,6 +47,15 @@
     - inventory
     - ssh_bootstrap
 
+- name: Filter Linux guests with a working management connection for the combined site workflow
+  import_playbook: includes/filter_linux_connection_ready_hosts.yml
+  tags:
+    - linux
+    - inventory
+    - qga_install
+    - hostnames
+    - linux_enroll
+
 - name: Ensure QEMU Guest Agent on Linux guests that became reachable after bootstrap for the combined site workflow
   import_playbook: includes/ensure_linux_guest_qemu_agent.yml
   tags:
@@ -108,7 +117,7 @@
         - proxmox_rbac
 
 - name: Enroll Linux guests into FreeIPA
-  hosts: linux_ipa_clients_runtime
+  hosts: linux_ipa_clients_manageable_runtime
   become: true
   gather_facts: true
   ignore_unreachable: true
@@ -252,7 +261,7 @@
         - proxmox_event
 
 - name: Refresh Linux SSSD caches after FreeIPA access-model changes
-  hosts: linux_ipa_clients_runtime
+  hosts: linux_ipa_clients_manageable_runtime
   become: true
   gather_facts: false
   ignore_unreachable: true

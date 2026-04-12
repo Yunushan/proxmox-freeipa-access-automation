@@ -45,6 +45,15 @@
     - inventory
     - ssh_bootstrap
 
+- name: Filter Linux guests with a working management connection for the Linux client workflow
+  import_playbook: includes/filter_linux_connection_ready_hosts.yml
+  tags:
+    - linux
+    - inventory
+    - qga_install
+    - hostnames
+    - linux_enroll
+
 - name: Ensure QEMU Guest Agent on Linux guests that became reachable after bootstrap for the Linux client workflow
   import_playbook: includes/ensure_linux_guest_qemu_agent.yml
   tags:
@@ -61,7 +70,7 @@
     - hostnames
 
 - name: Enroll Linux guests into FreeIPA only
-  hosts: linux_ipa_clients_runtime
+  hosts: linux_ipa_clients_manageable_runtime
   become: true
   gather_facts: true
   ignore_unreachable: true
