@@ -118,9 +118,11 @@
   when:
     - proxmox_qemu_guest_agent_enable_target_hosts | length > 0
     - >-
-      not (
-        item.stdout | default('') | regex_search('(?im)^agent:\\s*(?:1|enabled=1(?:\\b|,).*)$')
-      )
+      (
+        item.stdout
+        | default('')
+        | regex_search('(?im)^agent:\\s*(?:1|enabled=1(?:\\b|,).*)$')
+      ) is none
 
 - name: Read Proxmox VM status after guest-agent communication changes
   ansible.builtin.command:
@@ -136,9 +138,11 @@
   when:
     - proxmox_qemu_guest_agent_enable_target_hosts | length > 0
     - >-
-      not (
-        item.stdout | default('') | regex_search('(?im)^agent:\\s*(?:1|enabled=1(?:\\b|,).*)$')
-      )
+      (
+        item.stdout
+        | default('')
+        | regex_search('(?im)^agent:\\s*(?:1|enabled=1(?:\\b|,).*)$')
+      ) is none
 
 - name: Warn when Proxmox VM guest-agent communication was enabled on a running VM
   ansible.builtin.debug:
@@ -153,7 +157,12 @@
   when:
     - proxmox_qemu_guest_agent_enable_target_hosts | length > 0
     - not (proxmox_qemu_guest_agent_enable_reboot_after_enable | bool)
-    - item.stdout | default('') | regex_search('(?im)^status:\\s*running$')
+    - >-
+      (
+        item.stdout
+        | default('')
+        | regex_search('(?im)^status:\\s*running$')
+      ) is not none
 
 - name: Reboot running Proxmox VMs after enabling guest-agent communication
   ansible.builtin.command:
@@ -168,4 +177,9 @@
   when:
     - proxmox_qemu_guest_agent_enable_target_hosts | length > 0
     - proxmox_qemu_guest_agent_enable_reboot_after_enable | bool
-    - item.stdout | default('') | regex_search('(?im)^status:\\s*running$')
+    - >-
+      (
+        item.stdout
+        | default('')
+        | regex_search('(?im)^status:\\s*running$')
+      ) is not none
