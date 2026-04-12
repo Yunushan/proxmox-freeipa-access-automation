@@ -477,6 +477,27 @@
           linux_ipa_proxmox_discovery_requested_hostname_candidate | default('', true) | length > 0
         ) | ternary(linux_ipa_proxmox_discovery_requested_hostname_candidate, omit)
       }}
+    linux_ipa_requested_hostname_source: >-
+      {{
+        (
+          'proxmox_vm_name_completed_with_suffix'
+          if (
+            linux_ipa_proxmox_discovery_requested_hostname_candidate | default('', true) | length > 0
+            and linux_ipa_proxmox_discovery_complete_short_vm_names_with_suffix | bool
+            and '.' not in (
+              linux_ipa_proxmox_guest_network_result.item.name
+              | default('', true)
+              | string
+              | trim
+            )
+          )
+          else 'proxmox_vm_name_fqdn'
+        )
+        if (
+          linux_ipa_proxmox_discovery_requested_hostname_candidate | default('', true) | length > 0
+        )
+        else omit
+      }}
     linux_ipa_source: proxmox_discovery
     linux_ipa_proxmox_node: "{{ linux_ipa_proxmox_node_shortname.stdout }}"
     linux_ipa_proxmox_node_inventory_host: "{{ inventory_hostname }}"

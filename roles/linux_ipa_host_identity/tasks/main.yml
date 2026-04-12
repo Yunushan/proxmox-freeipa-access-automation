@@ -19,19 +19,31 @@
       {% set ns = namespace(result='') %}
       {% set candidates = [] %}
       {% set requested = linux_ipa_requested_hostname | default('') | trim | lower %}
+      {% set requested_source = linux_ipa_requested_hostname_source | default(('explicit' if requested | length > 0 else ''), true) | trim | lower %}
+      {% set requested_is_proxmox_hint = requested_source in ['proxmox_vm_name_fqdn', 'proxmox_vm_name_completed_with_suffix'] %}
       {% set current_fqdn = linux_ipa_current_fqdn.stdout | default('') | trim | lower %}
       {% set current_short = linux_ipa_current_short_hostname.stdout | default('') | trim | lower %}
       {% set inventory_name = inventory_hostname | trim | lower %}
-      {% if requested | length > 0 %}
+      {% if requested | length > 0 and not requested_is_proxmox_hint %}
       {%   set _ = candidates.append(requested) %}
       {% endif %}
       {% if requested | length > 0
+            and not requested_is_proxmox_hint
             and '.' not in requested
             and linux_ipa_identity_hostname_suffix | default('') | trim | length > 0 %}
       {%   set _ = candidates.append(requested ~ '.' ~ (linux_ipa_identity_hostname_suffix | trim | lower)) %}
       {% endif %}
       {% if current_fqdn | length > 0 %}
       {%   set _ = candidates.append(current_fqdn) %}
+      {% endif %}
+      {% if requested | length > 0 and requested_is_proxmox_hint %}
+      {%   set _ = candidates.append(requested) %}
+      {% endif %}
+      {% if requested | length > 0
+            and requested_is_proxmox_hint
+            and '.' not in requested
+            and linux_ipa_identity_hostname_suffix | default('') | trim | length > 0 %}
+      {%   set _ = candidates.append(requested ~ '.' ~ (linux_ipa_identity_hostname_suffix | trim | lower)) %}
       {% endif %}
       {% if inventory_name | length > 0 %}
       {%   set _ = candidates.append(inventory_name) %}

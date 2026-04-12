@@ -226,6 +226,12 @@
         else omit
       }}
     linux_ipa_requested_hostname: "{{ item.ipa_hostname | default(omit, true) }}"
+    linux_ipa_requested_hostname_source: >-
+      {{
+        'explicit'
+        if (item.ipa_hostname | default('', true) | string | trim | length > 0)
+        else omit
+      }}
     freeipa_hostgroup_hostname: "{{ item.ipa_hostname | default(omit, true) }}"
     linux_ipa_source: manual
   loop: "{{ linux_ipa_client_hosts }}"
