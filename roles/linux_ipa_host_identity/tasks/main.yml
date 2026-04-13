@@ -128,7 +128,7 @@
     - linux_ipa_effective_hostname | length > 0
     - linux_ipa_effective_hostname is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$')
     - not (linux_ipa_effective_hostname is match('^[0-9.]+$'))
-    - linux_ipa_current_fqdn_normalized in ['localhost', 'localhost.localdomain', linux_ipa_current_short_hostname_normalized]
+    - linux_ipa_current_fqdn_normalized in ['', 'localhost', 'localhost.localdomain', linux_ipa_current_short_hostname_normalized]
 
 - name: Pin the resolved Linux guest hostname to the guest primary IPv4 before enrollment
   ansible.builtin.blockinfile:

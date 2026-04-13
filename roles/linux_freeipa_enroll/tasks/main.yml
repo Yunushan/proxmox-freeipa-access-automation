@@ -1316,7 +1316,7 @@
     - not ansible_check_mode
     - linux_freeipa_enroll_target_hostname is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$')
     - not (linux_freeipa_enroll_target_hostname is match('^[0-9.]+$'))
-    - linux_freeipa_enroll_current_fqdn_normalized in ['localhost', 'localhost.localdomain', linux_freeipa_enroll_current_short_hostname.stdout | default('', true) | string | trim | lower]
+    - linux_freeipa_enroll_current_fqdn_normalized in ['', 'localhost', 'localhost.localdomain', linux_freeipa_enroll_current_short_hostname.stdout | default('', true) | string | trim | lower]
   changed_when: true
 
 - name: Re-read Linux guest FQDN after hostname management
@@ -1351,29 +1351,19 @@
         and
         not ((linux_freeipa_enroll_target_hostname | default('', true) | trim | lower) is match('^[0-9.]+$'))
       }}
-    linux_freeipa_enroll_continue_with_managed_target_hostname: >-
-      {{
-        linux_freeipa_enroll_effective_manage_hostname | bool
-        and
-        (linux_freeipa_enroll_target_hostname | default('', true) | trim | length > 0)
-        and
-        (linux_freeipa_enroll_target_hostname | default('', true) | trim | lower is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$'))
-        and
-        not ((linux_freeipa_enroll_target_hostname | default('', true) | trim | lower) is match('^[0-9.]+$'))
-      }}
   changed_when: false
 
-- name: Note when Linux IPA enrollment will continue with the managed target hostname
+- name: Note when Linux IPA enrollment will continue with the resolved target hostname
   ansible.builtin.debug:
     msg: >-
       Linux guest {{ inventory_hostname }} still reports the current system hostname as
       {{ linux_freeipa_enroll_current_fqdn.stdout | default('unset') | trim | default('unset', true) }},
-      but enrollment will continue with the managed target hostname
-      {{ linux_freeipa_enroll_target_hostname }} because hostname management is enabled.
+      but enrollment will continue with the resolved target hostname
+      {{ linux_freeipa_enroll_target_hostname }}.
   changed_when: false
   when:
     - not (linux_freeipa_enroll_current_hostname_valid | bool)
-    - linux_freeipa_enroll_continue_with_managed_target_hostname | bool
+    - linux_freeipa_enroll_target_hostname_valid | bool
 
 - name: Assert the Linux guest has a valid system hostname for IPA enrollment
   ansible.builtin.assert:
@@ -1381,15 +1371,15 @@
       - >-
         (linux_freeipa_enroll_current_hostname_valid | bool)
         or
-        (linux_freeipa_enroll_continue_with_managed_target_hostname | bool)
+        (linux_freeipa_enroll_target_hostname_valid | bool)
     fail_msg: >-
       Linux guest {{ inventory_hostname }} cannot be enrolled into FreeIPA because its current system hostname is
       {{ linux_freeipa_enroll_current_fqdn.stdout | default('unset') | trim | default('unset', true) }}.
       {% if linux_freeipa_enroll_target_hostname | length > 0 %}
       The resolved target hostname for this guest is {{ linux_freeipa_enroll_target_hostname }}.
       {% endif %}
-      Set a real FQDN on the guest first, or enable linux_freeipa_enroll_manage_hostname and provide a valid
-      FQDN through ipa_hostname, linux_ipa_identity_hostname_suffix, or the guest's own hostname configuration.
+      Set a real FQDN on the guest first, or provide a valid FQDN through ipa_hostname,
+      linux_ipa_identity_hostname_suffix, or the guest's own hostname configuration.
 
 - name: Resolve the Linux guest hostname that will be enrolled
   ansible.builtin.set_fact:
