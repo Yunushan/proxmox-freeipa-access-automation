@@ -225,9 +225,7 @@
 
       if [ "$bootstrap_user" != 'root' ]; then
         install -d -m 0750 /etc/sudoers.d
-        cat > "$bootstrap_sudoers_file" <<'EOF'
-        {{ linux_ipa_qga_ssh_bootstrap_user }} ALL=(ALL) NOPASSWD:ALL
-        EOF
+        printf '%s\n' '{{ linux_ipa_qga_ssh_bootstrap_user }} ALL=(ALL) NOPASSWD:ALL' > "$bootstrap_sudoers_file"
         chmod 0440 "$bootstrap_sudoers_file"
         visudo -cf "$bootstrap_sudoers_file" >/dev/null
 
