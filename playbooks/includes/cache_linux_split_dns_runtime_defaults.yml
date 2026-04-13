@@ -54,7 +54,7 @@
               )
               else linux_freeipa_enroll_split_dns_enabled
             )
-            | default(true, true)
+            | default(true)
             | bool
           }}
         linux_ipa_runtime_split_dns_public_dns_mode: >-
