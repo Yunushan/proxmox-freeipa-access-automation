@@ -38,6 +38,19 @@
 
     - name: Cache Linux split DNS runtime defaults on localhost
       ansible.builtin.set_fact:
+        linux_ipa_runtime_split_dns_enabled: >-
+          {{
+            (
+              linux_ipa_runtime_split_dns_linux_clients_vars.linux_freeipa_enroll_split_dns_enabled
+              if (
+                linux_ipa_runtime_split_dns_linux_clients_vars is defined
+                and linux_ipa_runtime_split_dns_linux_clients_vars.linux_freeipa_enroll_split_dns_enabled is defined
+              )
+              else linux_freeipa_enroll_split_dns_enabled
+            )
+            | default(true, true)
+            | bool
+          }}
         linux_ipa_runtime_split_dns_public_dns_mode: >-
           {{
             (
@@ -70,10 +83,14 @@
     - name: Assert cached Linux split DNS runtime defaults are usable in explicit mode
       ansible.builtin.assert:
         that:
-          - linux_ipa_runtime_split_dns_public_dns_mode != 'explicit' or (linux_ipa_runtime_split_dns_public_dns_servers | default([]) | length) > 0
+          - >-
+            not (linux_ipa_runtime_split_dns_enabled | bool)
+            or linux_ipa_runtime_split_dns_public_dns_mode != 'explicit'
+            or (linux_ipa_runtime_split_dns_public_dns_servers | default([]) | length) > 0
         fail_msg: >-
           Linux split DNS explicit mode is enabled but no public DNS servers were cached on localhost.
           Checked file: {{ linux_ipa_runtime_split_dns_linux_clients_vars_file }}.
+          Cached enabled flag: {{ linux_ipa_runtime_split_dns_enabled | default('undefined', true) }}.
           Cached mode: {{ linux_ipa_runtime_split_dns_public_dns_mode | default('undefined', true) }}.
           Cached public DNS: {{ linux_ipa_runtime_split_dns_public_dns_servers | default([]) | join(', ') | default('none', true) }}.
           Set linux_freeipa_enroll_split_dns_public_dns_servers in the inventory group vars,
