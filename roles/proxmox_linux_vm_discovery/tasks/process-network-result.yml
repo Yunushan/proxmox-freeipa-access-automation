@@ -507,6 +507,8 @@
         else omit
       }}
     ansible_ssh_common_args: "{{ linux_ipa_proxmox_discovery_ssh_common_args_default if (linux_ipa_proxmox_discovery_ssh_common_args_default | length > 0) else omit }}"
+    linux_freeipa_enroll_manage_hostname: "{{ linux_freeipa_enroll_manage_hostname | default(omit) }}"
+    linux_freeipa_enroll_pin_local_hostname_in_etc_hosts: "{{ linux_freeipa_enroll_pin_local_hostname_in_etc_hosts | default(omit) }}"
     linux_ipa_requested_hostname: >-
       {{
         (
