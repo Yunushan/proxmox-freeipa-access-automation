@@ -184,6 +184,7 @@
       bootstrap_user='{{ linux_ipa_qga_ssh_bootstrap_user }}'
       bootstrap_shell='{{ linux_ipa_qga_ssh_bootstrap_shell }}'
       bootstrap_pubkey="$(printf '%s' '{{ linux_ipa_qga_ssh_bootstrap_public_key_b64 }}' | base64 -d)"
+      bootstrap_sudoers_file="/etc/sudoers.d/zz-{{ linux_ipa_qga_ssh_bootstrap_user }}"
 
       if ! id -u "$bootstrap_user" >/dev/null 2>&1; then
         useradd -m -s "$bootstrap_shell" "$bootstrap_user"
@@ -217,11 +218,16 @@
       grep -qxF "$bootstrap_pubkey" "$bootstrap_home/.ssh/authorized_keys" || printf '%s\n' "$bootstrap_pubkey" >> "$bootstrap_home/.ssh/authorized_keys"
 
       install -d -m 0750 /etc/sudoers.d
-      cat > "/etc/sudoers.d/90-{{ linux_ipa_qga_ssh_bootstrap_user }}" <<'EOF'
+      cat > "$bootstrap_sudoers_file" <<'EOF'
       {{ linux_ipa_qga_ssh_bootstrap_user }} ALL=(ALL) NOPASSWD:ALL
       EOF
-      chmod 0440 "/etc/sudoers.d/90-{{ linux_ipa_qga_ssh_bootstrap_user }}"
-      visudo -cf "/etc/sudoers.d/90-{{ linux_ipa_qga_ssh_bootstrap_user }}" >/dev/null
+      chmod 0440 "$bootstrap_sudoers_file"
+      visudo -cf "$bootstrap_sudoers_file" >/dev/null
+
+      if ! su -s /bin/sh -c 'sudo -n true' "$bootstrap_user"; then
+        echo "passwordless sudo verification failed for $bootstrap_user" >&2
+        exit 1
+      fi
   ansible.builtin.command:
     argv:
       - "{{ linux_ipa_qga_ssh_bootstrap_resolved_qm_path }}"
