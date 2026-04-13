@@ -112,12 +112,12 @@ Relevant Linux enrollment hostname controls:
 - `guest_qemu_agent_install_enabled`: when `true`, reachable Linux enrollment targets and optional `windows_qemu_guest_agent_clients` hosts install and start QEMU Guest Agent; Linux workflows retry that installation after bootstrap and again after Linux enrollment so guests that become reachable later in the same run are still covered, but the repository still needs a valid first-touch SSH or WinRM path into guests where the agent is missing
 - `guest_qemu_agent_install_windows_package_path`: MSI path or URL used for Windows QEMU Guest Agent installation; defaults to the Fedora virtio-win direct-download `latest-qemu-ga` MSI path for `x86_64`
 - `linux_ipa_ssh_host_key_policy`: SSH host key behavior for Linux guest connections; `accept_new` is the repository default for Linux runtime targets, while `strict` requires pre-populated `known_hosts` entries and `disabled` turns host key checking off for those Linux guest connections
-- `linux_ipa_qga_ssh_bootstrap_enabled`: when `true`, Proxmox-backed Linux runtime guests use the QEMU Guest Agent to create a dedicated key-only automation user before SSH-based hostname resolution or enrollment
-- `linux_ipa_qga_ssh_bootstrap_user`: username created inside Proxmox-backed Linux guests for QGA-based SSH bootstrap
+- `linux_ipa_qga_ssh_bootstrap_enabled`: when `true`, Proxmox-backed Linux runtime guests use the QEMU Guest Agent to create a dedicated key-only automation user before SSH-based hostname resolution or enrollment, or to inject the controller key directly into `root` when `linux_ipa_qga_ssh_bootstrap_user: root`
+- `linux_ipa_qga_ssh_bootstrap_user`: username created inside Proxmox-backed Linux guests for QGA-based SSH bootstrap; set this to `root` when you want direct root-key installation instead of a separate bootstrap user
 - `linux_ipa_qga_ssh_bootstrap_shell`: login shell assigned to the QGA bootstrap user
 - `linux_ipa_qga_ssh_bootstrap_public_key_file`: controller SSH public key installed through the QEMU Guest Agent bootstrap path
 - `linux_ipa_qga_ssh_bootstrap_private_key_file`: controller SSH private key paired with the QGA bootstrap public key and used for later SSH connections
-- `linux_ipa_qga_ssh_bootstrap_install_sudo`: when `true`, the QGA bootstrap path installs `sudo` if missing before creating the bootstrap sudoers entry
+- `linux_ipa_qga_ssh_bootstrap_install_sudo`: when `true`, the QGA bootstrap path installs `sudo` if missing before creating the bootstrap sudoers entry for non-root bootstrap users; this is skipped when `linux_ipa_qga_ssh_bootstrap_user: root`
 - `linux_ipa_qga_ssh_bootstrap_timeout`: timeout passed to `qm guest exec` during the QGA bootstrap path
 - `linux_ipa_qga_ssh_bootstrap_fail_on_guest_exec_blocked`: when `true`, the QGA bootstrap path hard-fails if a guest agent allows `guest-ping` but rejects `guest-exec`; defaults to `false`
 - `linux_ipa_qga_ssh_bootstrap_qm_path`: Proxmox CLI command or absolute path used for Proxmox-side `qm guest ...` calls; defaults to `qm`

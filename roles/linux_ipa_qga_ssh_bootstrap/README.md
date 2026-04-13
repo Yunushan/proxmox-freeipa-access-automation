@@ -6,9 +6,9 @@ Bootstraps Linux guest SSH access through the Proxmox QEMU Guest Agent so alread
 
 - validate the controller SSH keypair used for bootstrap
 - verify the Proxmox guest agent responds for runtime Linux guests
-- create a dedicated Linux automation user inside the guest
+- create a dedicated Linux automation user inside the guest, or inject the key directly into `root` when `linux_ipa_qga_ssh_bootstrap_user: root`
 - install the controller SSH public key for that user
-- ensure the bootstrap user has passwordless sudo for subsequent Ansible runs
+- ensure a non-root bootstrap user has passwordless sudo for subsequent Ansible runs
 - switch the runtime host to that bootstrap user and private key for later plays
 
 ## Key Variables
@@ -30,6 +30,7 @@ Bootstraps Linux guest SSH access through the Proxmox QEMU Guest Agent so alread
 - This role only applies to runtime Linux hosts that carry both `linux_ipa_proxmox_node_inventory_host` and `linux_ipa_proxmox_vmid`.
 - It relies on the QEMU Guest Agent already being active in the guest.
 - The bootstrap user is persistent by default so later site/linux runs can keep using the same automation account.
+- Set `linux_ipa_qga_ssh_bootstrap_user: root` when you want the QGA bootstrap path to install the controller key directly into `/root/.ssh/authorized_keys` and avoid any dependency on guest-local `sudo` policy.
 - The combined `site` workflow runs this role in two phases: controller preparation on `localhost`, then `qm guest ...` execution on the matching Proxmox nodes.
 - `linux_ipa_qga_ssh_bootstrap_qm_path` defaults to `qm`, and `linux_ipa_qga_ssh_bootstrap_qm_fallback_paths` probes common absolute paths on the Proxmox node before failing.
 - When a guest agent answers `guest-ping` but blocks `guest-exec`, the role skips that guest by default and leaves its existing SSH connection variables unchanged. Set `linux_ipa_qga_ssh_bootstrap_fail_on_guest_exec_blocked: true` to keep strict fail-fast behavior.

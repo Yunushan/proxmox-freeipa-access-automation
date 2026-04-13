@@ -186,47 +186,55 @@
       bootstrap_pubkey="$(printf '%s' '{{ linux_ipa_qga_ssh_bootstrap_public_key_b64 }}' | base64 -d)"
       bootstrap_sudoers_file="/etc/sudoers.d/zz-{{ linux_ipa_qga_ssh_bootstrap_user }}"
 
-      if ! id -u "$bootstrap_user" >/dev/null 2>&1; then
-        useradd -m -s "$bootstrap_shell" "$bootstrap_user"
-      fi
-
-      if ! command -v sudo >/dev/null 2>&1; then
-      {% if linux_ipa_qga_ssh_bootstrap_install_sudo | bool %}
-        if command -v dnf >/dev/null 2>&1; then
-          dnf -y install sudo
-        elif command -v yum >/dev/null 2>&1; then
-          yum -y install sudo
-        elif command -v apt-get >/dev/null 2>&1; then
-          apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y sudo
-        else
-          echo "sudo is not installed and no supported package manager was found" >&2
-          exit 1
+      if [ "$bootstrap_user" = 'root' ]; then
+        bootstrap_home='/root'
+        bootstrap_group="$(id -gn root)"
+      else
+        if ! id -u "$bootstrap_user" >/dev/null 2>&1; then
+          useradd -m -s "$bootstrap_shell" "$bootstrap_user"
         fi
-      {% else %}
-        echo "sudo is not installed and linux_ipa_qga_ssh_bootstrap_install_sudo is false" >&2
-        exit 1
-      {% endif %}
+
+        if ! command -v sudo >/dev/null 2>&1; then
+        {% if linux_ipa_qga_ssh_bootstrap_install_sudo | bool %}
+          if command -v dnf >/dev/null 2>&1; then
+            dnf -y install sudo
+          elif command -v yum >/dev/null 2>&1; then
+            yum -y install sudo
+          elif command -v apt-get >/dev/null 2>&1; then
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y sudo
+          else
+            echo "sudo is not installed and no supported package manager was found" >&2
+            exit 1
+          fi
+        {% else %}
+          echo "sudo is not installed and linux_ipa_qga_ssh_bootstrap_install_sudo is false" >&2
+          exit 1
+        {% endif %}
+        fi
+
+        bootstrap_home="$(getent passwd "$bootstrap_user" | cut -d: -f6)"
+        bootstrap_group="$(id -gn "$bootstrap_user")"
       fi
 
-      bootstrap_home="$(getent passwd "$bootstrap_user" | cut -d: -f6)"
-      bootstrap_group="$(id -gn "$bootstrap_user")"
       install -d -m 0700 -o "$bootstrap_user" -g "$bootstrap_group" "$bootstrap_home/.ssh"
       touch "$bootstrap_home/.ssh/authorized_keys"
       chown "$bootstrap_user:$bootstrap_group" "$bootstrap_home/.ssh/authorized_keys"
       chmod 0600 "$bootstrap_home/.ssh/authorized_keys"
       grep -qxF "$bootstrap_pubkey" "$bootstrap_home/.ssh/authorized_keys" || printf '%s\n' "$bootstrap_pubkey" >> "$bootstrap_home/.ssh/authorized_keys"
 
-      install -d -m 0750 /etc/sudoers.d
-      cat > "$bootstrap_sudoers_file" <<'EOF'
-      {{ linux_ipa_qga_ssh_bootstrap_user }} ALL=(ALL) NOPASSWD:ALL
-      EOF
-      chmod 0440 "$bootstrap_sudoers_file"
-      visudo -cf "$bootstrap_sudoers_file" >/dev/null
+      if [ "$bootstrap_user" != 'root' ]; then
+        install -d -m 0750 /etc/sudoers.d
+        cat > "$bootstrap_sudoers_file" <<'EOF'
+        {{ linux_ipa_qga_ssh_bootstrap_user }} ALL=(ALL) NOPASSWD:ALL
+        EOF
+        chmod 0440 "$bootstrap_sudoers_file"
+        visudo -cf "$bootstrap_sudoers_file" >/dev/null
 
-      if ! su -s /bin/sh -c 'sudo -n true' "$bootstrap_user"; then
-        echo "passwordless sudo verification failed for $bootstrap_user" >&2
-        exit 1
+        if ! su -s /bin/sh -c 'sudo -n true' "$bootstrap_user"; then
+          echo "passwordless sudo verification failed for $bootstrap_user" >&2
+          exit 1
+        fi
       fi
   ansible.builtin.command:
     argv:
@@ -409,12 +417,17 @@
     name: "{{ item }}"
     groups: "{{ linux_ipa_runtime_group }}"
     ansible_user: "{{ linux_ipa_qga_ssh_bootstrap_user }}"
-    ansible_become_method: sudo
+    ansible_become: "{{ false if linux_ipa_qga_ssh_bootstrap_user == 'root' else true }}"
+    ansible_become_method: "{{ omit if linux_ipa_qga_ssh_bootstrap_user == 'root' else 'sudo' }}"
     ansible_ssh_private_key_file: "{{ linux_ipa_qga_ssh_bootstrap_private_key_file }}"
     linux_ipa_management_path_bootstrap_status: qga-bootstrap-ok
     linux_ipa_management_path_bootstrap_detail: >-
       SSH access was bootstrapped through the Proxmox guest agent as
-      {{ linux_ipa_qga_ssh_bootstrap_user }} using the configured controller key.
+      {{ linux_ipa_qga_ssh_bootstrap_user }} using the configured controller key{{
+        ', without sudo escalation because the bootstrap user is root'
+        if (linux_ipa_qga_ssh_bootstrap_user == 'root')
+        else ', with passwordless sudo prepared for later automation'
+      }}.
     linux_freeipa_enroll_split_dns_public_dns_mode: >-
       {{
         hostvars[item].linux_freeipa_enroll_split_dns_public_dns_mode
