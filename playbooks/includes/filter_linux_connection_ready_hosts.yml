@@ -113,6 +113,37 @@
             }}
       changed_when: false
 
+    - name: Explain which management path was selected for a Linux guest
+      vars:
+        linux_ipa_connection_ready_bootstrap_status: "{{ hostvars[inventory_hostname].linux_ipa_management_path_bootstrap_status | default('', true) | string | trim }}"
+        linux_ipa_connection_ready_bootstrap_detail: "{{ hostvars[inventory_hostname].linux_ipa_management_path_bootstrap_detail | default('', true) | string | trim }}"
+      ansible.builtin.debug:
+        msg: >-
+          Linux guest {{ inventory_hostname }} is ready for connection-dependent automation via
+          {{
+            (
+              'QGA bootstrap'
+              if (linux_ipa_connection_ready_bootstrap_status == 'qga-bootstrap-ok')
+              else 'direct SSH'
+            )
+          }}
+          as {{
+            hostvars[inventory_hostname].ansible_user | default('root')
+          }}@{{
+            hostvars[inventory_hostname].ansible_host | default(inventory_hostname)
+          }}.{{
+            (
+              ' ' ~ linux_ipa_connection_ready_bootstrap_detail
+              if (linux_ipa_connection_ready_bootstrap_detail | length > 0)
+              else ''
+            )
+          }}
+      changed_when: false
+      when:
+        - linux_ipa_connection_ready_check is defined
+        - not (linux_ipa_connection_ready_check.unreachable | default(false))
+        - not (linux_ipa_connection_ready_check.failed | default(false))
+
     - name: Add Linux guest to the manageable runtime group when the connection works
       ansible.builtin.add_host:
         name: "{{ inventory_hostname }}"
@@ -136,6 +167,9 @@
           or (linux_ipa_connection_ready_check.failed | default(false))
 
     - name: Explain why the Linux guest is skipped for connection-dependent tasks
+      vars:
+        linux_ipa_connection_ready_bootstrap_status: "{{ hostvars[inventory_hostname].linux_ipa_management_path_bootstrap_status | default('', true) | string | trim }}"
+        linux_ipa_connection_ready_bootstrap_detail: "{{ hostvars[inventory_hostname].linux_ipa_management_path_bootstrap_detail | default('', true) | string | trim }}"
       ansible.builtin.debug:
         msg: >-
           Skipping connection-dependent Linux automation for {{ inventory_hostname }}
@@ -151,6 +185,18 @@
             | string
             | trim
           }}.{{
+            (
+              ' Bootstrap path status: ' ~ linux_ipa_connection_ready_bootstrap_status ~ '.'
+              if (linux_ipa_connection_ready_bootstrap_status | length > 0)
+              else ''
+            )
+          }}{{
+            (
+              ' Bootstrap detail: ' ~ linux_ipa_connection_ready_bootstrap_detail ~ '.'
+              if (linux_ipa_connection_ready_bootstrap_detail | length > 0)
+              else ''
+            )
+          }}{{
             (
               ' For Proxmox-discovered guests, set linux_ipa_proxmox_discovery_ansible_user and either linux_ipa_proxmox_discovery_ansible_password or linux_ipa_proxmox_discovery_ansible_ssh_private_key_file so the repository has a real first-touch SSH path.'
               if (hostvars[inventory_hostname].linux_ipa_source | default('') == 'proxmox_discovery')
