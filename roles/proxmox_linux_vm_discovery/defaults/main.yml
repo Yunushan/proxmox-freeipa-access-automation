@@ -21,6 +21,9 @@ linux_ipa_proxmox_discovery_ansible_user: ""
 linux_ipa_proxmox_discovery_ansible_port: ""
 linux_ipa_proxmox_discovery_ansible_password: ""
 linux_ipa_proxmox_discovery_ansible_ssh_private_key_file: ""
+linux_ipa_proxmox_discovery_ansible_become: ""
+linux_ipa_proxmox_discovery_ansible_become_method: ""
+linux_ipa_proxmox_discovery_ansible_become_password: ""
 linux_ipa_proxmox_discovery_neighbor_ip_fallback_enabled: true
 linux_ipa_proxmox_discovery_neighbor_ip_probe_enabled: true
 linux_ipa_proxmox_discovery_neighbor_ip_probe_interface_regex: '^vmbr'

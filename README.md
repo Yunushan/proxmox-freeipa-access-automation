@@ -461,6 +461,9 @@ linux_ipa_proxmox_discovery_ip_preference: ipv4
 # linux_ipa_proxmox_discovery_ansible_user: ubuntu
 # linux_ipa_proxmox_discovery_ansible_password: "{{ vault_linux_ipa_ssh_bootstrap_password }}"
 # linux_ipa_proxmox_discovery_ansible_ssh_private_key_file: /home/automation/.ssh/id_ed25519
+# linux_ipa_proxmox_discovery_ansible_become: true
+# linux_ipa_proxmox_discovery_ansible_become_method: sudo
+# linux_ipa_proxmox_discovery_ansible_become_password: "{{ vault_linux_ipa_ssh_bootstrap_password }}"
 ```
 
 Notes:
@@ -478,6 +481,7 @@ Notes:
 - `guest_qemu_agent_install_enabled` installs QEMU Guest Agent on guests that are already reachable over SSH or WinRM, retries on Linux guests that become reachable later in the same workflow, and retries again after Linux enrollment, so later Proxmox agent-dependent workflows can use it
 - set `linux_ipa_proxmox_discovery_allowlist_enabled: true` when you want discovery to remain on but only a tightly approved subset of Proxmox guests should enter the Linux runtime inventory; the allowlist can match exact VMIDs, IPs, and names
 - for Proxmox-discovered Linux guests that do not already have a working guest agent, set `linux_ipa_proxmox_discovery_ansible_user` and either `linux_ipa_proxmox_discovery_ansible_password` or `linux_ipa_proxmox_discovery_ansible_ssh_private_key_file` so the repository has a usable first-touch SSH path to install QEMU Guest Agent
+- when those discovered guests use a non-root SSH user, also set `linux_ipa_proxmox_discovery_ansible_become`, `linux_ipa_proxmox_discovery_ansible_become_method`, and `linux_ipa_proxmox_discovery_ansible_become_password` unless that account already has passwordless sudo
 - `guest_qemu_agent_install_manage_proxmox_vm_agent` also enables Proxmox-side guest-agent communication (`qm set <vmid> --agent 1`) for Proxmox-backed Linux guests before the guest-side install path runs
 - when that Proxmox VM option changes on a running VM, the repository only warns by default because Proxmox may require a fresh VM start before the host can use the guest-agent channel; set `guest_qemu_agent_install_reboot_after_proxmox_vm_agent_enable: true` if you want the repository to reboot those running VMs automatically
 - `linux_ipa_ssh_host_key_policy` defaults to `accept_new` for Linux guest connections so newly discovered VMs can be contacted without disabling host key checking entirely; changed host keys still fail and require operator review
