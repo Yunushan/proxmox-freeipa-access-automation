@@ -14,7 +14,13 @@
         (
           inventory_dir
           if (inventory_dir | default('', true) | string | trim | length) > 0
-          else (playbook_dir ~ '/../inventories/production')
+          else (
+            (
+              playbook_dir
+              | regex_replace('[/\\\\]includes$', '')
+            )
+            ~ '/../inventories/production'
+          )
         )
         ~ '/group_vars/all'
       }}
