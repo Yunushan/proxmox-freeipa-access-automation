@@ -67,6 +67,56 @@
       {%   endif %}
       {% endfor %}
       {{ ns.result }}
+    linux_ipa_current_fqdn_normalized: "{{ linux_ipa_current_fqdn.stdout | default('') | trim | lower }}"
+    linux_ipa_current_short_hostname_normalized: "{{ linux_ipa_current_short_hostname.stdout | default('') | trim | lower }}"
+    linux_ipa_primary_ipv4: >-
+      {{
+        ansible_facts.get('default_ipv4', {}).get('address', '')
+        | string
+        | trim
+      }}
+  changed_when: false
+
+- name: Repair a placeholder Linux guest system hostname before later FreeIPA steps
+  ansible.builtin.command:
+    argv:
+      - hostnamectl
+      - set-hostname
+      - "{{ linux_ipa_effective_hostname }}"
+  become: true
+  when:
+    - linux_freeipa_enroll_manage_hostname | default(false) | bool
+    - not ansible_check_mode
+    - linux_ipa_effective_hostname | length > 0
+    - linux_ipa_effective_hostname is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$')
+    - not (linux_ipa_effective_hostname is match('^[0-9.]+$'))
+    - linux_ipa_current_fqdn_normalized in ['localhost', 'localhost.localdomain', linux_ipa_current_short_hostname_normalized]
+
+- name: Pin the resolved Linux guest hostname to the guest primary IPv4 before enrollment
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    create: true
+    mode: "0644"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: FreeIPA local hostname pin"
+    block: |
+      {{ linux_ipa_primary_ipv4 }} {{ linux_ipa_effective_hostname }}{% if (linux_ipa_effective_hostname | regex_replace('\\..*$', '')) != linux_ipa_effective_hostname %} {{ linux_ipa_effective_hostname | regex_replace('\\..*$', '') }}{% endif %}
+  become: true
+  when:
+    - linux_freeipa_enroll_pin_local_hostname_in_etc_hosts | default(false) | bool
+    - linux_ipa_primary_ipv4 | length > 0
+    - linux_ipa_effective_hostname | length > 0
+    - linux_ipa_effective_hostname is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$')
+    - not (linux_ipa_effective_hostname is match('^[0-9.]+$'))
+
+- name: Re-read the current host FQDN after early hostname repair
+  ansible.builtin.command: hostname -f
+  register: linux_ipa_current_fqdn
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  when:
+    - linux_freeipa_enroll_manage_hostname | default(false) | bool
+    - not ansible_check_mode
 
 - name: Assert the Linux client resolves to a final FQDN
   ansible.builtin.assert:
