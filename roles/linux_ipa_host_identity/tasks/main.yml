@@ -15,6 +15,42 @@
 
 - name: Resolve the effective FreeIPA hostname for this Linux client
   ansible.builtin.set_fact:
+    linux_ipa_effective_manage_hostname: >-
+      {{
+        (
+          hostvars[inventory_hostname].linux_freeipa_enroll_manage_hostname
+          if (
+            (inventory_hostname in hostvars)
+            and (hostvars[inventory_hostname].linux_freeipa_enroll_manage_hostname is defined)
+          )
+          else (
+            hostvars['localhost'].linux_freeipa_enroll_manage_hostname
+            if (
+              ('localhost' in hostvars)
+              and (hostvars['localhost'].linux_freeipa_enroll_manage_hostname is defined)
+            )
+            else linux_freeipa_enroll_manage_hostname
+          )
+        ) | bool
+      }}
+    linux_ipa_effective_pin_local_hostname_in_etc_hosts: >-
+      {{
+        (
+          hostvars[inventory_hostname].linux_freeipa_enroll_pin_local_hostname_in_etc_hosts
+          if (
+            (inventory_hostname in hostvars)
+            and (hostvars[inventory_hostname].linux_freeipa_enroll_pin_local_hostname_in_etc_hosts is defined)
+          )
+          else (
+            hostvars['localhost'].linux_freeipa_enroll_pin_local_hostname_in_etc_hosts
+            if (
+              ('localhost' in hostvars)
+              and (hostvars['localhost'].linux_freeipa_enroll_pin_local_hostname_in_etc_hosts is defined)
+            )
+            else linux_freeipa_enroll_pin_local_hostname_in_etc_hosts
+          )
+        ) | bool
+      }}
     linux_ipa_effective_hostname: >-
       {% set ns = namespace(result='') %}
       {% set candidates = [] %}
@@ -87,7 +123,7 @@
   become: true
   changed_when: linux_ipa_current_fqdn_normalized != linux_ipa_effective_hostname
   when:
-    - linux_freeipa_enroll_manage_hostname | default(false) | bool
+    - linux_ipa_effective_manage_hostname | bool
     - not ansible_check_mode
     - linux_ipa_effective_hostname | length > 0
     - linux_ipa_effective_hostname is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$')
@@ -104,7 +140,7 @@
       {{ linux_ipa_primary_ipv4 }} {{ linux_ipa_effective_hostname }}{% if (linux_ipa_effective_hostname | regex_replace('\\..*$', '')) != linux_ipa_effective_hostname %} {{ linux_ipa_effective_hostname | regex_replace('\\..*$', '') }}{% endif %}
   become: true
   when:
-    - linux_freeipa_enroll_pin_local_hostname_in_etc_hosts | default(false) | bool
+    - linux_ipa_effective_pin_local_hostname_in_etc_hosts | bool
     - linux_ipa_primary_ipv4 | length > 0
     - linux_ipa_effective_hostname | length > 0
     - linux_ipa_effective_hostname is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$')
@@ -117,7 +153,7 @@
   changed_when: false
   failed_when: false
   when:
-    - linux_freeipa_enroll_manage_hostname | default(false) | bool
+    - linux_ipa_effective_manage_hostname | bool
     - not ansible_check_mode
 
 - name: Assert the Linux client resolves to a final FQDN

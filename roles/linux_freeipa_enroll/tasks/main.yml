@@ -1250,6 +1250,42 @@
 
 - name: Prepare Linux guest hostname candidates for IPA enrollment
   ansible.builtin.set_fact:
+    linux_freeipa_enroll_effective_manage_hostname: >-
+      {{
+        (
+          hostvars[inventory_hostname].linux_freeipa_enroll_manage_hostname
+          if (
+            (inventory_hostname in hostvars)
+            and (hostvars[inventory_hostname].linux_freeipa_enroll_manage_hostname is defined)
+          )
+          else (
+            hostvars['localhost'].linux_freeipa_enroll_manage_hostname
+            if (
+              ('localhost' in hostvars)
+              and (hostvars['localhost'].linux_freeipa_enroll_manage_hostname is defined)
+            )
+            else linux_freeipa_enroll_manage_hostname
+          )
+        ) | bool
+      }}
+    linux_freeipa_enroll_effective_pin_local_hostname_in_etc_hosts: >-
+      {{
+        (
+          hostvars[inventory_hostname].linux_freeipa_enroll_pin_local_hostname_in_etc_hosts
+          if (
+            (inventory_hostname in hostvars)
+            and (hostvars[inventory_hostname].linux_freeipa_enroll_pin_local_hostname_in_etc_hosts is defined)
+          )
+          else (
+            hostvars['localhost'].linux_freeipa_enroll_pin_local_hostname_in_etc_hosts
+            if (
+              ('localhost' in hostvars)
+              and (hostvars['localhost'].linux_freeipa_enroll_pin_local_hostname_in_etc_hosts is defined)
+            )
+            else linux_freeipa_enroll_pin_local_hostname_in_etc_hosts
+          )
+        ) | bool
+      }}
     linux_freeipa_enroll_target_hostname: >-
       {{
         freeipa_hostgroup_hostname
@@ -1276,7 +1312,7 @@
       - set-hostname
       - "{{ linux_freeipa_enroll_target_hostname }}"
   when:
-    - linux_freeipa_enroll_manage_hostname | bool
+    - linux_freeipa_enroll_effective_manage_hostname | bool
     - not ansible_check_mode
     - linux_freeipa_enroll_target_hostname is match('^[a-z0-9][a-z0-9.-]*\\.[a-z0-9-]+$')
     - not (linux_freeipa_enroll_target_hostname is match('^[0-9.]+$'))
@@ -1290,7 +1326,7 @@
   changed_when: false
   failed_when: false
   when:
-    - linux_freeipa_enroll_manage_hostname | bool
+    - linux_freeipa_enroll_effective_manage_hostname | bool
     - not ansible_check_mode
 
 - name: Normalize Linux guest hostname validity for IPA enrollment
@@ -1317,7 +1353,7 @@
       }}
     linux_freeipa_enroll_continue_with_managed_target_hostname: >-
       {{
-        linux_freeipa_enroll_manage_hostname | bool
+        linux_freeipa_enroll_effective_manage_hostname | bool
         and
         (linux_freeipa_enroll_target_hostname | default('', true) | trim | length > 0)
         and
@@ -1409,7 +1445,7 @@
     block: |
       {{ linux_freeipa_enroll_primary_ipv4_to_verify }} {{ linux_freeipa_enroll_hostname_to_verify }}{% if linux_freeipa_enroll_hostname_short_to_verify | length > 0 and linux_freeipa_enroll_hostname_short_to_verify != linux_freeipa_enroll_hostname_to_verify %} {{ linux_freeipa_enroll_hostname_short_to_verify }}{% endif %}
   when:
-    - linux_freeipa_enroll_pin_local_hostname_in_etc_hosts | bool
+    - linux_freeipa_enroll_effective_pin_local_hostname_in_etc_hosts | bool
     - linux_freeipa_enroll_primary_ipv4_to_verify | length > 0
     - linux_freeipa_enroll_hostname_to_verify | length > 0
 
