@@ -1,0 +1,24 @@
+---
+- name: Validate limited FreeIPA-aware readiness on Windows guests
+  hosts: windows_freeipa_helper_clients
+  gather_facts: false
+  ignore_unreachable: true
+  serial: "{{ windows_management_serial | default(10) | int }}"
+  max_fail_percentage: "{{ windows_management_max_fail_percentage | default(0) | int }}"
+  vars:
+    windows_freeipa_helpers_emit_summary: true
+    windows_freeipa_helpers_trust_ipa_ca: false
+    windows_freeipa_helpers_manage_hosts_entries: false
+    windows_freeipa_helpers_manage_local_group_memberships: false
+    windows_freeipa_helpers_manage_openssh_server: false
+  tags:
+    - validate
+    - windows
+    - windows_freeipa
+  roles:
+    - role: windows_freeipa_helpers
+      when: windows_freeipa_helpers_enabled | bool
+      tags:
+        - validate
+        - windows
+        - windows_freeipa

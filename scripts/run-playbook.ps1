@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('validate', 'site', 'freeipa', 'proxmox', 'linux-clients', 'windows-management')]
+    [ValidateSet('validate', 'site', 'freeipa', 'proxmox', 'linux-clients', 'windows-management', 'windows-freeipa-helpers', 'windows-freeipa-validate')]
     [string]$Playbook,
 
     [string]$Inventory = 'inventories/production/hosts.yml',
@@ -50,12 +50,14 @@ if (-not (Get-Command ansible-playbook -ErrorAction SilentlyContinue)) {
 }
 
 $PlaybookMap = @{
-    validate        = 'playbooks/validate.yml'
-    site            = 'playbooks/site.yml'
-    freeipa         = 'playbooks/freeipa.yml'
-    proxmox         = 'playbooks/proxmox.yml'
-    'linux-clients' = 'playbooks/linux-clients.yml'
-    'windows-management' = 'playbooks/windows-management.yml'
+    validate                   = 'playbooks/validate.yml'
+    site                       = 'playbooks/site.yml'
+    freeipa                    = 'playbooks/freeipa.yml'
+    proxmox                    = 'playbooks/proxmox.yml'
+    'linux-clients'            = 'playbooks/linux-clients.yml'
+    'windows-management'       = 'playbooks/windows-management.yml'
+    'windows-freeipa-helpers'  = 'playbooks/windows-freeipa-helpers.yml'
+    'windows-freeipa-validate' = 'playbooks/windows-freeipa-validate.yml'
 }
 
 $PlaybookPath = $PlaybookMap[$Playbook]

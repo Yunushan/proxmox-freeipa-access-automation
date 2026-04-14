@@ -1,0 +1,368 @@
+---
+- name: Assert Windows FreeIPA helper inputs
+  ansible.builtin.assert:
+    that:
+      - (not (windows_freeipa_helpers_trust_ipa_ca | bool))
+        or (
+          (windows_freeipa_helpers_ipa_ca_auto_fetch | bool)
+          or
+          (windows_freeipa_helpers_ipa_ca_certificate_src | default('', true) | string | trim | length) > 0
+          or (windows_freeipa_helpers_ipa_ca_certificate_content | default('', true) | string | trim | length) > 0
+        )
+      - (not (windows_freeipa_helpers_ipa_ca_auto_fetch | bool))
+        or (windows_freeipa_helpers_ipa_servers | default([]) | length) > 0
+      - (not (windows_freeipa_helpers_manage_hosts_entries | bool))
+        or (windows_freeipa_helpers_hosts_entries | default([]) | length) > 0
+      - (not (windows_freeipa_helpers_manage_local_group_memberships | bool))
+        or (windows_freeipa_helpers_local_group_memberships | default([]) | length) > 0
+      - (not (windows_freeipa_helpers_validate_dns | bool))
+        or (windows_freeipa_helpers_ipa_servers | default([]) | length) > 0
+      - (not (windows_freeipa_helpers_validate_tcp | bool))
+        or (windows_freeipa_helpers_ipa_servers | default([]) | length) > 0
+      - (not (windows_freeipa_helpers_validate_tcp | bool))
+        or (windows_freeipa_helpers_tcp_ports | default([]) | length) > 0
+      - (not (windows_freeipa_helpers_validate_https | bool))
+        or (windows_freeipa_helpers_ipa_servers | default([]) | length) > 0
+      - (not (windows_freeipa_helpers_validate_time_source | bool))
+        or (
+          (windows_freeipa_helpers_time_source | default('', true) | string | trim | length) > 0
+          or (windows_freeipa_helpers_ipa_servers | default([]) | length) > 0
+        )
+      - (windows_freeipa_helpers_openssh_port | int) > 0
+      - (windows_freeipa_helpers_tcp_timeout_ms | int) > 0
+      - (windows_freeipa_helpers_https_timeout_ms | int) > 0
+    fail_msg: >-
+      windows_freeipa_helpers_* variables are incomplete. This helper workflow
+      needs IPA servers for validation and a CA certificate source or content
+      when IPA CA trust import is enabled.
+
+- name: Auto-fetch the IPA CA certificate from an IPA server
+  ansible.windows.win_powershell:
+    error_action: stop
+    script: |
+      $uri = 'https://{{ windows_freeipa_helpers_ipa_ca_auto_fetch_server | default(windows_freeipa_helpers_ipa_servers | first, true) }}:{{ windows_freeipa_helpers_https_port | int }}/ipa/config/ca.crt'
+      $callback = [System.Net.ServicePointManager]::ServerCertificateValidationCallback
+      try {
+          [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+          Invoke-WebRequest -Uri $uri -OutFile '{{ windows_freeipa_helpers_ipa_ca_staging_path }}' -UseBasicParsing
+      }
+      finally {
+          [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $callback
+      }
+  register: windows_freeipa_helpers_ca_auto_fetch_result
+  when:
+    - windows_freeipa_helpers_trust_ipa_ca | bool
+    - windows_freeipa_helpers_ipa_ca_auto_fetch | bool
+    - (windows_freeipa_helpers_ipa_ca_certificate_src | default('', true) | string | trim | length) == 0
+    - (windows_freeipa_helpers_ipa_ca_certificate_content | default('', true) | string | trim | length) == 0
+
+- name: Copy the IPA CA certificate from the controller
+  ansible.windows.win_copy:
+    src: "{{ windows_freeipa_helpers_ipa_ca_certificate_src }}"
+    dest: "{{ windows_freeipa_helpers_ipa_ca_staging_path }}"
+  register: windows_freeipa_helpers_ca_copy_result
+  when:
+    - windows_freeipa_helpers_trust_ipa_ca | bool
+    - (windows_freeipa_helpers_ipa_ca_certificate_src | default('', true) | string | trim | length) > 0
+
+- name: Write the IPA CA certificate from inline content
+  ansible.windows.win_copy:
+    content: "{{ windows_freeipa_helpers_ipa_ca_certificate_content }}"
+    dest: "{{ windows_freeipa_helpers_ipa_ca_staging_path }}"
+  register: windows_freeipa_helpers_ca_content_result
+  when:
+    - windows_freeipa_helpers_trust_ipa_ca | bool
+    - (windows_freeipa_helpers_ipa_ca_certificate_src | default('', true) | string | trim | length) == 0
+
+- name: Validate the staged IPA CA certificate thumbprint when pinning is enabled
+  ansible.windows.win_powershell:
+    error_action: stop
+    script: |
+      $expected = '{{ windows_freeipa_helpers_ipa_ca_expected_thumbprint | default("", true) | regex_replace("[^0-9A-Fa-f]", "") | upper }}'
+      $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 '{{ windows_freeipa_helpers_ipa_ca_staging_path }}'
+      $actual = ($cert.Thumbprint -replace '[^0-9A-Fa-f]', '').ToUpperInvariant()
+      if ($expected.Length -gt 0 -and $actual -ne $expected) {
+          throw "IPA CA thumbprint mismatch. Expected $expected but received $actual"
+      }
+  register: windows_freeipa_helpers_ca_thumbprint_result
+  changed_when: false
+  when:
+    - windows_freeipa_helpers_trust_ipa_ca | bool
+    - (windows_freeipa_helpers_ipa_ca_expected_thumbprint | default('', true) | string | trim | length) > 0
+
+- name: Import the IPA CA certificate into the Windows trust store
+  ansible.windows.win_certificate_store:
+    path: "{{ windows_freeipa_helpers_ipa_ca_staging_path }}"
+    state: present
+    store_location: "{{ windows_freeipa_helpers_ipa_ca_store_location }}"
+    store_name: "{{ windows_freeipa_helpers_ipa_ca_store_name }}"
+  register: windows_freeipa_helpers_ca_import_result
+  when: windows_freeipa_helpers_trust_ipa_ca | bool
+
+- name: Remove the staged IPA CA certificate file
+  ansible.windows.win_file:
+    path: "{{ windows_freeipa_helpers_ipa_ca_staging_path }}"
+    state: absent
+  register: windows_freeipa_helpers_ca_cleanup_result
+  when: windows_freeipa_helpers_trust_ipa_ca | bool
+
+- name: Manage Windows hosts-file bootstrap entries for IPA endpoints
+  ansible.windows.win_hosts:
+    state: present
+    ip_address: "{{ item.ip }}"
+    canonical_name: "{{ item.canonical_name }}"
+    aliases: "{{ item.aliases | default([]) }}"
+  register: windows_freeipa_helpers_hosts_result
+  loop: "{{ windows_freeipa_helpers_hosts_entries | default([]) }}"
+  loop_control:
+    label: "{{ item.canonical_name | default(item.ip, true) }}"
+  when: windows_freeipa_helpers_manage_hosts_entries | bool
+
+- name: Manage local Windows group memberships for helper workflow
+  ansible.windows.win_group_membership:
+    name: "{{ item.name }}"
+    members: "{{ item.members | default([]) }}"
+    state: "{{ item.state | default('present') }}"
+  register: windows_freeipa_helpers_local_groups_result
+  loop: "{{ windows_freeipa_helpers_local_group_memberships | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: windows_freeipa_helpers_manage_local_group_memberships | bool
+
+- name: Install the Windows OpenSSH Server capability when requested
+  ansible.windows.win_powershell:
+    error_action: stop
+    script: |
+      $capability = Get-WindowsCapability -Online | Where-Object { $_.Name -like 'OpenSSH.Server*' } | Select-Object -First 1
+      if (-not $capability) {
+          throw 'OpenSSH.Server capability was not found on this Windows host'
+      }
+      if ($capability.State -ne 'Installed') {
+          Add-WindowsCapability -Online -Name $capability.Name | Out-Null
+          Write-Output 'changed'
+      }
+  register: windows_freeipa_helpers_openssh_install_result
+  changed_when: >-
+    'changed' in (
+      windows_freeipa_helpers_openssh_install_result.output
+      | default([])
+      | join(' ')
+      | lower
+    )
+  when:
+    - windows_freeipa_helpers_manage_openssh_server | bool
+    - windows_freeipa_helpers_openssh_install | bool
+
+- name: Ensure the Windows OpenSSH Server service is enabled and in the desired state
+  ansible.windows.win_service:
+    name: "{{ windows_freeipa_helpers_openssh_service_name }}"
+    start_mode: "{{ windows_freeipa_helpers_openssh_start_mode }}"
+    state: "{{ windows_freeipa_helpers_openssh_state }}"
+  register: windows_freeipa_helpers_openssh_service_result
+  when: windows_freeipa_helpers_manage_openssh_server | bool
+
+- name: Ensure the Windows firewall allows the managed OpenSSH Server port
+  ansible.windows.win_powershell:
+    error_action: stop
+    script: |
+      $ruleName = '{{ windows_freeipa_helpers_openssh_firewall_rule_name }}'
+      $port = '{{ windows_freeipa_helpers_openssh_port | int }}'
+      $rule = Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
+      $needsReplace = $false
+
+      if (-not $rule) {
+          $needsReplace = $true
+      }
+      else {
+          $portFilter = $rule | Get-NetFirewallPortFilter | Select-Object -First 1
+          if (
+              -not $portFilter
+              -or ($portFilter.Protocol -ne 'TCP')
+              -or ($portFilter.LocalPort.ToString() -ne $port)
+              -or ($rule.Enabled -ne 'True')
+          ) {
+              $needsReplace = $true
+              Remove-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue | Out-Null
+          }
+      }
+
+      if ($needsReplace) {
+          New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Action Allow -Protocol TCP -LocalPort $port | Out-Null
+          Write-Output 'changed'
+      }
+  register: windows_freeipa_helpers_openssh_firewall_result
+  changed_when: >-
+    'changed' in (
+      windows_freeipa_helpers_openssh_firewall_result.output
+      | default([])
+      | join(' ')
+      | lower
+    )
+  when:
+    - windows_freeipa_helpers_manage_openssh_server | bool
+    - windows_freeipa_helpers_openssh_configure_firewall | bool
+
+- name: Validate DNS resolution for IPA servers from Windows
+  ansible.windows.win_powershell:
+    error_action: stop
+    script: |
+      $records = Resolve-DnsName -Name '{{ item }}' -ErrorAction Stop | Where-Object { $_.IPAddress }
+      if (-not $records) {
+          throw "No A or AAAA records resolved for {{ item }}"
+      }
+  register: windows_freeipa_helpers_dns_result
+  loop: "{{ windows_freeipa_helpers_ipa_servers | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+  changed_when: false
+  when: windows_freeipa_helpers_validate_dns | bool
+
+- name: Validate TCP reachability for IPA service ports from Windows
+  ansible.windows.win_powershell:
+    error_action: stop
+    script: |
+      $ports = @({{ windows_freeipa_helpers_tcp_ports | default([]) | join(',') }})
+      foreach ($port in $ports) {
+          $client = New-Object System.Net.Sockets.TcpClient
+          try {
+              $async = $client.BeginConnect('{{ item }}', [int]$port, $null, $null)
+              if (-not $async.AsyncWaitHandle.WaitOne({{ windows_freeipa_helpers_tcp_timeout_ms | int }})) {
+                  throw "Timed out connecting to {{ item }}:$port"
+              }
+              $client.EndConnect($async)
+          }
+          finally {
+              $client.Close()
+          }
+      }
+  register: windows_freeipa_helpers_tcp_result
+  loop: "{{ windows_freeipa_helpers_ipa_servers | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+  changed_when: false
+  when: windows_freeipa_helpers_validate_tcp | bool
+
+- name: Validate HTTPS reachability and certificate trust for IPA servers from Windows
+  ansible.windows.win_powershell:
+    error_action: stop
+    script: |
+      $uri = 'https://{{ item }}:{{ windows_freeipa_helpers_https_port | int }}/ipa/json'
+      $request = [System.Net.HttpWebRequest]::Create($uri)
+      $request.Method = 'GET'
+      $request.AllowAutoRedirect = $false
+      $request.Timeout = {{ windows_freeipa_helpers_https_timeout_ms | int }}
+      try {
+          $response = $request.GetResponse()
+          $response.Close()
+      }
+      catch [System.Net.WebException] {
+          if ($_.Exception.Response) {
+              $_.Exception.Response.Close()
+          }
+          else {
+              throw
+          }
+      }
+  register: windows_freeipa_helpers_https_result
+  loop: "{{ windows_freeipa_helpers_ipa_servers | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+  changed_when: false
+  when: windows_freeipa_helpers_validate_https | bool
+
+- name: Validate Windows time-source reachability for FreeIPA-related services
+  ansible.windows.win_powershell:
+    error_action: stop
+    script: |
+      w32tm /stripchart /computer:'{{ windows_freeipa_helpers_time_source | default(windows_freeipa_helpers_ipa_servers | first, true) }}' /samples:1 /dataonly
+      if ($LASTEXITCODE -ne 0) {
+          throw 'w32tm failed to query the configured time source'
+      }
+  register: windows_freeipa_helpers_time_result
+  changed_when: false
+  when: windows_freeipa_helpers_validate_time_source | bool
+
+- name: Build Windows FreeIPA helper summary
+  ansible.builtin.set_fact:
+    windows_freeipa_helpers_summary:
+      ipa_servers: "{{ windows_freeipa_helpers_ipa_servers | default([]) }}"
+      ca_trust:
+        enabled: "{{ windows_freeipa_helpers_trust_ipa_ca | bool }}"
+        source_mode: >-
+          {{
+            'auto_fetch'
+            if (windows_freeipa_helpers_trust_ipa_ca | bool and windows_freeipa_helpers_ipa_ca_auto_fetch | bool)
+            else (
+              'controller_file'
+              if (
+                windows_freeipa_helpers_trust_ipa_ca | bool
+                and (windows_freeipa_helpers_ipa_ca_certificate_src | default('', true) | string | trim | length) > 0
+              )
+              else (
+                'inline_content'
+                if (windows_freeipa_helpers_trust_ipa_ca | bool)
+                else 'disabled'
+              )
+            )
+          }}
+        expected_thumbprint_pinned: >-
+          {{
+            (windows_freeipa_helpers_ipa_ca_expected_thumbprint | default('', true) | string | trim | length) > 0
+          }}
+        changed: >-
+          {{
+            (windows_freeipa_helpers_ca_auto_fetch_result.changed | default(false))
+            or (windows_freeipa_helpers_ca_copy_result.changed | default(false))
+            or (windows_freeipa_helpers_ca_content_result.changed | default(false))
+            or (windows_freeipa_helpers_ca_import_result.changed | default(false))
+          }}
+      hosts_entries:
+        enabled: "{{ windows_freeipa_helpers_manage_hosts_entries | bool }}"
+        configured_entries: "{{ windows_freeipa_helpers_hosts_entries | default([]) | length }}"
+        changed: "{{ windows_freeipa_helpers_hosts_result.changed | default(false) }}"
+      local_group_memberships:
+        enabled: "{{ windows_freeipa_helpers_manage_local_group_memberships | bool }}"
+        configured_groups: >-
+          {{
+            windows_freeipa_helpers_local_group_memberships
+            | default([])
+            | map(attribute='name')
+            | list
+          }}
+        changed: "{{ windows_freeipa_helpers_local_groups_result.changed | default(false) }}"
+      openssh:
+        enabled: "{{ windows_freeipa_helpers_manage_openssh_server | bool }}"
+        install_enabled: "{{ windows_freeipa_helpers_openssh_install | bool }}"
+        service_name: "{{ windows_freeipa_helpers_openssh_service_name }}"
+        port: "{{ windows_freeipa_helpers_openssh_port | int }}"
+        changed: >-
+          {{
+            (windows_freeipa_helpers_openssh_install_result.changed | default(false))
+            or (windows_freeipa_helpers_openssh_service_result.changed | default(false))
+            or (windows_freeipa_helpers_openssh_firewall_result.changed | default(false))
+          }}
+      validation:
+        dns:
+          enabled: "{{ windows_freeipa_helpers_validate_dns | bool }}"
+          checked_servers: "{{ windows_freeipa_helpers_dns_result.results | default([]) | map(attribute='item') | list }}"
+        tcp:
+          enabled: "{{ windows_freeipa_helpers_validate_tcp | bool }}"
+          ports: "{{ windows_freeipa_helpers_tcp_ports | default([]) }}"
+          checked_servers: "{{ windows_freeipa_helpers_tcp_result.results | default([]) | map(attribute='item') | list }}"
+        https:
+          enabled: "{{ windows_freeipa_helpers_validate_https | bool }}"
+          port: "{{ windows_freeipa_helpers_https_port | int }}"
+          checked_servers: "{{ windows_freeipa_helpers_https_result.results | default([]) | map(attribute='item') | list }}"
+        time_source:
+          enabled: "{{ windows_freeipa_helpers_validate_time_source | bool }}"
+          target: >-
+            {{
+              windows_freeipa_helpers_time_source
+              | default(windows_freeipa_helpers_ipa_servers | first, true)
+              | default('', true)
+            }}
+
+- name: Show Windows FreeIPA helper summary
+  ansible.builtin.debug:
+    var: windows_freeipa_helpers_summary
+  when: windows_freeipa_helpers_emit_summary | bool

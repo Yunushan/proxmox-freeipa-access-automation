@@ -1,0 +1,13 @@
+---
+- name: Ensure QEMU Guest Agent on reachable guests for the Windows FreeIPA helper workflow
+  import_playbook: includes/ensure_guest_qemu_agent.yml
+  tags:
+    - windows
+    - inventory
+    - qga_install
+
+- name: Apply limited FreeIPA-aware helper automation to Windows guests
+  import_playbook: includes/manage_windows_freeipa_helpers.yml
+  tags:
+    - windows
+    - windows_freeipa

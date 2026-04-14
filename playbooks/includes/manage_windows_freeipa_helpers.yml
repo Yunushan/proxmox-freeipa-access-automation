@@ -1,0 +1,16 @@
+---
+- name: Apply limited FreeIPA-aware helper automation to Windows guests
+  hosts: windows_freeipa_helper_clients
+  gather_facts: false
+  ignore_unreachable: true
+  serial: "{{ windows_management_serial | default(10) | int }}"
+  max_fail_percentage: "{{ windows_management_max_fail_percentage | default(0) | int }}"
+  tags:
+    - windows
+    - windows_freeipa
+  roles:
+    - role: windows_freeipa_helpers
+      when: windows_freeipa_helpers_enabled | bool
+      tags:
+        - windows
+        - windows_freeipa

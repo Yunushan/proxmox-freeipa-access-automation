@@ -11,6 +11,8 @@ FreeIPA users/groups
         |
         +--> Windows management clients --> AD domain membership --> Windows logon
         |
+        +--> Windows FreeIPA helper clients --> CA trust/IPA reachability --> helper-only integration
+        |
         +--> FreeRADIUS (separate concern, same directory backend)
 ```
 
@@ -76,6 +78,8 @@ This is better than creating local guest users via automation because:
 
 This project keeps Windows management separate from the Linux IPA enrollment path.
 Reachable Windows guests can still use `windows_qemu_guest_agent_clients` for QEMU Guest Agent helper tasks only, while `windows_management_clients` is the dedicated inventory group for the separate Windows management workflow.
+The repository also supports a narrower `windows_freeipa_helper_clients` path for helper-only FreeIPA-aware Windows tasks such as IPA CA trust import, optional CA auto-fetch with thumbprint pinning, IPA service reachability validation, time-source checks, local group management, and OpenSSH helpers.
+Use `playbooks/windows-freeipa-validate.yml` when you want that path in readiness-only mode without making host changes.
 
 That Windows workflow uses Active Directory domain membership for real Windows logon.
 In FreeIPA-centered environments, that means joining Windows guests to the AD side of a FreeIPA-AD trust rather than trying to join Windows directly to FreeIPA.

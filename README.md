@@ -75,6 +75,7 @@ This is a good fit when you want onboarding and offboarding to be mostly:
 - optional Proxmox-side guest-agent communication enablement for Proxmox-backed Linux guests
 - optional SSH or WinRM fallback installation of QEMU Guest Agent for guests that are already reachable, become reachable after bootstrap, or are retried again after Linux enrollment
 - optional separate Windows domain-membership workflow for Windows 10/11 and Windows Server guests through Active Directory
+- optional limited FreeIPA-aware Windows helper workflow for IPA CA trust, hosts bootstrap, and IPA reachability checks
 - optional first-touch SSH public-key bootstrap for Linux guests
 - automatic SSSD cache refresh on managed Linux clients after FreeIPA access-model changes
 - optional event-driven Linux onboarding from Proxmox VM hook and webhook triggers
@@ -88,6 +89,7 @@ This is a good fit when you want onboarding and offboarding to be mostly:
 | Proxmox RBAC from synced groups | Full Proxmox multi-tenant policy coverage |
 | Linux IPA client enrollment | Native Windows logon directly against FreeIPA |
 | Separate Windows AD domain-membership workflow | GPO or broader AD object lifecycle automation |
+| Limited FreeIPA-aware Windows helper workflow | Pretending FreeIPA-only Windows helpers are equivalent to AD |
 
 ## Windows Workflow
 
@@ -99,6 +101,10 @@ Windows support is implemented as a separate workflow instead of being folded in
 - actual Windows logon is handled through Active Directory domain membership; in FreeIPA-centered environments, join Windows hosts to the AD side of a FreeIPA-AD trust instead of trying to join Windows directly to FreeIPA
 
 FreeIPA-only Windows domain join is not supported by this repository. Without Active Directory or a FreeIPA-AD trust, the Windows workflow is limited to helper tasks such as reachable guest management and optional QEMU Guest Agent installation.
+
+If you still want a limited FreeIPA-aware path for Windows without domain join, enable `windows_freeipa_helpers_enabled: true` and use `windows_freeipa_helper_clients` with `playbooks/windows-freeipa-helpers.yml`. That helper workflow can trust the IPA CA, optionally auto-fetch the IPA CA for bootstrap, optionally pin the expected IPA CA thumbprint, manage optional hosts-file bootstrap entries, validate IPA DNS and key TCP ports, validate HTTPS reachability from Windows, validate a Windows time source against an IPA-related endpoint, manage local Windows group memberships, and optionally install or expose OpenSSH Server, but it does not provide native Windows logon against FreeIPA.
+
+When you want a non-mutating readiness check for that same helper group, run `playbooks/windows-freeipa-validate.yml`. It keeps the validation and summary path but forces CA import, hosts-file changes, local-group changes, and OpenSSH management off for that run.
 
 This workflow targets Windows 10/11 and Windows Server guests reached through WinRM or PSRP.
 
@@ -112,6 +118,8 @@ FreeIPA users/groups
         +--> Linux IPA clients --> SSSD/PAM/NSS --> HBAC --> SSH/login access
         |
         +--> Windows management clients --> AD domain membership --> Windows logon
+        |
+        +--> Windows FreeIPA helper clients --> CA trust/IPA reachability --> helper-only integration
         |
         +--> FreeRADIUS (separate concern, same directory backend)
 ```
@@ -129,6 +137,7 @@ For the longer design explanation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.
 - when Linux QGA SSH bootstrap is enabled, the Proxmox guest agent must already be active in the guest
 - when guest-agent fallback installation is enabled for Windows, reachable Windows hosts must be placed in `windows_qemu_guest_agent_clients`
 - when Windows domain membership is enabled, reachable Windows hosts must be placed in `windows_management_clients` and you must provide AD join credentials
+- when Windows FreeIPA helper tasks are enabled, reachable Windows hosts must be placed in `windows_freeipa_helper_clients`
 - when Linux SSH bootstrap is enabled, a controller SSH keypair and an initial password-capable login path for the guest account used by Ansible
 
 ### Targets
@@ -139,6 +148,7 @@ For the longer design explanation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.
 - sane DNS and time synchronization
 - for `proxmox_primary`, either connect as `root` or use an SSH user that can run `sudo` for `pveversion`, `pvesh`, and `pveum`
 - if you use Windows domain membership, the target Windows guests must be able to reach the relevant AD domain controllers
+- if you use the limited Windows FreeIPA helper workflow, the target Windows guests must be able to reach the relevant IPA servers
 - if you use Proxmox VM auto-discovery, discovered guests must expose a usable IP through the QEMU guest agent
 
 ## Network Ports
@@ -329,6 +339,16 @@ ansible-playbook playbooks/validate.yml --ask-vault-pass
 .\scripts\run-playbook.ps1 -Playbook validate -AskVaultPass
 ```
 
+If you want to validate only the helper-only Windows FreeIPA path without making host changes:
+
+```bash
+ansible-playbook playbooks/windows-freeipa-validate.yml --ask-vault-pass
+```
+
+```powershell
+.\scripts\run-playbook.ps1 -Playbook windows-freeipa-validate -AskVaultPass
+```
+
 ### 6. Optional: preview planned changes
 
 ```bash
@@ -370,6 +390,10 @@ ansible-playbook playbooks/proxmox.yml --ask-vault-pass
 ansible-playbook playbooks/linux-clients.yml --ask-vault-pass
 # Optional when you manage Windows guests:
 ansible-playbook playbooks/windows-management.yml --ask-vault-pass
+# Optional when you want the limited Windows FreeIPA helper workflow:
+ansible-playbook playbooks/windows-freeipa-helpers.yml --ask-vault-pass
+# Optional when you want validation-only coverage for the helper workflow:
+ansible-playbook playbooks/windows-freeipa-validate.yml --ask-vault-pass
 ```
 
 That sequence makes troubleshooting much easier than running everything at once.
@@ -396,6 +420,7 @@ Use tags to target stable rollout slices instead of creating more playbooks.
 
 - Core domains: `freeipa`, `proxmox`, `linux`, `validate`
 - Windows domain: `windows`, `windows_domain`
+- Windows FreeIPA helpers: `windows`, `windows_freeipa`
 - FreeIPA model: `freeipa_access`
 - Proxmox subsets: `proxmox_ldap`, `proxmox_sync`, `proxmox_rbac`
 - Linux preparation: `inventory`, `discovery`, `hostnames`, `linux_inventory`, `proxmox_discovery`
@@ -409,6 +434,8 @@ Examples:
 .\scripts\run-playbook.ps1 -Playbook proxmox -Tags proxmox_ldap,proxmox_rbac -VaultId freeipa@prompt,proxmox@prompt
 .\scripts\run-playbook.ps1 -Playbook validate -Tags discovery -VaultId freeipa@prompt,proxmox@prompt
 .\scripts\run-playbook.ps1 -Playbook windows-management -Tags windows_domain -VaultId windows@prompt
+.\scripts\run-playbook.ps1 -Playbook windows-freeipa-helpers -Tags windows_freeipa -VaultId windows@prompt
+.\scripts\run-playbook.ps1 -Playbook windows-freeipa-validate -Tags windows_freeipa -VaultId windows@prompt
 ```
 
 ## Event-Driven VM Onboarding
@@ -423,7 +450,7 @@ Proxmox VM hooks do not expose a standalone `create` phase. In practice, new VMs
 
 ## Inventory Model
 
-This repository uses five declared inventory groups plus one generated runtime group:
+This repository uses six declared inventory groups plus one generated runtime group:
 
 - `ipa_servers`: one or more FreeIPA servers
 - `proxmox_primary`: one Proxmox node chosen to own realm configuration and the recurring sync timer
@@ -431,6 +458,7 @@ This repository uses five declared inventory groups plus one generated runtime g
 - `linux_ipa_clients_runtime`: the generated runtime group built from static inventory, manual host definitions, and optional Proxmox discovery
 - `windows_qemu_guest_agent_clients`: optional Windows guest group used only for QEMU Guest Agent installation
 - `windows_management_clients`: optional Windows guest group used by the separate Windows domain-membership workflow
+- `windows_freeipa_helper_clients`: optional Windows guest group used by the limited FreeIPA-aware helper workflow
 
 You can add your own inventory groups and reference them from FreeIPA hostgroup definitions. When you want the full prepared Linux guest set in FreeIPA hostgroups, reference `linux_ipa_clients_runtime`.
 
@@ -572,6 +600,7 @@ Key variable families:
 | Proxmox RBAC | `proxmox_custom_roles`, `proxmox_acl_bindings` |
 | Linux IPA enrollment | `ipaclient_domain`, `ipaclient_realm`, `linux_ipa_servers`, `linux_ipaclient_mkhomedir`, `linux_ipasssd_permit`, `linux_sssd_refresh_enabled`, `guest_qemu_agent_install_*`, `linux_ipa_client_hosts`, `linux_ipa_qga_ssh_bootstrap_*`, `linux_ipa_ssh_bootstrap_*`, `linux_ipa_proxmox_discovery_*` |
 | Windows management | `windows_domain_membership_*`, `windows_domain_membership_enabled`, `windows_management_clients` |
+| Windows FreeIPA helpers | `windows_freeipa_helpers_*`, `windows_freeipa_helpers_enabled`, `windows_freeipa_helper_clients` |
 | Ansible connection secrets | `vault_proxmox_become_password`, `vault_windows_admin_password`, `vault_windows_domain_admin_password` |
 
 ## Example Group Strategy
@@ -706,6 +735,7 @@ After a successful rollout, verify the resulting state instead of assuming every
 │   │   ├── bootstrap_linux_ssh.yml
 │   │   ├── ensure_guest_qemu_agent.yml
 │   │   ├── manage_windows_domain_membership.yml
+│   │   ├── manage_windows_freeipa_helpers.yml
 │   │   ├── prepare_linux_event_inventory.yml
 │   │   ├── prepare_linux_inventory.yml
 │   │   └── resolve_linux_hostnames.yml
@@ -715,6 +745,8 @@ After a successful rollout, verify the resulting state instead of assuming every
 │   ├── proxmox.yml
 │   ├── site.yml
 │   ├── validate.yml
+│   ├── windows-freeipa-helpers.yml
+│   ├── windows-freeipa-validate.yml
 │   └── windows-management.yml
 ├── roles/
 │   ├── freeipa_access_model/
@@ -730,7 +762,8 @@ After a successful rollout, verify the resulting state instead of assuming every
 │   ├── proxmox_ldap_realm/
 │   ├── proxmox_rbac/
 │   ├── proxmox_realm_sync_timer/
-│   └── windows_domain_membership/
+│   ├── windows_domain_membership/
+│   └── windows_freeipa_helpers/
 └── scripts/
     ├── bootstrap.ps1
     ├── lint.py
@@ -821,6 +854,8 @@ The PowerShell playbook wrapper now also supports common operator options direct
 .\scripts\run-playbook.ps1 -Playbook linux-clients -Limit rocky-app-01.example.com -AskBecomePass -ExtraVars ipaclient_domain=example.com
 .\scripts\run-playbook.ps1 -Playbook site -VaultId freeipa@prompt,proxmox@prompt
 .\scripts\run-playbook.ps1 -Playbook windows-management -VaultId windows@prompt
+.\scripts\run-playbook.ps1 -Playbook windows-freeipa-helpers -VaultId windows@prompt
+.\scripts\run-playbook.ps1 -Playbook windows-freeipa-validate -VaultId windows@prompt
 ```
 
 ## Next Extensions

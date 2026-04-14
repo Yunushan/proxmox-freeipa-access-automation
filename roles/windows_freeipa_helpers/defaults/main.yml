@@ -1,0 +1,42 @@
+---
+windows_freeipa_helpers_enabled: false
+windows_freeipa_helpers_emit_summary: true
+windows_freeipa_helpers_ipa_servers: "{{ linux_ipa_servers | default([]) }}"
+windows_freeipa_helpers_https_port: "{{ linux_freeipa_enroll_https_port | default(443) }}"
+
+windows_freeipa_helpers_trust_ipa_ca: false
+windows_freeipa_helpers_ipa_ca_auto_fetch: false
+windows_freeipa_helpers_ipa_ca_auto_fetch_server: ""
+windows_freeipa_helpers_ipa_ca_expected_thumbprint: ""
+windows_freeipa_helpers_ipa_ca_certificate_src: ""
+windows_freeipa_helpers_ipa_ca_certificate_content: ""
+windows_freeipa_helpers_ipa_ca_store_location: LocalMachine
+windows_freeipa_helpers_ipa_ca_store_name: Root
+windows_freeipa_helpers_ipa_ca_staging_path: C:\Windows\Temp\ansible-freeipa-ipa-ca.crt
+
+windows_freeipa_helpers_manage_hosts_entries: false
+windows_freeipa_helpers_hosts_entries: []
+
+windows_freeipa_helpers_validate_dns: true
+windows_freeipa_helpers_validate_tcp: true
+windows_freeipa_helpers_tcp_ports:
+  - 88
+  - 389
+  - 443
+windows_freeipa_helpers_tcp_timeout_ms: 3000
+windows_freeipa_helpers_validate_https: true
+windows_freeipa_helpers_https_timeout_ms: 15000
+windows_freeipa_helpers_validate_time_source: false
+windows_freeipa_helpers_time_source: ""
+
+windows_freeipa_helpers_manage_local_group_memberships: false
+windows_freeipa_helpers_local_group_memberships: []
+
+windows_freeipa_helpers_manage_openssh_server: false
+windows_freeipa_helpers_openssh_install: true
+windows_freeipa_helpers_openssh_service_name: sshd
+windows_freeipa_helpers_openssh_start_mode: auto
+windows_freeipa_helpers_openssh_state: started
+windows_freeipa_helpers_openssh_port: 22
+windows_freeipa_helpers_openssh_configure_firewall: true
+windows_freeipa_helpers_openssh_firewall_rule_name: OpenSSH Server (Ansible Managed)

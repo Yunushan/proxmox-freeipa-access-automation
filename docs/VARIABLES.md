@@ -8,7 +8,7 @@ This repository splits environment variables by domain under `inventories/<env>/
 - `15-rollout.yml`: rollout serial and failure-budget settings
 - `20-freeipa.yml`: FreeIPA admin/API values, groups, hostgroups, HBAC, and sudo rules
 - `30-linux-clients.yml`: Linux enrollment, manual client definitions, and Proxmox discovery
-- `35-windows-clients.yml`: separate Windows domain-membership workflow settings
+- `35-windows-clients.yml`: Windows domain-membership settings and limited FreeIPA-aware helper settings
 - `40-proxmox-ldap.yml`: Proxmox LDAP realm configuration
 - `50-proxmox-sync.yml`: recurring Proxmox realm-sync timer settings
 - `60-proxmox-rbac.yml`: Proxmox custom roles and ACL bindings
@@ -39,6 +39,7 @@ Those values drive the FreeIPA access play, the Proxmox play, Linux hostname res
 - `linux_ipa_clients_runtime`: generated runtime group used by Linux preparation, validation, and enrollment playbooks
 - `windows_qemu_guest_agent_clients`: optional inventory group used only for QEMU Guest Agent installation on reachable Windows guests
 - `windows_management_clients`: optional inventory group used by the separate Windows domain-membership workflow
+- `windows_freeipa_helper_clients`: optional inventory group used by the limited FreeIPA-aware Windows helper workflow
 
 Use `linux_ipa_clients_runtime` when a FreeIPA hostgroup should include the full prepared Linux guest set.
 
@@ -59,6 +60,44 @@ Use `linux_ipa_clients_runtime` when a FreeIPA hostgroup should include the full
 - `vault_windows_domain_admin_password`: vaulted AD domain-join password used by the Windows membership workflow
 - in FreeIPA-centered environments, Windows logon should still flow through Active Directory or a FreeIPA-AD trust; Windows hosts do not join FreeIPA directly
 - a FreeIPA-only environment without Active Directory or a FreeIPA-AD trust cannot use the Windows domain-membership workflow for real Windows logon
+
+## Windows FreeIPA helpers
+
+- `windows_freeipa_helpers_enabled`: when `true`, the limited FreeIPA-aware Windows helper workflow manages hosts in `windows_freeipa_helper_clients`
+- `windows_freeipa_helpers_emit_summary`: when `true`, the helper workflow prints the final `windows_freeipa_helpers_summary` host fact after successful execution; defaults to `true`
+- `windows_freeipa_helpers_ipa_servers`: IPA server hostnames used for helper validation; defaults to `linux_ipa_servers`
+- `windows_freeipa_helpers_https_port`: HTTPS port used for IPA reachability checks from Windows; defaults to `linux_freeipa_enroll_https_port` or `443`
+- `windows_freeipa_helpers_trust_ipa_ca`: when `true`, the helper workflow imports the provided IPA CA certificate into the Windows certificate store
+- `windows_freeipa_helpers_ipa_ca_auto_fetch`: when `true`, the helper workflow can bootstrap the IPA CA certificate directly from an IPA server when no explicit certificate file or inline content is provided
+- `windows_freeipa_helpers_ipa_ca_auto_fetch_server`: optional IPA server used for CA auto-fetch; defaults to the first host in `windows_freeipa_helpers_ipa_servers`
+- `windows_freeipa_helpers_ipa_ca_expected_thumbprint`: optional pinned certificate thumbprint checked against the staged IPA CA before import; useful when you want CA auto-fetch without blind trust-on-first-use
+- `windows_freeipa_helpers_ipa_ca_certificate_src`: controller-side certificate file copied to Windows before the IPA CA import
+- `windows_freeipa_helpers_ipa_ca_certificate_content`: inline certificate content used when no controller-side source file is provided
+- `windows_freeipa_helpers_ipa_ca_store_location`: target Windows certificate-store location for the IPA CA import; defaults to `LocalMachine`
+- `windows_freeipa_helpers_ipa_ca_store_name`: target Windows certificate-store name for the IPA CA import; defaults to `Root`
+- `windows_freeipa_helpers_manage_hosts_entries`: when `true`, the helper workflow manages the Windows hosts file with `windows_freeipa_helpers_hosts_entries`
+- `windows_freeipa_helpers_hosts_entries`: list of `{ ip, canonical_name, aliases }` mappings written to the Windows hosts file for IPA endpoints or other bootstrap names
+- `windows_freeipa_helpers_manage_local_group_memberships`: when `true`, the helper workflow manages local Windows groups with `windows_freeipa_helpers_local_group_memberships`
+- `windows_freeipa_helpers_local_group_memberships`: list of `{ name, members, state }` definitions applied through `win_group_membership`, useful for local groups such as `Administrators` or `Remote Desktop Users`
+- `windows_freeipa_helpers_manage_openssh_server`: when `true`, the helper workflow manages OpenSSH Server on Windows
+- `windows_freeipa_helpers_openssh_install`: when `true`, the helper workflow installs the OpenSSH Server capability before managing the service; defaults to `true`
+- `windows_freeipa_helpers_openssh_service_name`: Windows service name used for OpenSSH Server management; defaults to `sshd`
+- `windows_freeipa_helpers_openssh_start_mode`: Windows service start mode used for OpenSSH Server; defaults to `auto`
+- `windows_freeipa_helpers_openssh_state`: desired Windows OpenSSH Server service state; defaults to `started`
+- `windows_freeipa_helpers_openssh_port`: Windows OpenSSH Server TCP port used for firewall management; defaults to `22`
+- `windows_freeipa_helpers_openssh_configure_firewall`: when `true`, the helper workflow ensures an inbound Windows firewall rule exists for the configured OpenSSH Server port
+- `windows_freeipa_helpers_openssh_firewall_rule_name`: display name of that managed Windows firewall rule; defaults to `OpenSSH Server (Ansible Managed)`
+- `windows_freeipa_helpers_validate_dns`: when `true`, the helper workflow validates DNS resolution for every server in `windows_freeipa_helpers_ipa_servers`
+- `windows_freeipa_helpers_validate_tcp`: when `true`, the helper workflow validates TCP reachability for every server in `windows_freeipa_helpers_ipa_servers` across `windows_freeipa_helpers_tcp_ports`
+- `windows_freeipa_helpers_tcp_ports`: TCP ports that the helper workflow checks against each IPA server; defaults to `[88, 389, 443]`
+- `windows_freeipa_helpers_tcp_timeout_ms`: TCP connection timeout in milliseconds for each server-port validation; defaults to `3000`
+- `windows_freeipa_helpers_validate_https`: when `true`, the helper workflow validates HTTPS reachability and TLS trust for every server in `windows_freeipa_helpers_ipa_servers`
+- `windows_freeipa_helpers_https_timeout_ms`: HTTPS validation timeout in milliseconds for the Windows helper workflow; defaults to `15000`
+- `windows_freeipa_helpers_validate_time_source`: when `true`, the helper workflow validates Windows time-source reachability with `w32tm`
+- `windows_freeipa_helpers_time_source`: optional time source used for that `w32tm` validation; defaults to the first host in `windows_freeipa_helpers_ipa_servers`
+- `windows_freeipa_helpers_summary`: host fact emitted by the helper workflow that summarizes CA trust, hosts bootstrap, local group management, OpenSSH management, and validation coverage for the current Windows host
+- `playbooks/windows-freeipa-validate.yml`: validation-only entrypoint for `windows_freeipa_helper_clients`; it forces CA trust, hosts-file changes, local-group changes, and OpenSSH management off while keeping the helper validation and summary path
+- this workflow is helper-only and does not provide Windows domain membership or native Windows logon against FreeIPA
 
 ## Hostname resolution rules
 

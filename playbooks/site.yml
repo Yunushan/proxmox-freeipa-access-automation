@@ -288,3 +288,9 @@
   tags:
     - windows
     - windows_domain
+
+- name: Apply limited FreeIPA-aware helper automation to Windows guests for the combined site workflow
+  import_playbook: includes/manage_windows_freeipa_helpers.yml
+  tags:
+    - windows
+    - windows_freeipa
