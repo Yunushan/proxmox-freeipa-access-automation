@@ -96,6 +96,41 @@
   loop_control:
     label: "{{ item }}"
 
+- name: Normalize optional Proxmox discovery blacklist VMIDs
+  ansible.builtin.set_fact:
+    linux_ipa_proxmox_discovery_blacklist_vmids_normalized: >-
+      {{
+        (
+          linux_ipa_proxmox_discovery_blacklist_vmids
+          if (
+            linux_ipa_proxmox_discovery_blacklist_vmids is sequence
+            and linux_ipa_proxmox_discovery_blacklist_vmids is not string
+          )
+          else (
+            linux_ipa_proxmox_discovery_blacklist_vmids
+            | default('', true)
+            | string
+            | split(',')
+          )
+        )
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
+  changed_when: false
+
+- name: Validate optional Proxmox discovery blacklist VMIDs
+  ansible.builtin.assert:
+    that:
+      - item is match('^[0-9]+$')
+    fail_msg: >-
+      linux_ipa_proxmox_discovery_blacklist_vmids must only contain numeric VMID values.
+      Invalid value: {{ item }}
+  loop: "{{ linux_ipa_proxmox_discovery_blacklist_vmids_normalized }}"
+  loop_control:
+    label: "{{ item }}"
+
 - name: Validate Proxmox discovery targets exist in inventory
   ansible.builtin.assert:
     that:

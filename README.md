@@ -456,6 +456,13 @@ linux_ipa_proxmox_discovery_ip_preference: ipv4
 # linux_ipa_proxmox_discovery_allowlist_names:
 #   - rocky-app-01.example.com
 #   - proxmox-pve01-vm101
+# Optional: always exclude infrastructure or sensitive guests even when broad
+# node discovery is enabled.
+# linux_ipa_proxmox_discovery_blacklist_vmids:
+#   - 900
+# linux_ipa_proxmox_discovery_blacklist_names:
+#   - mikrotik-edge-01
+#   - bind-dns-01
 # Optional first-touch SSH settings for discovered guests when the guest agent
 # is not running yet and the repository must connect over SSH to install it.
 # linux_ipa_proxmox_discovery_ansible_user: ubuntu
@@ -480,6 +487,7 @@ Notes:
 - when DNS is not ready yet, you can set `linux_ipa_manage_etc_hosts: true` and provide `linux_ipa_etc_hosts_entries` so the role adds a managed `/etc/hosts` bootstrap block for IPA servers and guest FQDNs before enrollment checks
 - `guest_qemu_agent_install_enabled` installs QEMU Guest Agent on guests that are already reachable over SSH or WinRM, retries on Linux guests that become reachable later in the same workflow, and retries again after Linux enrollment, so later Proxmox agent-dependent workflows can use it
 - set `linux_ipa_proxmox_discovery_allowlist_enabled: true` when you want discovery to remain on but only a tightly approved subset of Proxmox guests should enter the Linux runtime inventory; the allowlist can match exact VMIDs, IPs, and names
+- set `linux_ipa_proxmox_discovery_blacklist_vmids`, `linux_ipa_proxmox_discovery_blacklist_ips`, or `linux_ipa_proxmox_discovery_blacklist_names` when discovery-enabled nodes also host infrastructure VMs such as firewalls or DNS servers that must never receive Linux IPA automation; blacklist matches always win over admission through broad discovery or the allowlist
 - for Proxmox-discovered Linux guests that do not already have a working guest agent, set `linux_ipa_proxmox_discovery_ansible_user` and either `linux_ipa_proxmox_discovery_ansible_password` or `linux_ipa_proxmox_discovery_ansible_ssh_private_key_file` so the repository has a usable first-touch SSH path to install QEMU Guest Agent
 - when those discovered guests use a non-root SSH user, also set `linux_ipa_proxmox_discovery_ansible_become`, `linux_ipa_proxmox_discovery_ansible_become_method`, and `linux_ipa_proxmox_discovery_ansible_become_password` unless that account already has passwordless sudo
 - `guest_qemu_agent_install_manage_proxmox_vm_agent` also enables Proxmox-side guest-agent communication (`qm set <vmid> --agent 1`) for Proxmox-backed Linux guests before the guest-side install path runs

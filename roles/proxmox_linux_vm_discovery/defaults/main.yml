@@ -17,6 +17,9 @@ linux_ipa_proxmox_discovery_allowlist_enabled: false
 linux_ipa_proxmox_discovery_allowlist_vmids: []
 linux_ipa_proxmox_discovery_allowlist_ips: []
 linux_ipa_proxmox_discovery_allowlist_names: []
+linux_ipa_proxmox_discovery_blacklist_vmids: []
+linux_ipa_proxmox_discovery_blacklist_ips: []
+linux_ipa_proxmox_discovery_blacklist_names: []
 linux_ipa_proxmox_discovery_ansible_user: ""
 linux_ipa_proxmox_discovery_ansible_port: ""
 linux_ipa_proxmox_discovery_ansible_password: ""

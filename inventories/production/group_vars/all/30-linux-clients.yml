@@ -103,6 +103,13 @@ linux_ipa_client_hosts: []
 # linux_ipa_proxmox_discovery_enabled: true
 # linux_ipa_proxmox_discovery_nodes:
 #   - pve01.example.com
+# Optional blacklist examples when discovery-enabled nodes also host
+# infrastructure VMs that must never enter the Linux runtime inventory.
+# linux_ipa_proxmox_discovery_blacklist_vmids:
+#   - 900
+# linux_ipa_proxmox_discovery_blacklist_names:
+#   - mikrotik-edge-01
+#   - bind-dns-01
 linux_ipa_proxmox_discovery_enabled: false
 linux_ipa_proxmox_discovery_nodes: []
 linux_ipa_proxmox_discovery_only_running: true

@@ -12,6 +12,7 @@ and this project follows semantic versioning when tagged releases are introduced
 - Split inventory variable files for features, FreeIPA, Linux clients, Proxmox LDAP, sync, and RBAC.
 - Shared Linux inventory-preparation and hostname-resolution playbook includes.
 - Linux guest source modes for static inventory, IP-only/manual definitions, and Proxmox VM discovery.
+- Proxmox discovery blacklist controls so infrastructure VMs can be excluded by VMID, IP, or name even on discovery-enabled nodes.
 - An event-driven Proxmox hook and controller webhook workflow for immediate Linux guest onboarding after `post-start` and `post-migrate` VM events.
 - Role-level `meta/main.yml` and `README.md` files for every local role.
 - Repository governance files: `.editorconfig` and `.github/CODEOWNERS`.

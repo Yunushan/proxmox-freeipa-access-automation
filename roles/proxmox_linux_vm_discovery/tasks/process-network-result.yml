@@ -200,7 +200,7 @@
         )
       }}
 
-- name: Derive Proxmox discovery runtime identifiers and allowlist decision
+- name: Derive Proxmox discovery runtime identifiers and admission decisions
   vars:
     linux_ipa_proxmox_discovery_runtime_host_name_resolved: >-
       {{
@@ -318,6 +318,68 @@
         | reject('equalto', '')
         | list
       }}
+    linux_ipa_proxmox_discovery_blacklist_vmids_effective: >-
+      {{
+        (
+          linux_ipa_proxmox_discovery_blacklist_vmids
+          if (
+            linux_ipa_proxmox_discovery_blacklist_vmids is sequence
+            and linux_ipa_proxmox_discovery_blacklist_vmids is not string
+          )
+          else (
+            linux_ipa_proxmox_discovery_blacklist_vmids
+            | default('', true)
+            | string
+            | split(',')
+          )
+        )
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
+    linux_ipa_proxmox_discovery_blacklist_ips_effective: >-
+      {{
+        (
+          linux_ipa_proxmox_discovery_blacklist_ips
+          if (
+            linux_ipa_proxmox_discovery_blacklist_ips is sequence
+            and linux_ipa_proxmox_discovery_blacklist_ips is not string
+          )
+          else (
+            linux_ipa_proxmox_discovery_blacklist_ips
+            | default('', true)
+            | string
+            | split(',')
+          )
+        )
+        | map('string')
+        | map('trim')
+        | map('lower')
+        | reject('equalto', '')
+        | list
+      }}
+    linux_ipa_proxmox_discovery_blacklist_names_effective: >-
+      {{
+        (
+          linux_ipa_proxmox_discovery_blacklist_names
+          if (
+            linux_ipa_proxmox_discovery_blacklist_names is sequence
+            and linux_ipa_proxmox_discovery_blacklist_names is not string
+          )
+          else (
+            linux_ipa_proxmox_discovery_blacklist_names
+            | default('', true)
+            | string
+            | split(',')
+          )
+        )
+        | map('string')
+        | map('trim')
+        | map('lower')
+        | reject('equalto', '')
+        | list
+      }}
     linux_ipa_proxmox_discovery_allowlist_candidate_names_resolved: >-
       {{
         [
@@ -351,6 +413,24 @@
           (
             linux_ipa_proxmox_discovery_allowlist_candidate_names_resolved
             | intersect(linux_ipa_proxmox_discovery_allowlist_names_effective)
+            | length
+          ) > 0
+        )
+      }}
+    linux_ipa_proxmox_discovery_blacklisted: >-
+      {{
+        (
+          (linux_ipa_proxmox_guest_network_result.item.vmid | string)
+          in linux_ipa_proxmox_discovery_blacklist_vmids_effective
+        )
+        or (
+          (linux_ipa_proxmox_discovered_ip | default('', true) | string | trim | lower)
+          in linux_ipa_proxmox_discovery_blacklist_ips_effective
+        )
+        or (
+          (
+            linux_ipa_proxmox_discovery_allowlist_candidate_names_resolved
+            | intersect(linux_ipa_proxmox_discovery_blacklist_names_effective)
             | length
           ) > 0
         )
@@ -437,7 +517,24 @@
   when:
     - linux_ipa_proxmox_discovered_ip | length > 0
     - linux_ipa_proxmox_discovery_allowlist_enabled | bool
+    - not (linux_ipa_proxmox_discovery_blacklisted | bool)
     - not (linux_ipa_proxmox_discovery_allowlist_permitted | bool)
+
+- name: Warn when Proxmox discovery skips a VM that matches the blacklist
+  ansible.builtin.debug:
+    msg: >-
+      Skipping VM {{ linux_ipa_proxmox_guest_network_result.item.name | default('vm-' ~ linux_ipa_proxmox_guest_network_result.item.vmid) }}
+      on node {{ linux_ipa_proxmox_node_shortname.stdout }} because it matched the Proxmox discovery blacklist.
+      Current identifiers: vmid={{ linux_ipa_proxmox_guest_network_result.item.vmid }},
+      ip={{ linux_ipa_proxmox_discovered_ip | default('none', true) }},
+      names={{ linux_ipa_proxmox_discovery_allowlist_candidate_names | default([]) | join(', ') | default('none', true) }}.
+      Blacklisted VMIDs={{ linux_ipa_proxmox_discovery_blacklist_vmids | default([]) | join(', ') | default('none', true) }},
+      blacklisted IPs={{ linux_ipa_proxmox_discovery_blacklist_ips | default([]) | join(', ') | default('none', true) }},
+      blacklisted names={{ linux_ipa_proxmox_discovery_blacklist_names | default([]) | join(', ') | default('none', true) }}.
+  changed_when: false
+  when:
+    - linux_ipa_proxmox_discovered_ip | length > 0
+    - linux_ipa_proxmox_discovery_blacklisted | bool
 
 - name: Add discovered Proxmox VMs to the Linux IPA runtime group
   vars:
@@ -556,4 +653,5 @@
   when:
     - linux_ipa_proxmox_discovered_ip | length > 0
     - linux_ipa_proxmox_discovery_allowlist_permitted | bool
+    - not (linux_ipa_proxmox_discovery_blacklisted | bool)
   changed_when: false
