@@ -420,17 +420,22 @@
     linux_ipa_proxmox_discovery_blacklisted: >-
       {{
         (
-          (linux_ipa_proxmox_guest_network_result.item.vmid | string)
-          in linux_ipa_proxmox_discovery_blacklist_vmids_effective
+          (
+            linux_ipa_proxmox_guest_network_result.item.vmid
+            | default('', true)
+            | string
+          )
+          in (linux_ipa_proxmox_discovery_blacklist_vmids_effective | default([]))
         )
         or (
           (linux_ipa_proxmox_discovered_ip | default('', true) | string | trim | lower)
-          in linux_ipa_proxmox_discovery_blacklist_ips_effective
+          in (linux_ipa_proxmox_discovery_blacklist_ips_effective | default([]))
         )
         or (
           (
             linux_ipa_proxmox_discovery_allowlist_candidate_names_resolved
-            | intersect(linux_ipa_proxmox_discovery_blacklist_names_effective)
+            | default([])
+            | intersect(linux_ipa_proxmox_discovery_blacklist_names_effective | default([]))
             | length
           ) > 0
         )
