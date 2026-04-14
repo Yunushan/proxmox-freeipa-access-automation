@@ -1,0 +1,16 @@
+---
+- name: Manage Windows domain membership
+  hosts: windows_management_clients
+  gather_facts: false
+  ignore_unreachable: true
+  serial: "{{ windows_management_serial | default(10) | int }}"
+  max_fail_percentage: "{{ windows_management_max_fail_percentage | default(0) | int }}"
+  tags:
+    - windows
+    - windows_domain
+  roles:
+    - role: windows_domain_membership
+      when: windows_domain_membership_enabled | bool
+      tags:
+        - windows
+        - windows_domain

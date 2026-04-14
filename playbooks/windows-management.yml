@@ -1,0 +1,13 @@
+---
+- name: Ensure QEMU Guest Agent on reachable guests for the Windows workflow
+  import_playbook: includes/ensure_guest_qemu_agent.yml
+  tags:
+    - windows
+    - inventory
+    - qga_install
+
+- name: Manage Windows domain membership for the Windows workflow
+  import_playbook: includes/manage_windows_domain_membership.yml
+  tags:
+    - windows
+    - windows_domain

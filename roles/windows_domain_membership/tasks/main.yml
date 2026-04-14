@@ -1,0 +1,86 @@
+---
+- name: Assert supported Windows membership state
+  ansible.builtin.assert:
+    that:
+      - windows_domain_membership_state in ['domain', 'workgroup']
+      - (windows_domain_membership_reboot_timeout | int) > 0
+      - >-
+        windows_domain_membership_state != 'domain'
+        or (windows_domain_membership_dns_domain_name | default('', true) | string | trim | length) > 0
+      - >-
+        windows_domain_membership_state != 'domain'
+        or (windows_domain_membership_domain_admin_user | default('', true) | string | trim | length) > 0
+      - >-
+        windows_domain_membership_state != 'domain'
+        or (windows_domain_membership_domain_admin_password | default('', true) | string | length) > 0
+      - >-
+        windows_domain_membership_state != 'workgroup'
+        or (windows_domain_membership_workgroup_name | default('', true) | string | trim | length) > 0
+    fail_msg: >-
+      windows_domain_membership_* variables are incomplete. Configure the AD
+      domain details for state=domain or a workgroup name for state=workgroup.
+
+- name: Manage Windows domain or workgroup membership
+  microsoft.ad.membership:
+    state: "{{ windows_domain_membership_state }}"
+    dns_domain_name: >-
+      {{
+        windows_domain_membership_dns_domain_name
+        if windows_domain_membership_state == 'domain'
+        else omit
+      }}
+    domain_admin_user: >-
+      {{
+        windows_domain_membership_domain_admin_user
+        if windows_domain_membership_state == 'domain'
+        else omit
+      }}
+    domain_admin_password: >-
+      {{
+        windows_domain_membership_domain_admin_password
+        if windows_domain_membership_state == 'domain'
+        else omit
+      }}
+    domain_ou_path: >-
+      {{
+        windows_domain_membership_domain_ou_path
+        if (
+          windows_domain_membership_state == 'domain'
+          and (windows_domain_membership_domain_ou_path | default('', true) | string | trim | length) > 0
+        )
+        else omit
+      }}
+    domain_server: >-
+      {{
+        windows_domain_membership_domain_server
+        if (
+          windows_domain_membership_state == 'domain'
+          and (windows_domain_membership_domain_server | default('', true) | string | trim | length) > 0
+        )
+        else omit
+      }}
+    hostname: >-
+      {{
+        windows_domain_membership_hostname
+        if (windows_domain_membership_hostname | default('', true) | string | trim | length) > 0
+        else omit
+      }}
+    workgroup_name: >-
+      {{
+        windows_domain_membership_workgroup_name
+        if windows_domain_membership_state == 'workgroup'
+        else omit
+      }}
+    reboot: "{{ windows_domain_membership_reboot | bool }}"
+    reboot_timeout: "{{ windows_domain_membership_reboot_timeout | int }}"
+  register: windows_domain_membership_result
+  no_log: true
+
+- name: Warn when a manual reboot is still required after membership changes
+  ansible.builtin.debug:
+    msg: >-
+      Windows membership changes completed but still require a reboot because
+      windows_domain_membership_reboot is disabled.
+  when:
+    - not windows_domain_membership_reboot | bool
+    - windows_domain_membership_result.reboot_required | default(false)

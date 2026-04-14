@@ -9,6 +9,8 @@ FreeIPA users/groups
         |
         +--> Linux IPA clients --> SSSD/PAM/NSS --> HBAC decides login access
         |
+        +--> Windows management clients --> AD domain membership --> Windows logon
+        |
         +--> FreeRADIUS (separate concern, same directory backend)
 ```
 
@@ -72,6 +74,9 @@ This is better than creating local guest users via automation because:
 
 ## Windows note
 
-This project leaves Windows identity and domain-logon management out on purpose.
-For proper Windows domain logon, use Active Directory or an AD trust model where appropriate.
-The repository can optionally install QEMU Guest Agent on reachable Windows guests, but that is only a guest-management helper and not a Windows access-management workflow.
+This project keeps Windows management separate from the Linux IPA enrollment path.
+Reachable Windows guests can still use `windows_qemu_guest_agent_clients` for QEMU Guest Agent helper tasks only, while `windows_management_clients` is the dedicated inventory group for the separate Windows management workflow.
+
+That Windows workflow uses Active Directory domain membership for real Windows logon.
+In FreeIPA-centered environments, that means joining Windows guests to the AD side of a FreeIPA-AD trust rather than trying to join Windows directly to FreeIPA.
+FreeIPA-only Windows domain join is intentionally out of scope.

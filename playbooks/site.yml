@@ -282,3 +282,9 @@
         - freeipa_access
         - linux
         - linux_refresh
+
+- name: Manage Windows domain membership for the combined site workflow
+  import_playbook: includes/manage_windows_domain_membership.yml
+  tags:
+    - windows
+    - windows_domain

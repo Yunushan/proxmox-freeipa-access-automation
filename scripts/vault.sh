@@ -13,11 +13,12 @@ ACTION=""
 ENVIRONMENT="production"
 FREEIPA_VAULT_ID="freeipa@prompt"
 PROXMOX_VAULT_ID="proxmox@prompt"
+WINDOWS_VAULT_ID="windows@prompt"
 DOMAINS=()
 
 usage() {
   cat <<'EOF'
-Usage: ./scripts/vault.sh --action <encrypt|decrypt|view> [--domain <freeipa|proxmox|all>] [--environment <name>] [--freeipa-vault-id <spec>] [--proxmox-vault-id <spec>]
+Usage: ./scripts/vault.sh --action <encrypt|decrypt|view> [--domain <freeipa|proxmox|windows|all>] [--environment <name>] [--freeipa-vault-id <spec>] [--proxmox-vault-id <spec>] [--windows-vault-id <spec>]
 EOF
 }
 
@@ -41,6 +42,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --proxmox-vault-id)
       PROXMOX_VAULT_ID="$2"
+      shift 2
+      ;;
+    --windows-vault-id)
+      WINDOWS_VAULT_ID="$2"
       shift 2
       ;;
     -h|--help)
@@ -85,6 +90,11 @@ map_domain() {
       VAULT_PATH="inventories/$ENVIRONMENT/group_vars/all/vault-proxmox.yml"
       VAULT_EXAMPLE_PATH="inventories/$ENVIRONMENT/group_vars/all/vault-proxmox.yml.example"
       VAULT_ID_SPEC="$PROXMOX_VAULT_ID"
+      ;;
+    windows)
+      VAULT_PATH="inventories/$ENVIRONMENT/group_vars/all/vault-windows.yml"
+      VAULT_EXAMPLE_PATH="inventories/$ENVIRONMENT/group_vars/all/vault-windows.yml.example"
+      VAULT_ID_SPEC="$WINDOWS_VAULT_ID"
       ;;
     *)
       echo "Unsupported domain: $domain" >&2
@@ -139,6 +149,7 @@ run_domain() {
 if printf '%s\n' "${DOMAINS[@]}" | grep -qx 'all'; then
   run_domain freeipa
   run_domain proxmox
+  run_domain windows
 else
   for domain in "${DOMAINS[@]}"; do
     run_domain "$domain"

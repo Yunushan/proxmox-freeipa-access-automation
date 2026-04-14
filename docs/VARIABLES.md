@@ -8,11 +8,13 @@ This repository splits environment variables by domain under `inventories/<env>/
 - `15-rollout.yml`: rollout serial and failure-budget settings
 - `20-freeipa.yml`: FreeIPA admin/API values, groups, hostgroups, HBAC, and sudo rules
 - `30-linux-clients.yml`: Linux enrollment, manual client definitions, and Proxmox discovery
+- `35-windows-clients.yml`: separate Windows domain-membership workflow settings
 - `40-proxmox-ldap.yml`: Proxmox LDAP realm configuration
 - `50-proxmox-sync.yml`: recurring Proxmox realm-sync timer settings
 - `60-proxmox-rbac.yml`: Proxmox custom roles and ACL bindings
 - `vault-freeipa.yml`: encrypted FreeIPA admin secret
 - `vault-proxmox.yml`: encrypted Proxmox LDAP bind secret and optional sudo password
+- `vault-windows.yml`: encrypted Windows WinRM and domain-join secrets
 
 `main.yml` remains as a directory index only.
 
@@ -26,6 +28,8 @@ The repository exposes play-level rollout controls through `15-rollout.yml`.
 - `proxmox_rollout_max_fail_percentage`
 - `linux_freeipa_enroll_serial`
 - `linux_freeipa_enroll_max_fail_percentage`
+- `windows_management_serial`
+- `windows_management_max_fail_percentage`
 
 Those values drive the FreeIPA access play, the Proxmox play, Linux hostname resolution, Linux validation, and Linux enrollment.
 
@@ -34,8 +38,27 @@ Those values drive the FreeIPA access play, the Proxmox play, Linux hostname res
 - `linux_ipa_clients`: declarative source inventory group
 - `linux_ipa_clients_runtime`: generated runtime group used by Linux preparation, validation, and enrollment playbooks
 - `windows_qemu_guest_agent_clients`: optional inventory group used only for QEMU Guest Agent installation on reachable Windows guests
+- `windows_management_clients`: optional inventory group used by the separate Windows domain-membership workflow
 
 Use `linux_ipa_clients_runtime` when a FreeIPA hostgroup should include the full prepared Linux guest set.
+
+## Windows management
+
+- `windows_domain_membership_enabled`: when `true`, the separate Windows workflow manages hosts in `windows_management_clients`
+- `windows_domain_membership_state`: `domain` joins the Windows host to Active Directory, while `workgroup` removes it from the domain and places it into `windows_domain_membership_workgroup_name`
+- `windows_domain_membership_dns_domain_name`: AD DNS domain that the Windows host should join
+- `windows_domain_membership_domain_admin_user`: AD account used for the join or unjoin operation
+- `windows_domain_membership_domain_admin_password`: vaulted password for that AD account; defaults to `vault_windows_domain_admin_password`
+- `windows_domain_membership_domain_ou_path`: optional OU path used when creating the computer object during a join
+- `windows_domain_membership_domain_server`: optional domain controller to target explicitly during the join
+- `windows_domain_membership_hostname`: optional Windows hostname to apply during the membership change
+- `windows_domain_membership_workgroup_name`: workgroup name used when `windows_domain_membership_state: workgroup`; defaults to `WORKGROUP`
+- `windows_domain_membership_reboot`: when `true`, the membership module reboots the Windows host automatically if required; defaults to `true`
+- `windows_domain_membership_reboot_timeout`: maximum seconds the workflow waits for the Windows host to come back after an automatic reboot; defaults to `900`
+- `vault_windows_admin_password`: optional vaulted WinRM password used by the example Windows inventory entries
+- `vault_windows_domain_admin_password`: vaulted AD domain-join password used by the Windows membership workflow
+- in FreeIPA-centered environments, Windows logon should still flow through Active Directory or a FreeIPA-AD trust; Windows hosts do not join FreeIPA directly
+- a FreeIPA-only environment without Active Directory or a FreeIPA-AD trust cannot use the Windows domain-membership workflow for real Windows logon
 
 ## Hostname resolution rules
 

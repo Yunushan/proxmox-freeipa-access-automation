@@ -1,0 +1,3 @@
+---
+vault_windows_admin_password: CHANGE_ME_IF_USING_WINDOWS_WINRM
+vault_windows_domain_admin_password: CHANGE_ME_IF_USING_WINDOWS_DOMAIN_JOIN

@@ -74,6 +74,7 @@ This is a good fit when you want onboarding and offboarding to be mostly:
 - optional no-reboot SSH bootstrap through the Proxmox QEMU Guest Agent
 - optional Proxmox-side guest-agent communication enablement for Proxmox-backed Linux guests
 - optional SSH or WinRM fallback installation of QEMU Guest Agent for guests that are already reachable, become reachable after bootstrap, or are retried again after Linux enrollment
+- optional separate Windows domain-membership workflow for Windows 10/11 and Windows Server guests through Active Directory
 - optional first-touch SSH public-key bootstrap for Linux guests
 - automatic SSSD cache refresh on managed Linux clients after FreeIPA access-model changes
 - optional event-driven Linux onboarding from Proxmox VM hook and webhook triggers
@@ -82,10 +83,24 @@ This is a good fit when you want onboarding and offboarding to be mostly:
 
 | Included | Not Included |
 | --- | --- |
-| FreeIPA access model | Windows domain join |
-| Proxmox LDAP realm setup | FreeRADIUS deployment |
-| Proxmox RBAC from synced groups | FreeIPA user lifecycle creation |
-| Linux IPA client enrollment | Full Proxmox multi-tenant policy coverage |
+| FreeIPA access model | FreeRADIUS deployment |
+| Proxmox LDAP realm setup | FreeIPA user lifecycle creation |
+| Proxmox RBAC from synced groups | Full Proxmox multi-tenant policy coverage |
+| Linux IPA client enrollment | Native Windows logon directly against FreeIPA |
+| Separate Windows AD domain-membership workflow | GPO or broader AD object lifecycle automation |
+
+## Windows Workflow
+
+Windows support is implemented as a separate workflow instead of being folded into Linux IPA enrollment.
+
+- `windows_qemu_guest_agent_clients` stays dedicated to optional QEMU Guest Agent helper tasks.
+- enable the workflow with `windows_domain_membership_enabled: true` in `10-features.yml`
+- `windows_management_clients` is the separate Windows management group used by `playbooks/windows-management.yml` and by the optional Windows stage in `playbooks/site.yml`.
+- actual Windows logon is handled through Active Directory domain membership; in FreeIPA-centered environments, join Windows hosts to the AD side of a FreeIPA-AD trust instead of trying to join Windows directly to FreeIPA
+
+FreeIPA-only Windows domain join is not supported by this repository. Without Active Directory or a FreeIPA-AD trust, the Windows workflow is limited to helper tasks such as reachable guest management and optional QEMU Guest Agent installation.
+
+This workflow targets Windows 10/11 and Windows Server guests reached through WinRM or PSRP.
 
 ## Architecture
 
@@ -95,6 +110,8 @@ FreeIPA users/groups
         +--> Proxmox LDAP realm --> synced PVE users/groups --> PVE ACLs/roles
         |
         +--> Linux IPA clients --> SSSD/PAM/NSS --> HBAC --> SSH/login access
+        |
+        +--> Windows management clients --> AD domain membership --> Windows logon
         |
         +--> FreeRADIUS (separate concern, same directory backend)
 ```
@@ -107,17 +124,21 @@ For the longer design explanation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.
 
 - Ansible Core 2.14+
 - SSH reachability to your Proxmox primary node, IPA server, and Linux clients
+- WinRM or PSRP reachability to Windows guests when you use the Windows workflow
 - sudo or root where required
 - when Linux QGA SSH bootstrap is enabled, the Proxmox guest agent must already be active in the guest
 - when guest-agent fallback installation is enabled for Windows, reachable Windows hosts must be placed in `windows_qemu_guest_agent_clients`
+- when Windows domain membership is enabled, reachable Windows hosts must be placed in `windows_management_clients` and you must provide AD join credentials
 - when Linux SSH bootstrap is enabled, a controller SSH keypair and an initial password-capable login path for the guest account used by Ansible
 
 ### Targets
 
 - Proxmox VE 6.x and later on the host in `proxmox_primary`
 - FreeIPA reachable from Proxmox and Linux clients
+- Windows 10/11 and Windows Server guests can be managed by the separate Windows workflow when they are reachable through WinRM or PSRP
 - sane DNS and time synchronization
 - for `proxmox_primary`, either connect as `root` or use an SSH user that can run `sudo` for `pveversion`, `pvesh`, and `pveum`
+- if you use Windows domain membership, the target Windows guests must be able to reach the relevant AD domain controllers
 - if you use Proxmox VM auto-discovery, discovered guests must expose a usable IP through the QEMU guest agent
 
 ## Network Ports
@@ -128,6 +149,7 @@ It is intentionally scoped to this project, not the full FreeIPA server-to-serve
 | Name | Port | Protocol | Source | Destination | Required When | Purpose |
 | --- | --- | --- | --- | --- | --- | --- |
 | SSH | `22` | `TCP` | Ansible controller | Proxmox node, IPA server, Linux guest | Always | Ansible connectivity |
+| WinRM | `5985`, `5986` | `TCP` | Ansible controller | Windows guest | When Windows management is enabled | Ansible connectivity to Windows guests |
 | DNS | `53` | `TCP`, `UDP` | Linux guest | IPA DNS servers | When Linux guests use IPA DNS | Resolve IPA records and external names through IPA DNS |
 | Kerberos | `88` | `TCP`, `UDP` | Linux guest | IPA servers | Linux IPA enrollment and login | Kerberos authentication |
 | LDAP | `389` | `TCP` | Linux guest | IPA servers | Linux IPA enrollment and login | LDAP and FreeIPA client discovery |
@@ -138,8 +160,10 @@ It is intentionally scoped to this project, not the full FreeIPA server-to-serve
 Notes:
 
 - `LDAPS 636/TCP` is the repository default because `proxmox_ldap_mode` defaults to `ldaps`. If you change the LDAP mode or port, allow the configured `proxmox_ldap_port` instead.
+- `WinRM` commonly uses `5986/TCP` for HTTPS or `5985/TCP` for HTTP, depending on your Windows transport setup.
 - `DNS 53/TCP,UDP` is only needed when Linux guests use the IPA servers as their DNS resolvers.
 - `Kerberos 88` and `Kerberos Password 464` need both `TCP` and `UDP`.
+- Active Directory domain join also requires the normal Windows-to-domain-controller port set, but that matrix is environment-specific and intentionally not exhaustively listed here.
 - Time synchronization is still required for Kerberos to work reliably, but the NTP source is environment-specific and is not managed by this repository.
 
 ## Compatibility
@@ -180,12 +204,16 @@ Examples below use shell commands. PowerShell equivalents are included where tha
 cp inventories/production/hosts.yml.example inventories/production/hosts.yml
 cp inventories/production/group_vars/all/vault-freeipa.yml.example inventories/production/group_vars/all/vault-freeipa.yml
 cp inventories/production/group_vars/all/vault-proxmox.yml.example inventories/production/group_vars/all/vault-proxmox.yml
+# Optional when you plan to manage Windows guests:
+cp inventories/production/group_vars/all/vault-windows.yml.example inventories/production/group_vars/all/vault-windows.yml
 ```
 
 ```powershell
 Copy-Item inventories\production\hosts.yml.example inventories\production\hosts.yml
 Copy-Item inventories\production\group_vars\all\vault-freeipa.yml.example inventories\production\group_vars\all\vault-freeipa.yml
 Copy-Item inventories\production\group_vars\all\vault-proxmox.yml.example inventories\production\group_vars\all\vault-proxmox.yml
+# Optional when you plan to manage Windows guests:
+Copy-Item inventories\production\group_vars\all\vault-windows.yml.example inventories\production\group_vars\all\vault-windows.yml
 ```
 
 ### 2. Edit the environment-specific files
@@ -195,11 +223,13 @@ Copy-Item inventories\production\group_vars\all\vault-proxmox.yml.example invent
 - `inventories/production/group_vars/all/15-rollout.yml`
 - `inventories/production/group_vars/all/20-freeipa.yml`
 - `inventories/production/group_vars/all/30-linux-clients.yml`
+- `inventories/production/group_vars/all/35-windows-clients.yml` when you use Windows management
 - `inventories/production/group_vars/all/40-proxmox-ldap.yml`
 - `inventories/production/group_vars/all/50-proxmox-sync.yml`
 - `inventories/production/group_vars/all/60-proxmox-rbac.yml`
 - `inventories/production/group_vars/all/vault-freeipa.yml`
 - `inventories/production/group_vars/all/vault-proxmox.yml`
+- `inventories/production/group_vars/all/vault-windows.yml` when you use Windows management
 
 Choose one Linux guest source mode in addition to the IPA and Proxmox settings:
 
@@ -241,6 +271,8 @@ ansible-vault encrypt `
   inventories/production/group_vars/all/vault-proxmox.yml
 ```
 
+Add `inventories/production/group_vars/all/vault-windows.yml` to the same command when you enable the Windows workflow.
+
 Or use the helper wrappers, which default to separate vault IDs and create the working vault files from the example templates if needed:
 
 ```bash
@@ -257,7 +289,9 @@ If you want separate passwords per domain when running playbooks, prefer vault I
 .\scripts\run-playbook.ps1 -Playbook site -VaultId freeipa@prompt,proxmox@prompt
 ```
 
-Use `-AskVaultPass` only when both vault files share the same password.
+If the optional Windows workflow also uses its own vault password, add `windows@prompt` to the same command.
+
+Use `-AskVaultPass` only when all vault files used by that playbook share the same password.
 
 ### 4. Install the required collection
 
@@ -324,6 +358,8 @@ ansible-playbook playbooks/site.yml --ask-vault-pass
 .\scripts\run-playbook.ps1 -Playbook site -AskVaultPass
 ```
 
+If the optional Windows workflow is enabled and `vault-windows.yml` uses a separate password, run the same playbook with `--vault-id windows@prompt` or the PowerShell wrapper `-VaultId freeipa@prompt,proxmox@prompt,windows@prompt` instead of `--ask-vault-pass`.
+
 ## Rollout Order
 
 For the first deployment, apply the stack in this order:
@@ -332,6 +368,8 @@ For the first deployment, apply the stack in this order:
 ansible-playbook playbooks/freeipa.yml --ask-vault-pass
 ansible-playbook playbooks/proxmox.yml --ask-vault-pass
 ansible-playbook playbooks/linux-clients.yml --ask-vault-pass
+# Optional when you manage Windows guests:
+ansible-playbook playbooks/windows-management.yml --ask-vault-pass
 ```
 
 That sequence makes troubleshooting much easier than running everything at once.
@@ -347,6 +385,7 @@ Default rollout controls are conservative:
 - FreeIPA access changes run with `serial: 1`
 - Proxmox changes run with `serial: 1`
 - Linux hostname resolution, validation, and enrollment run with `serial: 10`
+- Windows management changes run with `serial: 10`
 - all rollout paths default to `max_fail_percentage: 0`
 
 Tune those values in `inventories/production/group_vars/all/15-rollout.yml`.
@@ -356,6 +395,7 @@ Tune those values in `inventories/production/group_vars/all/15-rollout.yml`.
 Use tags to target stable rollout slices instead of creating more playbooks.
 
 - Core domains: `freeipa`, `proxmox`, `linux`, `validate`
+- Windows domain: `windows`, `windows_domain`
 - FreeIPA model: `freeipa_access`
 - Proxmox subsets: `proxmox_ldap`, `proxmox_sync`, `proxmox_rbac`
 - Linux preparation: `inventory`, `discovery`, `hostnames`, `linux_inventory`, `proxmox_discovery`
@@ -368,6 +408,7 @@ Examples:
 .\scripts\run-playbook.ps1 -Playbook site -Tags freeipa_access -VaultId freeipa@prompt,proxmox@prompt
 .\scripts\run-playbook.ps1 -Playbook proxmox -Tags proxmox_ldap,proxmox_rbac -VaultId freeipa@prompt,proxmox@prompt
 .\scripts\run-playbook.ps1 -Playbook validate -Tags discovery -VaultId freeipa@prompt,proxmox@prompt
+.\scripts\run-playbook.ps1 -Playbook windows-management -Tags windows_domain -VaultId windows@prompt
 ```
 
 ## Event-Driven VM Onboarding
@@ -382,13 +423,14 @@ Proxmox VM hooks do not expose a standalone `create` phase. In practice, new VMs
 
 ## Inventory Model
 
-This repository uses four declared inventory groups plus one generated runtime group:
+This repository uses five declared inventory groups plus one generated runtime group:
 
 - `ipa_servers`: one or more FreeIPA servers
 - `proxmox_primary`: one Proxmox node chosen to own realm configuration and the recurring sync timer
 - `linux_ipa_clients`: the declarative source inventory group for Linux guests
 - `linux_ipa_clients_runtime`: the generated runtime group built from static inventory, manual host definitions, and optional Proxmox discovery
 - `windows_qemu_guest_agent_clients`: optional Windows guest group used only for QEMU Guest Agent installation
+- `windows_management_clients`: optional Windows guest group used by the separate Windows domain-membership workflow
 
 You can add your own inventory groups and reference them from FreeIPA hostgroup definitions. When you want the full prepared Linux guest set in FreeIPA hostgroups, reference `linux_ipa_clients_runtime`.
 
@@ -510,11 +552,13 @@ Most values live in:
 - `inventories/production/group_vars/all/15-rollout.yml`
 - `inventories/production/group_vars/all/20-freeipa.yml`
 - `inventories/production/group_vars/all/30-linux-clients.yml`
+- `inventories/production/group_vars/all/35-windows-clients.yml`
 - `inventories/production/group_vars/all/40-proxmox-ldap.yml`
 - `inventories/production/group_vars/all/50-proxmox-sync.yml`
 - `inventories/production/group_vars/all/60-proxmox-rbac.yml`
 - `inventories/production/group_vars/all/vault-freeipa.yml`
 - `inventories/production/group_vars/all/vault-proxmox.yml`
+- `inventories/production/group_vars/all/vault-windows.yml`
 
 For the file-by-file layout, see [docs/VARIABLES.md](docs/VARIABLES.md).
 
@@ -523,11 +567,12 @@ Key variable families:
 | Area | Variables |
 | --- | --- |
 | FreeIPA access model | `freeipa_user_groups`, `freeipa_hostgroups`, `freeipa_hbac_rules`, `freeipa_sudo_rules` |
-| Rollout controls | `freeipa_access_serial`, `freeipa_access_max_fail_percentage`, `proxmox_rollout_serial`, `proxmox_rollout_max_fail_percentage`, `linux_freeipa_enroll_serial`, `linux_freeipa_enroll_max_fail_percentage` |
+| Rollout controls | `freeipa_access_serial`, `freeipa_access_max_fail_percentage`, `proxmox_rollout_serial`, `proxmox_rollout_max_fail_percentage`, `linux_freeipa_enroll_serial`, `linux_freeipa_enroll_max_fail_percentage`, `windows_management_serial`, `windows_management_max_fail_percentage` |
 | Proxmox LDAP realm | `proxmox_ldap_realm_id`, `proxmox_ldap_server1`, `proxmox_ldap_base_dn`, `proxmox_ldap_group_dn`, `proxmox_ldap_bind_dn`, `proxmox_ldap_bind_password`, `proxmox_ldap_sync_attributes`, `proxmox_ldap_sync_defaults` |
 | Proxmox RBAC | `proxmox_custom_roles`, `proxmox_acl_bindings` |
 | Linux IPA enrollment | `ipaclient_domain`, `ipaclient_realm`, `linux_ipa_servers`, `linux_ipaclient_mkhomedir`, `linux_ipasssd_permit`, `linux_sssd_refresh_enabled`, `guest_qemu_agent_install_*`, `linux_ipa_client_hosts`, `linux_ipa_qga_ssh_bootstrap_*`, `linux_ipa_ssh_bootstrap_*`, `linux_ipa_proxmox_discovery_*` |
-| Ansible connection secrets | `vault_proxmox_become_password` when `proxmox_primary` uses a sudo-capable non-root SSH user |
+| Windows management | `windows_domain_membership_*`, `windows_domain_membership_enabled`, `windows_management_clients` |
+| Ansible connection secrets | `vault_proxmox_become_password`, `vault_windows_admin_password`, `vault_windows_domain_admin_password` |
 
 ## Example Group Strategy
 
@@ -647,17 +692,20 @@ After a successful rollout, verify the resulting state instead of assuming every
 │               ├── 15-rollout.yml
 │               ├── 20-freeipa.yml
 │               ├── 30-linux-clients.yml
+│               ├── 35-windows-clients.yml
 │               ├── 40-proxmox-ldap.yml
 │               ├── 50-proxmox-sync.yml
 │               ├── 60-proxmox-rbac.yml
 │               ├── main.yml
 │               ├── vault-freeipa.yml.example
-│               └── vault-proxmox.yml.example
+│               ├── vault-proxmox.yml.example
+│               └── vault-windows.yml.example
 ├── playbooks/
 │   ├── includes/
 │   │   ├── bootstrap_linux_qga_ssh.yml
 │   │   ├── bootstrap_linux_ssh.yml
 │   │   ├── ensure_guest_qemu_agent.yml
+│   │   ├── manage_windows_domain_membership.yml
 │   │   ├── prepare_linux_event_inventory.yml
 │   │   ├── prepare_linux_inventory.yml
 │   │   └── resolve_linux_hostnames.yml
@@ -666,7 +714,8 @@ After a successful rollout, verify the resulting state instead of assuming every
 │   ├── proxmox-vm-event.yml
 │   ├── proxmox.yml
 │   ├── site.yml
-│   └── validate.yml
+│   ├── validate.yml
+│   └── windows-management.yml
 ├── roles/
 │   ├── freeipa_access_model/
 │   ├── freeipa_runtime_hostgroup_membership/
@@ -680,7 +729,8 @@ After a successful rollout, verify the resulting state instead of assuming every
 │   ├── proxmox_linux_vm_discovery/
 │   ├── proxmox_ldap_realm/
 │   ├── proxmox_rbac/
-│   └── proxmox_realm_sync_timer/
+│   ├── proxmox_realm_sync_timer/
+│   └── windows_domain_membership/
 └── scripts/
     ├── bootstrap.ps1
     ├── lint.py
@@ -720,12 +770,12 @@ Repository helper files included here:
 - `scripts/bootstrap.ps1` and `scripts/bootstrap.sh` install the required collection into the repo-local `collections/` path and patch it for ansible-core 2.24+ compatibility
 - `scripts/patch_freeipa_collection.py` rewrites deprecated imports in the pinned FreeIPA collection so it stays compatible with future ansible-core releases
 - `scripts/lint.py` provides the cross-platform lint entrypoint for local use, CI, and pre-commit
-- `scripts/smoke-test.py` validates the example inventory and runs syntax checks without touching real infrastructure
+- `scripts/smoke-test.py` validates the example inventory and runs syntax checks without touching real infrastructure, including the separate Windows playbook
 - `scripts/lint.ps1` and `scripts/lint.sh` run the combined local lint and smoke workflow
 - `scripts/proxmox_event_webhook.py` runs the optional controller-side webhook for Proxmox VM events
 - `scripts/proxmox-vm-hook.pl` is the optional Proxmox VM hookscript that notifies the controller webhook on `post-start` and `post-migrate`
-- `scripts/run-playbook.ps1` wraps common `ansible-playbook` commands for PowerShell users
-- `scripts/vault.ps1` and `scripts/vault.sh` wrap common split-vault operations for FreeIPA and Proxmox secrets
+- `scripts/run-playbook.ps1` wraps common `ansible-playbook` commands for PowerShell users, including the separate Windows workflow
+- `scripts/vault.ps1` and `scripts/vault.sh` wrap common split-vault operations for FreeIPA, Proxmox, and optional Windows secrets
 - `tests/` holds the repository verification surface, starting with smoke-test documentation
 - `CONTRIBUTING.md` documents the expected contribution and validation workflow
 - `SECURITY.md` documents how to report vulnerabilities and handle security-sensitive information
@@ -770,6 +820,7 @@ The PowerShell playbook wrapper now also supports common operator options direct
 .\scripts\run-playbook.ps1 -Playbook site -Inventory inventories\production\hosts.yml -Tags freeipa,proxmox -AskVaultPass
 .\scripts\run-playbook.ps1 -Playbook linux-clients -Limit rocky-app-01.example.com -AskBecomePass -ExtraVars ipaclient_domain=example.com
 .\scripts\run-playbook.ps1 -Playbook site -VaultId freeipa@prompt,proxmox@prompt
+.\scripts\run-playbook.ps1 -Playbook windows-management -VaultId windows@prompt
 ```
 
 ## Next Extensions
@@ -779,7 +830,7 @@ Common follow-up improvements you may want later:
 - Packer image pipeline for IPA-ready Linux templates
 - AWX job templates and schedules
 - separate Proxmox tenant and pool models
-- Windows or AD-trust flow for RDP-oriented environments
+- broader Windows local policy or GPO integration
 
 ## License
 

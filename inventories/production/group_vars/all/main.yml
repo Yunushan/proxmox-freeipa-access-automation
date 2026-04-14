@@ -4,10 +4,12 @@
 # - 15-rollout.yml
 # - 20-freeipa.yml
 # - 30-linux-clients.yml
+# - 35-windows-clients.yml
 # - 40-proxmox-ldap.yml
 # - 50-proxmox-sync.yml
 # - 60-proxmox-rbac.yml
 # - vault-freeipa.yml
 # - vault-proxmox.yml
+# - vault-windows.yml
 #
 # Keep this file as the entrypoint and high-level index for the directory.

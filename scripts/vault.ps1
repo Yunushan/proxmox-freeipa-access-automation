@@ -4,12 +4,13 @@ param(
     [ValidateSet('encrypt', 'decrypt', 'view')]
     [string]$Action,
 
-    [ValidateSet('freeipa', 'proxmox', 'all')]
+    [ValidateSet('freeipa', 'proxmox', 'windows', 'all')]
     [string[]]$Domain = @('all'),
 
     [string]$Environment = 'production',
     [string]$FreeipaVaultId = 'freeipa@prompt',
-    [string]$ProxmoxVaultId = 'proxmox@prompt'
+    [string]$ProxmoxVaultId = 'proxmox@prompt',
+    [string]$WindowsVaultId = 'windows@prompt'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -59,10 +60,15 @@ $DomainMap = @{
         ExamplePath = "inventories/$Environment/group_vars/all/vault-proxmox.yml.example"
         VaultId     = $ProxmoxVaultId
     }
+    windows = @{
+        Path        = "inventories/$Environment/group_vars/all/vault-windows.yml"
+        ExamplePath = "inventories/$Environment/group_vars/all/vault-windows.yml.example"
+        VaultId     = $WindowsVaultId
+    }
 }
 
 $DomainsToProcess = if ($Domain -contains 'all') {
-    @('freeipa', 'proxmox')
+    @('freeipa', 'proxmox', 'windows')
 }
 else {
     $Domain

@@ -1,0 +1,12 @@
+---
+windows_domain_membership_enabled: false
+windows_domain_membership_state: domain
+windows_domain_membership_dns_domain_name: ""
+windows_domain_membership_domain_admin_user: ""
+windows_domain_membership_domain_admin_password: "{{ vault_windows_domain_admin_password | default('') }}"
+windows_domain_membership_domain_ou_path: ""
+windows_domain_membership_domain_server: ""
+windows_domain_membership_hostname: ""
+windows_domain_membership_workgroup_name: WORKGROUP
+windows_domain_membership_reboot: true
+windows_domain_membership_reboot_timeout: 900

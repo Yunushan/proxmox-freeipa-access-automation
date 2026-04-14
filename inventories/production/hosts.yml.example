@@ -43,3 +43,18 @@ all:
         #   ansible_port: 5986
         #   ansible_winrm_transport: ntlm
         #   ansible_winrm_server_cert_validation: ignore
+    windows_management_clients:
+      hosts:
+        # Optional: Windows 10/11 and Windows Server guests managed by the
+        # separate Windows workflow. These hosts can also be members of
+        # windows_qemu_guest_agent_clients when you want the QEMU Guest Agent
+        # helper path on the same VM.
+        # windows-server-01.ad.example.com:
+        #   ansible_host: 192.0.2.160
+        #   ansible_connection: winrm
+        #   ansible_user: Administrator
+        #   ansible_password: "{{ vault_windows_admin_password }}"
+        #   ansible_port: 5986
+        #   ansible_winrm_transport: ntlm
+        #   ansible_winrm_server_cert_validation: ignore
+        #   windows_domain_membership_hostname: APP-SRV-01

@@ -1,0 +1,25 @@
+---
+# -----------------------------
+# Windows guest management
+# -----------------------------
+# Enable the separate workflow with windows_domain_membership_enabled in
+# 10-features.yml, then place target hosts in windows_management_clients.
+windows_domain_membership_state: domain
+
+# Join Windows to Active Directory directly. In FreeIPA-centered environments,
+# this usually means joining the AD side of a FreeIPA-AD trust.
+windows_domain_membership_dns_domain_name: ""
+windows_domain_membership_domain_admin_user: ""
+windows_domain_membership_domain_admin_password: "{{ vault_windows_domain_admin_password | default('') }}"
+windows_domain_membership_domain_ou_path: ""
+windows_domain_membership_domain_server: ""
+
+# Optional: set a specific Windows hostname during the membership change.
+windows_domain_membership_hostname: ""
+
+# Used only when windows_domain_membership_state is workgroup.
+windows_domain_membership_workgroup_name: WORKGROUP
+
+# Reboot automatically when the membership change requires it.
+windows_domain_membership_reboot: true
+windows_domain_membership_reboot_timeout: 900
