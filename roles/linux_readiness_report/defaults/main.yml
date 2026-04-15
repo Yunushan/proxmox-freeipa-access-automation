@@ -1,0 +1,8 @@
+---
+linux_readiness_report_enabled: true
+linux_readiness_report_emit_summary: true
+linux_readiness_report_write_file: true
+linux_readiness_report_output_path: ""
+linux_readiness_report_runtime_group: "{{ linux_ipa_runtime_group | default('linux_ipa_clients_runtime') }}"
+linux_readiness_report_manageable_group: linux_ipa_clients_manageable_runtime
+linux_readiness_report_connection_unavailable_group: linux_ipa_clients_connection_unavailable_runtime

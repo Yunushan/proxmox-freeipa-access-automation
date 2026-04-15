@@ -74,6 +74,7 @@ This is a good fit when you want onboarding and offboarding to be mostly:
 - optional no-reboot SSH bootstrap through the Proxmox QEMU Guest Agent
 - optional Proxmox-side guest-agent communication enablement for Proxmox-backed Linux guests
 - optional SSH or WinRM fallback installation of QEMU Guest Agent for guests that are already reachable, become reachable after bootstrap, or are retried again after Linux enrollment
+- optional Linux readiness reporting for SSH reachability and Proxmox QEMU Guest Agent status
 - optional separate Windows domain-membership workflow for Windows 10/11 and Windows Server guests through Active Directory
 - optional limited FreeIPA-aware Windows helper workflow for IPA CA trust, hosts bootstrap, and IPA reachability checks
 - optional first-touch SSH public-key bootstrap for Linux guests
@@ -349,6 +350,16 @@ ansible-playbook playbooks/windows-freeipa-validate.yml --ask-vault-pass
 .\scripts\run-playbook.ps1 -Playbook windows-freeipa-validate -AskVaultPass
 ```
 
+If you want a read-only Linux readiness audit that reports which runtime guests are reachable over SSH and which Proxmox-discovered guests respond through QEMU Guest Agent:
+
+```bash
+ansible-playbook playbooks/linux-readiness-report.yml --ask-vault-pass
+```
+
+```powershell
+.\scripts\run-playbook.ps1 -Playbook linux-readiness-report -AskVaultPass
+```
+
 ### 6. Optional: preview planned changes
 
 ```bash
@@ -433,6 +444,7 @@ Examples:
 .\scripts\run-playbook.ps1 -Playbook site -Tags freeipa_access -VaultId freeipa@prompt,proxmox@prompt
 .\scripts\run-playbook.ps1 -Playbook proxmox -Tags proxmox_ldap,proxmox_rbac -VaultId freeipa@prompt,proxmox@prompt
 .\scripts\run-playbook.ps1 -Playbook validate -Tags discovery -VaultId freeipa@prompt,proxmox@prompt
+.\scripts\run-playbook.ps1 -Playbook linux-readiness-report -Tags readiness_report -VaultId freeipa@prompt,proxmox@prompt
 .\scripts\run-playbook.ps1 -Playbook windows-management -Tags windows_domain -VaultId windows@prompt
 .\scripts\run-playbook.ps1 -Playbook windows-freeipa-helpers -Tags windows_freeipa -VaultId windows@prompt
 .\scripts\run-playbook.ps1 -Playbook windows-freeipa-validate -Tags windows_freeipa -VaultId windows@prompt
@@ -599,6 +611,7 @@ Key variable families:
 | Proxmox LDAP realm | `proxmox_ldap_realm_id`, `proxmox_ldap_server1`, `proxmox_ldap_base_dn`, `proxmox_ldap_group_dn`, `proxmox_ldap_bind_dn`, `proxmox_ldap_bind_password`, `proxmox_ldap_sync_attributes`, `proxmox_ldap_sync_defaults` |
 | Proxmox RBAC | `proxmox_custom_roles`, `proxmox_acl_bindings` |
 | Linux IPA enrollment | `ipaclient_domain`, `ipaclient_realm`, `linux_ipa_servers`, `linux_ipaclient_mkhomedir`, `linux_ipasssd_permit`, `linux_sssd_refresh_enabled`, `guest_qemu_agent_install_*`, `linux_ipa_client_hosts`, `linux_ipa_qga_ssh_bootstrap_*`, `linux_ipa_ssh_bootstrap_*`, `linux_ipa_proxmox_discovery_*` |
+| Linux readiness reporting | `linux_readiness_report_*` |
 | Windows management | `windows_domain_membership_*`, `windows_domain_membership_enabled`, `windows_management_clients` |
 | Windows FreeIPA helpers | `windows_freeipa_helpers_*`, `windows_freeipa_helpers_enabled`, `windows_freeipa_helper_clients` |
 | Ansible connection secrets | `vault_proxmox_become_password`, `vault_windows_admin_password`, `vault_windows_domain_admin_password` |
@@ -741,6 +754,7 @@ After a successful rollout, verify the resulting state instead of assuming every
 │   │   └── resolve_linux_hostnames.yml
 │   ├── freeipa.yml
 │   ├── linux-clients.yml
+│   ├── linux-readiness-report.yml
 │   ├── proxmox-vm-event.yml
 │   ├── proxmox.yml
 │   ├── site.yml
@@ -756,6 +770,7 @@ After a successful rollout, verify the resulting state instead of assuming every
 │   ├── linux_ipa_inventory_prepare/
 │   ├── linux_ipa_qga_ssh_bootstrap/
 │   ├── linux_ipa_ssh_bootstrap/
+│   ├── linux_readiness_report/
 │   ├── linux_freeipa_enroll/
 │   ├── linux_sssd_refresh/
 │   ├── proxmox_linux_vm_discovery/
@@ -852,6 +867,7 @@ The PowerShell playbook wrapper now also supports common operator options direct
 ```powershell
 .\scripts\run-playbook.ps1 -Playbook site -Inventory inventories\production\hosts.yml -Tags freeipa,proxmox -AskVaultPass
 .\scripts\run-playbook.ps1 -Playbook linux-clients -Limit rocky-app-01.example.com -AskBecomePass -ExtraVars ipaclient_domain=example.com
+.\scripts\run-playbook.ps1 -Playbook linux-readiness-report -VaultId freeipa@prompt,proxmox@prompt
 .\scripts\run-playbook.ps1 -Playbook site -VaultId freeipa@prompt,proxmox@prompt
 .\scripts\run-playbook.ps1 -Playbook windows-management -VaultId windows@prompt
 .\scripts\run-playbook.ps1 -Playbook windows-freeipa-helpers -VaultId windows@prompt

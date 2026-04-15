@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('validate', 'site', 'freeipa', 'proxmox', 'linux-clients', 'windows-management', 'windows-freeipa-helpers', 'windows-freeipa-validate')]
+    [ValidateSet('validate', 'site', 'freeipa', 'proxmox', 'linux-clients', 'linux-readiness-report', 'windows-management', 'windows-freeipa-helpers', 'windows-freeipa-validate')]
     [string]$Playbook,
 
     [string]$Inventory = 'inventories/production/hosts.yml',
@@ -55,6 +55,7 @@ $PlaybookMap = @{
     freeipa                    = 'playbooks/freeipa.yml'
     proxmox                    = 'playbooks/proxmox.yml'
     'linux-clients'            = 'playbooks/linux-clients.yml'
+    'linux-readiness-report'   = 'playbooks/linux-readiness-report.yml'
     'windows-management'       = 'playbooks/windows-management.yml'
     'windows-freeipa-helpers'  = 'playbooks/windows-freeipa-helpers.yml'
     'windows-freeipa-validate' = 'playbooks/windows-freeipa-validate.yml'

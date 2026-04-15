@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  author: Repository maintainers
+  description: Build a read-only Linux guest readiness report from runtime inventory, SSH probing, and Proxmox QGA checks.
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

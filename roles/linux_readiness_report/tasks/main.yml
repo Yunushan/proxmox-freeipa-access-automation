@@ -1,0 +1,254 @@
+---
+- name: Build Linux readiness report runtime host lists
+  ansible.builtin.set_fact:
+    linux_readiness_report_runtime_hosts: "{{ groups[linux_readiness_report_runtime_group] | default([]) | sort }}"
+    linux_readiness_report_manageable_hosts: "{{ groups[linux_readiness_report_manageable_group] | default([]) | sort }}"
+    linux_readiness_report_unavailable_hosts: "{{ groups[linux_readiness_report_connection_unavailable_group] | default([]) | sort }}"
+  changed_when: false
+
+- name: Build Proxmox-discovered Linux readiness report targets
+  vars:
+    linux_readiness_report_proxmox_targets_yaml: |
+      {% for host_name in linux_readiness_report_runtime_hosts | default([]) %}
+      {%   set current_hostvars = hostvars[host_name] %}
+      {%   if current_hostvars.linux_ipa_source | default('') == 'proxmox_discovery' and (current_hostvars.linux_ipa_proxmox_vmid | default('', true) | string | trim | length) > 0 and (current_hostvars.linux_ipa_proxmox_node_inventory_host | default('', true) | string | trim | length) > 0 %}
+      - inventory_name: {{ host_name | to_json }}
+        proxmox_node_inventory_host: {{ current_hostvars.linux_ipa_proxmox_node_inventory_host | string | to_json }}
+        vmid: {{ current_hostvars.linux_ipa_proxmox_vmid | string | to_json }}
+        vm_name: {{ current_hostvars.linux_ipa_proxmox_vm_name | default('', true) | string | to_json }}
+      {%   endif %}
+      {% endfor %}
+  ansible.builtin.set_fact:
+    linux_readiness_report_proxmox_targets: "{{ linux_readiness_report_proxmox_targets_yaml | from_yaml | default([], true) }}"
+    linux_readiness_report_qga_by_host: {}
+  changed_when: false
+
+- name: Read Proxmox VM config for QGA reporting
+  ansible.builtin.command:
+    argv:
+      - qm
+      - config
+      - "{{ item.vmid }}"
+  become: true
+  delegate_to: "{{ item.proxmox_node_inventory_host }}"
+  register: linux_readiness_report_qga_config_results
+  changed_when: false
+  failed_when: false
+  ignore_unreachable: true
+  loop: "{{ linux_readiness_report_proxmox_targets }}"
+  loop_control:
+    label: "{{ item.inventory_name }} via {{ item.proxmox_node_inventory_host }}"
+  when:
+    - linux_readiness_report_enabled | bool
+    - linux_readiness_report_proxmox_targets | length > 0
+
+- name: Probe QEMU Guest Agent responsiveness for Proxmox-discovered Linux guests
+  ansible.builtin.command:
+    argv:
+      - qm
+      - guest
+      - ping
+      - "{{ item.vmid }}"
+  become: true
+  delegate_to: "{{ item.proxmox_node_inventory_host }}"
+  register: linux_readiness_report_qga_ping_results
+  changed_when: false
+  failed_when: false
+  ignore_unreachable: true
+  loop: "{{ linux_readiness_report_proxmox_targets }}"
+  loop_control:
+    label: "{{ item.inventory_name }} via {{ item.proxmox_node_inventory_host }}"
+  when:
+    - linux_readiness_report_enabled | bool
+    - linux_readiness_report_proxmox_targets | length > 0
+
+- name: Build QGA status map for Proxmox-discovered Linux guests
+  vars:
+    linux_readiness_report_qga_config_result: "{{ (linux_readiness_report_qga_config_results.results | default([]))[linux_readiness_report_qga_result_index] | default({}) }}"
+    linux_readiness_report_qga_ping_result: "{{ (linux_readiness_report_qga_ping_results.results | default([]))[linux_readiness_report_qga_result_index] | default({}) }}"
+    linux_readiness_report_qga_target: "{{ linux_readiness_report_proxmox_targets[linux_readiness_report_qga_result_index] }}"
+    linux_readiness_report_qga_configured: >-
+      {{
+        (
+          linux_readiness_report_qga_config_result.stdout
+          | default('', true)
+          | string
+          | regex_search('(?m)^agent:\\s*1(?:,|$)')
+        ) is not none
+      }}
+    linux_readiness_report_qga_responsive: "{{ (linux_readiness_report_qga_ping_result.rc | default(1) | int) == 0 }}"
+    linux_readiness_report_qga_status: >-
+      {{
+        'node_unreachable'
+        if (
+          linux_readiness_report_qga_config_result.unreachable | default(false)
+          or linux_readiness_report_qga_ping_result.unreachable | default(false)
+        )
+        else (
+          'available'
+          if (linux_readiness_report_qga_responsive | bool)
+          else (
+            'disabled'
+            if not (linux_readiness_report_qga_configured | bool)
+            else 'configured_unresponsive'
+          )
+        )
+      }}
+    linux_readiness_report_qga_detail: >-
+      {{
+        (
+          linux_readiness_report_qga_config_result.msg
+          | default(linux_readiness_report_qga_ping_result.msg, true)
+        )
+        if (
+          linux_readiness_report_qga_config_result.unreachable | default(false)
+          or linux_readiness_report_qga_ping_result.unreachable | default(false)
+        )
+        else (
+          'QEMU Guest Agent responded to qm guest ping'
+          if (linux_readiness_report_qga_responsive | bool)
+          else (
+            'Proxmox VM agent option is disabled in qm config'
+            if not (linux_readiness_report_qga_configured | bool)
+            else (
+              linux_readiness_report_qga_ping_result.stderr
+              | default(linux_readiness_report_qga_ping_result.stdout, true)
+              | default('QEMU Guest Agent did not respond to qm guest ping', true)
+            )
+          )
+        )
+      }}
+  ansible.builtin.set_fact:
+    linux_readiness_report_qga_by_host: >-
+      {{
+        linux_readiness_report_qga_by_host
+        | combine(
+            {
+              linux_readiness_report_qga_target.inventory_name: {
+                'applicable': true,
+                'status': linux_readiness_report_qga_status,
+                'configured': linux_readiness_report_qga_configured,
+                'responsive': linux_readiness_report_qga_responsive,
+                'proxmox_node_inventory_host': linux_readiness_report_qga_target.proxmox_node_inventory_host,
+                'vmid': linux_readiness_report_qga_target.vmid,
+                'detail': linux_readiness_report_qga_detail | string | trim
+              }
+            },
+            recursive=True
+          )
+      }}
+  loop: "{{ range(0, (linux_readiness_report_proxmox_targets | length)) | list }}"
+  loop_control:
+    loop_var: linux_readiness_report_qga_result_index
+    label: "{{ linux_readiness_report_proxmox_targets[linux_readiness_report_qga_result_index].inventory_name }}"
+  changed_when: false
+  when:
+    - linux_readiness_report_enabled | bool
+    - linux_readiness_report_proxmox_targets | length > 0
+
+- name: Build Linux readiness report entries
+  vars:
+    linux_readiness_report_entries_yaml: |
+      {% for host_name in linux_readiness_report_runtime_hosts | default([]) %}
+      {%   set current_hostvars = hostvars[host_name] %}
+      {%   set ssh_ready = host_name in (linux_readiness_report_manageable_hosts | default([])) %}
+      {%   set has_password = (current_hostvars.ansible_password | default('', true) | string | trim | length) > 0 %}
+      {%   set qga_info = linux_readiness_report_qga_by_host.get(host_name, {'applicable': false, 'status': 'not_applicable', 'configured': false, 'responsive': false, 'detail': 'Host is not a Proxmox-discovered runtime guest'}) %}
+      - inventory_name: {{ host_name | to_json }}
+        source: {{ current_hostvars.linux_ipa_source | default('static_or_manual', true) | string | to_json }}
+        ansible_host: {{ current_hostvars.ansible_host | default(host_name, true) | string | to_json }}
+        ansible_user: {{ current_hostvars.ansible_user | default('root', true) | string | to_json }}
+        proxmox:
+          discovered: {{ (current_hostvars.linux_ipa_source | default('', true) == 'proxmox_discovery') | to_json }}
+          node_inventory_host: {{ current_hostvars.linux_ipa_proxmox_node_inventory_host | default('', true) | string | to_json }}
+          vmid: {{ current_hostvars.linux_ipa_proxmox_vmid | default('', true) | string | to_json }}
+          vm_name: {{ current_hostvars.linux_ipa_proxmox_vm_name | default('', true) | string | to_json }}
+        ssh:
+          ready: {{ ssh_ready | to_json }}
+          promptless: {{ (ssh_ready and not has_password) | to_json }}
+          auth_mode: {{ ('password_configured' if has_password else ('key_or_agent' if ssh_ready else 'unknown')) | to_json }}
+          detail: {{ current_hostvars.linux_ipa_connection_ready_check.msg | default('SSH connection probe succeeded', true) | string | to_json }}
+        qga:
+          applicable: {{ qga_info.applicable | default(false) | to_json }}
+          status: {{ qga_info.status | default('not_applicable') | string | to_json }}
+          configured: {{ qga_info.configured | default(false) | to_json }}
+          responsive: {{ qga_info.responsive | default(false) | to_json }}
+          detail: {{ qga_info.detail | default('', true) | string | to_json }}
+        ready_for_connection_dependent_automation: {{ ssh_ready | to_json }}
+      {% endfor %}
+  ansible.builtin.set_fact:
+    linux_readiness_report_entries: "{{ linux_readiness_report_entries_yaml | from_yaml | default([], true) }}"
+  changed_when: false
+  when: linux_readiness_report_enabled | bool
+
+- name: Build Linux readiness report summary
+  ansible.builtin.set_fact:
+    linux_readiness_report_summary:
+      generated_at_utc: "{{ now(utc=True, fmt='%Y-%m-%dT%H:%M:%SZ') }}"
+      runtime_hosts: "{{ linux_readiness_report_entries | length }}"
+      ssh_ready_hosts: "{{ linux_readiness_report_entries | selectattr('ssh.ready', 'equalto', true) | list | length }}"
+      ssh_promptless_hosts: "{{ linux_readiness_report_entries | selectattr('ssh.promptless', 'equalto', true) | list | length }}"
+      ssh_password_hosts: "{{ linux_readiness_report_entries | selectattr('ssh.auth_mode', 'equalto', 'password_configured') | list | length }}"
+      qga_available_hosts: "{{ linux_readiness_report_entries | selectattr('qga.status', 'equalto', 'available') | list | length }}"
+      qga_configured_unresponsive_hosts: "{{ linux_readiness_report_entries | selectattr('qga.status', 'equalto', 'configured_unresponsive') | list | length }}"
+      qga_disabled_hosts: "{{ linux_readiness_report_entries | selectattr('qga.status', 'equalto', 'disabled') | list | length }}"
+      qga_not_applicable_hosts: "{{ linux_readiness_report_entries | selectattr('qga.status', 'equalto', 'not_applicable') | list | length }}"
+      qga_node_unreachable_hosts: "{{ linux_readiness_report_entries | selectattr('qga.status', 'equalto', 'node_unreachable') | list | length }}"
+  changed_when: false
+  when: linux_readiness_report_enabled | bool
+
+- name: Resolve Linux readiness report output path
+  ansible.builtin.set_fact:
+    linux_readiness_report_effective_output_path: >-
+      {{
+        linux_readiness_report_output_path
+        if (linux_readiness_report_output_path | default('', true) | string | trim | length) > 0
+        else (playbook_dir ~ '/../.ansible/linux-readiness-report.json')
+      }}
+    linux_readiness_report_document:
+      generated_at_utc: "{{ linux_readiness_report_summary.generated_at_utc }}"
+      summary: "{{ linux_readiness_report_summary }}"
+      hosts: "{{ linux_readiness_report_entries }}"
+  changed_when: false
+  when: linux_readiness_report_enabled | bool
+
+- name: Ensure the Linux readiness report output directory exists
+  ansible.builtin.file:
+    path: "{{ linux_readiness_report_effective_output_path | dirname }}"
+    state: directory
+    mode: "0755"
+  when:
+    - linux_readiness_report_enabled | bool
+    - linux_readiness_report_write_file | bool
+
+- name: Write Linux readiness report JSON to the controller
+  ansible.builtin.copy:
+    dest: "{{ linux_readiness_report_effective_output_path }}"
+    content: "{{ linux_readiness_report_document | to_nice_json }}"
+    mode: "0644"
+  when:
+    - linux_readiness_report_enabled | bool
+    - linux_readiness_report_write_file | bool
+
+- name: Show Linux readiness report summary
+  ansible.builtin.debug:
+    msg: >-
+      Linux readiness report generated at {{ linux_readiness_report_summary.generated_at_utc }}.
+      Runtime hosts={{ linux_readiness_report_summary.runtime_hosts }},
+      SSH ready={{ linux_readiness_report_summary.ssh_ready_hosts }},
+      promptless SSH={{ linux_readiness_report_summary.ssh_promptless_hosts }},
+      password-backed SSH={{ linux_readiness_report_summary.ssh_password_hosts }},
+      QGA available={{ linux_readiness_report_summary.qga_available_hosts }},
+      QGA configured but unresponsive={{ linux_readiness_report_summary.qga_configured_unresponsive_hosts }},
+      QGA disabled={{ linux_readiness_report_summary.qga_disabled_hosts }},
+      QGA not applicable={{ linux_readiness_report_summary.qga_not_applicable_hosts }},
+      QGA probe node unreachable={{ linux_readiness_report_summary.qga_node_unreachable_hosts }}.{{
+        (
+          ' Report file: ' ~ linux_readiness_report_effective_output_path ~ '.'
+          if (linux_readiness_report_write_file | bool)
+          else ''
+        )
+      }}
+  when:
+    - linux_readiness_report_enabled | bool
+    - linux_readiness_report_emit_summary | bool

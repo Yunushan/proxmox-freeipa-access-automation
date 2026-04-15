@@ -1,0 +1,34 @@
+---
+- name: Prepare Linux inventory for readiness reporting
+  import_playbook: includes/prepare_linux_inventory.yml
+  tags:
+    - linux
+    - inventory
+    - discovery
+    - readiness_report
+
+- name: Filter Linux guests with a working management connection for readiness reporting
+  import_playbook: includes/filter_linux_connection_ready_hosts.yml
+  tags:
+    - linux
+    - inventory
+    - discovery
+    - readiness_report
+    - hostnames
+
+- name: Build Linux readiness report
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - linux
+    - inventory
+    - discovery
+    - readiness_report
+  roles:
+    - role: linux_readiness_report
+      tags:
+        - linux
+        - inventory
+        - discovery
+        - readiness_report

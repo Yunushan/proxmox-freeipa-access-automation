@@ -14,6 +14,7 @@ PLAYBOOKS = (
     "playbooks/freeipa.yml",
     "playbooks/proxmox.yml",
     "playbooks/linux-clients.yml",
+    "playbooks/linux-readiness-report.yml",
     "playbooks/windows-management.yml",
     "playbooks/windows-freeipa-helpers.yml",
     "playbooks/windows-freeipa-validate.yml",

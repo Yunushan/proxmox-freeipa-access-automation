@@ -99,6 +99,17 @@ Use `linux_ipa_clients_runtime` when a FreeIPA hostgroup should include the full
 - `playbooks/windows-freeipa-validate.yml`: validation-only entrypoint for `windows_freeipa_helper_clients`; it forces CA trust, hosts-file changes, local-group changes, and OpenSSH management off while keeping the helper validation and summary path
 - this workflow is helper-only and does not provide Windows domain membership or native Windows logon against FreeIPA
 
+## Linux readiness reporting
+
+- `linux_readiness_report_enabled`: when `true`, the readiness-report role runs and builds a structured Linux runtime-host audit; defaults to `true`
+- `linux_readiness_report_emit_summary`: when `true`, the readiness-report playbook prints a one-line operator summary after building the report; defaults to `true`
+- `linux_readiness_report_write_file`: when `true`, the readiness-report playbook writes a JSON document on the controller; defaults to `true`
+- `linux_readiness_report_output_path`: optional controller-side JSON output path for the readiness report; defaults to `.ansible/linux-readiness-report.json` under the repository root when left empty
+- `linux_readiness_report_runtime_group`: runtime inventory group that should be audited; defaults to `linux_ipa_clients_runtime`
+- `linux_readiness_report_manageable_group`: runtime inventory group treated as SSH-ready by the report; defaults to `linux_ipa_clients_manageable_runtime`
+- `linux_readiness_report_connection_unavailable_group`: runtime inventory group treated as not yet SSH-ready by the report; defaults to `linux_ipa_clients_connection_unavailable_runtime`
+- `playbooks/linux-readiness-report.yml`: read-only audit entrypoint that prepares Linux runtime inventory, reuses the SSH connection probe path, probes QEMU Guest Agent status for Proxmox-discovered guests, and writes a controller-side report
+
 ## Hostname resolution rules
 
 FreeIPA still needs each guest's final hostname.
