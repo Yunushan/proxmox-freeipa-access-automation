@@ -37,8 +37,8 @@ proxmox_ldap_group_classes:
   - groupOfNames
   - group
 proxmox_ldap_group_name_attr: cn
-proxmox_ldap_users_autocreate: true
-proxmox_ldap_groups_autocreate: true
+# LDAP realm admission of newly synced users and groups is controlled through
+# proxmox_ldap_sync_defaults and the subsequent pveum realm sync behavior.
 proxmox_ldap_check_connection: true
 proxmox_ldap_default_realm: false
 proxmox_ldap_comment: FreeIPA LDAP realm

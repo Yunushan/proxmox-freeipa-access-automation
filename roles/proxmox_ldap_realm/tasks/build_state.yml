@@ -29,8 +29,6 @@
         or (proxmox_ldap_current.filter | default('') | string != proxmox_ldap_filter | string)
         or (proxmox_ldap_current.group_filter | default('') | string != proxmox_ldap_group_filter | string)
         or (proxmox_ldap_current.server2 | default('') | string != proxmox_ldap_server2 | string)
-        or (proxmox_ldap_current.autocreate | default('0') | string != ((proxmox_ldap_users_autocreate | bool) | ternary('1', '0')))
-        or (proxmox_ldap_current['groups-autocreate'] | default('0') | string != ((proxmox_ldap_groups_autocreate | bool) | ternary('1', '0')))
         or (proxmox_ldap_current['sync-defaults-options'] | default('') | string != proxmox_ldap_sync_defaults_options_str | string)
         or (proxmox_ldap_current.sync_attributes | default('') | string != proxmox_ldap_sync_attributes_str | string)
         or (proxmox_ldap_current.verify | default('0') | string != ((proxmox_ldap_verify_tls | bool) | ternary('1', '0')))
@@ -57,8 +55,6 @@
            '--user_classes', proxmox_ldap_user_classes | join(','),
            '--group_classes', proxmox_ldap_group_classes | join(','),
            '--group_name_attr', proxmox_ldap_group_name_attr,
-           '--autocreate', ((proxmox_ldap_users_autocreate | bool) | ternary('1', '0')),
-           '--groups-autocreate', ((proxmox_ldap_groups_autocreate | bool) | ternary('1', '0')),
            '--verify', ((proxmox_ldap_verify_tls | bool) | ternary('1', '0')),
            '--capath', proxmox_ldap_capath,
            '--check-connection', ((proxmox_ldap_check_connection | bool) | ternary('1', '0')),

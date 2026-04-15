@@ -14,6 +14,7 @@ and this project follows semantic versioning when tagged releases are introduced
 - Linux guest source modes for static inventory, IP-only/manual definitions, and Proxmox VM discovery.
 - Proxmox discovery blacklist controls so infrastructure VMs can be excluded by VMID, IP, or name even on discovery-enabled nodes.
 - A dedicated `linux-readiness-report.yml` playbook and `linux_readiness_report` role for read-only Linux runtime audits covering SSH readiness and Proxmox QEMU Guest Agent status.
+- Proxmox LDAP realm automation no longer passes unsupported `--autocreate` or `--groups-autocreate` flags for LDAP realms, relying on sync defaults and realm sync behavior instead.
 - A separate Windows management workflow with `windows_management_clients`, a dedicated `windows-management.yml` playbook, and a `windows_domain_membership` role for Active Directory domain membership.
 - A separate helper-only Windows FreeIPA workflow with `windows_freeipa_helper_clients`, a dedicated `windows-freeipa-helpers.yml` playbook, and a `windows_freeipa_helpers` role for IPA CA trust import, optional CA auto-fetch with thumbprint pinning, hosts bootstrap, IPA service reachability checks, time-source validation, local group management, and OpenSSH helpers.
 - A dedicated `windows-freeipa-validate.yml` playbook for validation-only checks against `windows_freeipa_helper_clients` without mutating CA trust, hosts entries, local groups, or OpenSSH state.

@@ -30,6 +30,9 @@ proxmox_ldap_group_classes:
   - groupOfNames
   - group
 proxmox_ldap_group_name_attr: cn
+# Legacy no-op knobs retained for backward compatibility with older inventory files.
+# LDAP realm admission of new synced users/groups is controlled through
+# proxmox_ldap_sync_defaults and the subsequent pveum realm sync behavior.
 proxmox_ldap_users_autocreate: true
 proxmox_ldap_groups_autocreate: true
 proxmox_ldap_check_connection: true

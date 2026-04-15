@@ -29,3 +29,4 @@ Configures the Proxmox LDAP realm used to consume identities from FreeIPA.
 - This role should run on the node designated in `proxmox_primary`.
 - It expects `pveversion`, `pvesh`, and `pveum` to be available on the target host.
 - Major versions newer than the highest tested entry in `proxmox_supported_major_versions` are accepted when `proxmox_allow_future_major_versions` is `true`.
+- LDAP realm sync behavior is controlled with `proxmox_ldap_sync_defaults` and `pveum realm sync`, not with OpenID-style `autocreate` flags.
