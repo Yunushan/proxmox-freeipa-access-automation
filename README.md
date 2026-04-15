@@ -360,6 +360,26 @@ ansible-playbook playbooks/linux-readiness-report.yml --ask-vault-pass
 .\scripts\run-playbook.ps1 -Playbook linux-readiness-report -AskVaultPass
 ```
 
+The readiness report writes `.ansible/linux-readiness-report.json` by default.
+Interpret the main fields like this:
+
+- `ssh.ready=true`: the currently configured Ansible SSH path worked from the controller
+- `ssh.promptless=true`: the SSH probe succeeded without `ansible_password`, so the path is non-interactive for Ansible
+- `ssh.auth_mode=password_configured`: the probe used `sshpass` because the host had `ansible_password`
+- `ssh.auth_mode=key_or_agent`: the probe succeeded in SSH batch mode without `ansible_password`
+- `qga.status=available`: `qm guest ping` succeeded on the owning Proxmox node
+- `qga.status=disabled`: the Proxmox VM config does not enable QEMU Guest Agent
+- `qga.status=configured_unresponsive`: the guest agent is enabled in Proxmox config but did not respond
+- `qga.status=node_unreachable`: the controller could not reach the owning Proxmox node for the probe
+- `qga.status=not_applicable`: the host was not created by Proxmox discovery, so no QGA probe was attempted
+
+Example quick inspection:
+
+```bash
+jq '.summary' .ansible/linux-readiness-report.json
+jq '.hosts[] | {inventory_name, ansible_user, ssh_auth_mode: .ssh.auth_mode, ssh_promptless: .ssh.promptless, qga_status: .qga.status}' .ansible/linux-readiness-report.json
+```
+
 ### 6. Optional: preview planned changes
 
 ```bash

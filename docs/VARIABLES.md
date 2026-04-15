@@ -110,6 +110,19 @@ Use `linux_ipa_clients_runtime` when a FreeIPA hostgroup should include the full
 - `linux_readiness_report_connection_unavailable_group`: runtime inventory group treated as not yet SSH-ready by the report; defaults to `linux_ipa_clients_connection_unavailable_runtime`
 - `playbooks/linux-readiness-report.yml`: read-only audit entrypoint that prepares Linux runtime inventory, reuses the SSH connection probe path, probes QEMU Guest Agent status for Proxmox-discovered guests, and writes a controller-side report
 
+Readiness report output semantics:
+
+- `ssh.ready`: the currently configured Ansible SSH path worked from the controller
+- `ssh.promptless`: the SSH probe succeeded without `ansible_password`, so the path is non-interactive for Ansible
+- `ssh.auth_mode=password_configured`: the probe used `sshpass` because `ansible_password` was present
+- `ssh.auth_mode=key_or_agent`: the probe succeeded in SSH batch mode without `ansible_password`
+- `ssh.auth_mode=unknown`: the host was not SSH-ready, so the report could not classify the working auth path
+- `qga.status=available`: `qm guest ping` succeeded on the owning Proxmox node
+- `qga.status=disabled`: the Proxmox VM config does not enable the guest agent
+- `qga.status=configured_unresponsive`: the guest agent is enabled in Proxmox config but did not respond
+- `qga.status=node_unreachable`: the controller could not reach the owning Proxmox node for the probe
+- `qga.status=not_applicable`: the host was not admitted through Proxmox discovery, so no QGA probe context exists
+
 ## Hostname resolution rules
 
 FreeIPA still needs each guest's final hostname.
