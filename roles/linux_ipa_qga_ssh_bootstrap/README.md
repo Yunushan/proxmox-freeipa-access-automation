@@ -31,6 +31,7 @@ Bootstraps Linux guest SSH access through the Proxmox QEMU Guest Agent so alread
 
 - This role only applies to runtime Linux hosts that carry both `linux_ipa_proxmox_node_inventory_host` and `linux_ipa_proxmox_vmid`.
 - It relies on the QEMU Guest Agent already being active in the guest.
+- The in-guest `guest-exec` command must run with root privileges; if the guest agent is configured to execute commands as an unprivileged user, this role will stop with a diagnostic instead of trying to manage `/root`, create users, or install `sudo`.
 - The bootstrap user is persistent by default so later site/linux runs can keep using the same automation account.
 - Set `linux_ipa_qga_ssh_bootstrap_user: root` when you want the QGA bootstrap path to install the controller key directly into `/root/.ssh/authorized_keys` and avoid any dependency on guest-local `sudo` policy.
 - The combined `site` workflow runs this role in two phases: controller preparation on `localhost`, then `qm guest ...` execution on the matching Proxmox nodes.
