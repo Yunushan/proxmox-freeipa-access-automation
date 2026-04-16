@@ -229,7 +229,7 @@
         chmod 0440 "$bootstrap_sudoers_file"
         visudo -cf "$bootstrap_sudoers_file" >/dev/null
 
-        if ! su -s /bin/sh -c 'sudo -n true' "$bootstrap_user"; then
+        if ! su -s '{{ linux_ipa_qga_ssh_bootstrap_exec_shell }}' -c 'sudo -n true' "$bootstrap_user"; then
           echo "passwordless sudo verification failed for $bootstrap_user" >&2
           exit 1
         fi
@@ -243,7 +243,7 @@
       - --timeout
       - "{{ linux_ipa_qga_ssh_bootstrap_timeout | int | string }}"
       - --
-      - /bin/sh
+      - "{{ linux_ipa_qga_ssh_bootstrap_exec_shell }}"
       - -lc
       - "{{ linux_ipa_qga_ssh_bootstrap_guest_script }}"
   become: true
@@ -258,6 +258,7 @@
 - name: Initialize Linux QGA SSH bootstrap execution result buckets
   ansible.builtin.set_fact:
     linux_ipa_qga_ssh_bootstrap_exec_blocked_results: []
+    linux_ipa_qga_ssh_bootstrap_exec_shell_missing_results: []
     linux_ipa_qga_ssh_bootstrap_exec_failed_results: []
     linux_ipa_qga_ssh_bootstrap_exec_success_results: []
     linux_ipa_qga_ssh_bootstrap_bootstrapped_hosts: []
@@ -277,6 +278,20 @@
     - >-
       'disabled' in ((item.stderr | default('') | string | lower))
 
+- name: Classify Linux QGA SSH bootstrap guest-exec shell-missing incompatibilities
+  ansible.builtin.set_fact:
+    linux_ipa_qga_ssh_bootstrap_exec_shell_missing_results: "{{ linux_ipa_qga_ssh_bootstrap_exec_shell_missing_results + [item] }}"
+  loop: "{{ linux_ipa_qga_ssh_bootstrap_exec_results.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - linux_ipa_qga_ssh_bootstrap_ready_hosts | length > 0
+    - item.rc | int != 0
+    - >-
+      'failed to execute child process' in ((item.stderr | default('') | string | lower))
+    - >-
+      'no such file or directory' in ((item.stderr | default('') | string | lower))
+
 - name: Classify Linux QGA SSH bootstrap unexpected execution failures
   ansible.builtin.set_fact:
     linux_ipa_qga_ssh_bootstrap_exec_failed_results: "{{ linux_ipa_qga_ssh_bootstrap_exec_failed_results + [item] }}"
@@ -291,6 +306,12 @@
         ('guest-exec' in ((item.stderr | default('') | string | lower)))
         and
         ('disabled' in ((item.stderr | default('') | string | lower)))
+      )
+    - >-
+      not (
+        ('failed to execute child process' in ((item.stderr | default('') | string | lower)))
+        and
+        ('no such file or directory' in ((item.stderr | default('') | string | lower)))
       )
 
 - name: Collect Linux QGA SSH bootstrap successful execution results
@@ -347,6 +368,56 @@
       not allowed. Allow guest-exec inside qemu-ga, or disable strict handling
       with linux_ipa_qga_ssh_bootstrap_fail_on_guest_exec_blocked: false.
   when: linux_ipa_qga_ssh_bootstrap_exec_blocked_results | length > 0
+
+- name: Warn when Linux QGA SSH bootstrap cannot launch the configured guest shell
+  ansible.builtin.debug:
+    msg: >-
+      Skipping Linux QGA SSH bootstrap for {{ item.item }} on {{ inventory_hostname }}
+      because the guest agent could not launch {{ linux_ipa_qga_ssh_bootstrap_exec_shell }} inside the guest.
+      This usually means the guest is not a normal Linux target for this bootstrap path,
+      or the shell path is different. Later plays must rely on an existing SSH path for
+      this guest, or you can override linux_ipa_qga_ssh_bootstrap_exec_shell.
+  loop: "{{ linux_ipa_qga_ssh_bootstrap_exec_shell_missing_results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: linux_ipa_qga_ssh_bootstrap_exec_shell_missing_results | length > 0
+
+- name: Record Linux QGA SSH bootstrap exec-shell-missing status on skipped guests
+  ansible.builtin.add_host:
+    name: "{{ item.item }}"
+    groups: "{{ linux_ipa_runtime_group }}"
+    linux_ipa_management_path_bootstrap_status: qga-exec-shell-missing
+    linux_ipa_management_path_bootstrap_detail: >-
+      {{
+        (
+          'Configured guest exec shell ' ~ linux_ipa_qga_ssh_bootstrap_exec_shell
+          ~ ' could not be launched. '
+          ~ (
+            item.stderr
+            | default(item.stdout, true)
+            | default('QEMU guest agent could not launch the configured guest shell', true)
+            | string
+            | trim
+          )
+        )
+      }}
+  delegate_to: localhost
+  loop: "{{ linux_ipa_qga_ssh_bootstrap_exec_shell_missing_results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  changed_when: false
+  when: linux_ipa_qga_ssh_bootstrap_exec_shell_missing_results | length > 0
+
+- name: Fail when Linux QGA SSH bootstrap cannot launch the configured guest shell and strict mode is enabled
+  ansible.builtin.assert:
+    that:
+      - not linux_ipa_qga_ssh_bootstrap_fail_on_exec_shell_missing | bool
+    fail_msg: >-
+      Linux QGA SSH bootstrap could not launch {{ linux_ipa_qga_ssh_bootstrap_exec_shell }}
+      for {{ linux_ipa_qga_ssh_bootstrap_exec_shell_missing_results | map(attribute='item') | join(', ') }}
+      on {{ inventory_hostname }}. Override linux_ipa_qga_ssh_bootstrap_exec_shell
+      or disable strict handling with linux_ipa_qga_ssh_bootstrap_fail_on_exec_shell_missing: false.
+  when: linux_ipa_qga_ssh_bootstrap_exec_shell_missing_results | length > 0
 
 - name: Fail when Linux QGA SSH bootstrap hit unexpected Proxmox guest exec errors
   vars:

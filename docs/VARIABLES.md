@@ -204,11 +204,13 @@ Relevant Linux enrollment hostname controls:
 - `linux_ipa_qga_ssh_bootstrap_enabled`: when `true`, Proxmox-backed Linux runtime guests use the QEMU Guest Agent to create a dedicated key-only automation user before SSH-based hostname resolution or enrollment, or to inject the controller key directly into `root` when `linux_ipa_qga_ssh_bootstrap_user: root`
 - `linux_ipa_qga_ssh_bootstrap_user`: username created inside Proxmox-backed Linux guests for QGA-based SSH bootstrap; set this to `root` when you want direct root-key installation instead of a separate bootstrap user
 - `linux_ipa_qga_ssh_bootstrap_shell`: login shell assigned to the QGA bootstrap user
+- `linux_ipa_qga_ssh_bootstrap_exec_shell`: in-guest shell path launched through `qm guest exec` for the QGA bootstrap script; defaults to `/bin/sh`
 - `linux_ipa_qga_ssh_bootstrap_public_key_file`: controller SSH public key installed through the QEMU Guest Agent bootstrap path
 - `linux_ipa_qga_ssh_bootstrap_private_key_file`: controller SSH private key paired with the QGA bootstrap public key and used for later SSH connections
 - `linux_ipa_qga_ssh_bootstrap_install_sudo`: when `true`, the QGA bootstrap path installs `sudo` if missing before creating the bootstrap sudoers entry for non-root bootstrap users; this is skipped when `linux_ipa_qga_ssh_bootstrap_user: root`
 - `linux_ipa_qga_ssh_bootstrap_timeout`: timeout passed to `qm guest exec` during the QGA bootstrap path
 - `linux_ipa_qga_ssh_bootstrap_fail_on_guest_exec_blocked`: when `true`, the QGA bootstrap path hard-fails if a guest agent allows `guest-ping` but rejects `guest-exec`; defaults to `false`
+- `linux_ipa_qga_ssh_bootstrap_fail_on_exec_shell_missing`: when `true`, the QGA bootstrap path hard-fails if a guest agent allows `guest-ping` but cannot launch the configured `linux_ipa_qga_ssh_bootstrap_exec_shell`; defaults to `false`
 - `linux_ipa_qga_ssh_bootstrap_qm_path`: Proxmox CLI command or absolute path used for Proxmox-side `qm guest ...` calls; defaults to `qm`
 - `linux_ipa_qga_ssh_bootstrap_qm_fallback_paths`: common absolute `qm` locations probed on the Proxmox node before failing; defaults to `/usr/sbin/qm`, `/usr/bin/qm`, and `/sbin/qm`
 - `linux_ipa_qga_ssh_bootstrap_delegate_python_interpreter`: Python interpreter forced for delegated Proxmox-side `qm guest ...` tasks; defaults to `/usr/bin/python3`
