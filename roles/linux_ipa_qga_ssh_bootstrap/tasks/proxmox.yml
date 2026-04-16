@@ -272,7 +272,10 @@
   when:
     - linux_ipa_qga_ssh_bootstrap_ready_hosts | length > 0
     - item.rc | int != 0
-    - "'Command guest-exec has been disabled' in (item.stderr | default(''))"
+    - >-
+      'guest-exec' in ((item.stderr | default('') | string | lower))
+    - >-
+      'disabled' in ((item.stderr | default('') | string | lower))
 
 - name: Classify Linux QGA SSH bootstrap unexpected execution failures
   ansible.builtin.set_fact:
@@ -283,7 +286,12 @@
   when:
     - linux_ipa_qga_ssh_bootstrap_ready_hosts | length > 0
     - item.rc | int != 0
-    - "'Command guest-exec has been disabled' not in (item.stderr | default(''))"
+    - >-
+      not (
+        ('guest-exec' in ((item.stderr | default('') | string | lower)))
+        and
+        ('disabled' in ((item.stderr | default('') | string | lower)))
+      )
 
 - name: Collect Linux QGA SSH bootstrap successful execution results
   ansible.builtin.set_fact:
