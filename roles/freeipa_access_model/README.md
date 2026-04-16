@@ -34,3 +34,4 @@ Manages the declarative FreeIPA access model used by this repository.
 - Combined playbooks can derive those hostnames from Linux guest preparation and identity resolution.
 - Set `freeipa_access_model_manage_inventory_group_host_membership: false` when a workflow must create hostgroups before the inventory-backed Linux guests are enrolled into FreeIPA. The repository's combined `site` workflow then adds those hosts afterward through `freeipa_runtime_hostgroup_membership`.
 - By default, the role sets the global FreeIPA default login shell to `/bin/bash` and also enforces `/bin/bash` for members of `linux-ssh-admins` so Linux admin users land in a normal Bash prompt on first SSH login.
+- Group-member shell enforcement now normalizes both direct and indirect FreeIPA group-member output from `ipa group-show --raw`, which makes the reconciliation path more reliable across different FreeIPA membership layouts.

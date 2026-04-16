@@ -96,6 +96,9 @@
                 | map('regex_findall', '(?im)^\\s*(?:member_user|memberindirect_user)\\s*:\\s*(.+?)\\s*$')
                 | list
                 | flatten
+                | map('split', ',')
+                | list
+                | flatten
               )
               +
               (
@@ -104,6 +107,9 @@
                   | default([])
                   | map(attribute='stdout')
                   | map('regex_findall', '(?im)^\\s*(?:member_user|memberindirect_user)\\s*:\\s*(.+?)\\s*$')
+                  | list
+                  | flatten
+                  | map('split', ',')
                   | list
                   | flatten
                   | map('regex_replace', '$', '@' ~ (linux_freeipa_enroll_effective_domain | string | trim | lower))
@@ -119,6 +125,9 @@
                   | default([])
                   | map(attribute='stdout')
                   | map('regex_findall', '(?im)^\\s*(?:member_user|memberindirect_user)\\s*:\\s*(.+?)\\s*$')
+                  | list
+                  | flatten
+                  | map('split', ',')
                   | list
                   | flatten
                   | map('regex_replace', '$', '@' ~ (linux_freeipa_enroll_effective_realm | string | trim | upper))

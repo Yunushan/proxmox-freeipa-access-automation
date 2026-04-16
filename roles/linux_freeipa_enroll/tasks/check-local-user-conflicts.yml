@@ -97,6 +97,9 @@
             | map('regex_findall', '(?im)^\\s*(?:member_user|memberindirect_user)\\s*:\\s*(.+?)\\s*$')
             | list
             | flatten
+            | map('split', ',')
+            | list
+            | flatten
             | map('string')
             | map('trim')
             | reject('equalto', '')
