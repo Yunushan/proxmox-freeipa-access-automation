@@ -1,0 +1,165 @@
+---
+- name: Normalize Linux IPA local-user conflict groups
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_local_user_conflict_groups_effective: >-
+      {{
+        (
+          linux_freeipa_enroll_local_user_conflict_groups
+          if (
+            linux_freeipa_enroll_local_user_conflict_groups is sequence
+            and linux_freeipa_enroll_local_user_conflict_groups is not string
+          )
+          else [linux_freeipa_enroll_local_user_conflict_groups]
+        )
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | sort
+        | list
+      }}
+  changed_when: false
+
+- name: Read local-only passwd entries for Linux IPA conflict detection
+  ansible.builtin.command:
+    argv:
+      - getent
+      - -s
+      - files
+      - passwd
+  register: linux_freeipa_enroll_local_user_conflict_passwd
+  changed_when: false
+
+- name: Build local-only passwd usernames for Linux IPA conflict detection
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_local_user_conflict_local_users: >-
+      {{
+        linux_freeipa_enroll_local_user_conflict_passwd.stdout_lines
+        | default([])
+        | map('regex_replace', '^([^:]+):.*$', '\1')
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | sort
+        | list
+      }}
+  changed_when: false
+
+- name: Read effective IPA users for Linux local-user conflict detection
+  block:
+    - name: Create temporary Kerberos cache for Linux local-user conflict detection
+      ansible.builtin.tempfile:
+        state: file
+        prefix: linux-freeipa-enroll-conflict-krb5cc-
+      register: linux_freeipa_enroll_local_user_conflict_kerberos_cache
+      changed_when: false
+
+    - name: Obtain Kerberos ticket for Linux local-user conflict detection
+      ansible.builtin.command:
+        argv:
+          - kinit
+          - -c
+          - "{{ linux_freeipa_enroll_local_user_conflict_kerberos_cache.path }}"
+          - "{{ linux_freeipa_enroll_effective_ipaadmin_principal }}"
+      args:
+        stdin: "{{ linux_freeipa_enroll_effective_ipaadmin_password }}"
+        stdin_add_newline: true
+      changed_when: false
+      no_log: true
+
+    - name: Read FreeIPA membership for Linux local-user conflict groups
+      ansible.builtin.command:
+        argv:
+          - ipa
+          - group-show
+          - "{{ item }}"
+          - --all
+          - --raw
+      loop: "{{ linux_freeipa_enroll_local_user_conflict_groups_effective }}"
+      loop_control:
+        label: "{{ item }}"
+      register: linux_freeipa_enroll_local_user_conflict_group_show
+      changed_when: false
+      environment:
+        KRB5CCNAME: "{{ linux_freeipa_enroll_local_user_conflict_kerberos_cache.path }}"
+        LANG: C
+        LC_ALL: C
+      no_log: true
+
+    - name: Build the effective IPA usernames for Linux local-user conflict detection
+      ansible.builtin.set_fact:
+        linux_freeipa_enroll_local_user_conflict_ipa_users: >-
+          {{
+            linux_freeipa_enroll_local_user_conflict_group_show.results
+            | default([])
+            | map(attribute='stdout')
+            | map('regex_findall', '(?im)^\\s*(?:member_user|memberindirect_user)\\s*:\\s*(.+?)\\s*$')
+            | list
+            | flatten
+            | map('string')
+            | map('trim')
+            | reject('equalto', '')
+            | unique
+            | sort
+            | list
+          }}
+      changed_when: false
+      no_log: true
+
+  always:
+    - name: Destroy temporary Kerberos ticket for Linux local-user conflict detection
+      ansible.builtin.command:
+        argv:
+          - kdestroy
+          - -c
+          - "{{ linux_freeipa_enroll_local_user_conflict_kerberos_cache.path }}"
+      changed_when: false
+      failed_when: false
+      when: linux_freeipa_enroll_local_user_conflict_kerberos_cache is defined
+
+    - name: Remove temporary Kerberos cache for Linux local-user conflict detection
+      ansible.builtin.file:
+        path: "{{ linux_freeipa_enroll_local_user_conflict_kerberos_cache.path }}"
+        state: absent
+      changed_when: false
+      when: linux_freeipa_enroll_local_user_conflict_kerberos_cache is defined
+
+- name: Build Linux local-user conflict summary for IPA-backed admin users
+  ansible.builtin.set_fact:
+    linux_freeipa_enroll_local_user_conflicts: >-
+      {{
+        linux_freeipa_enroll_local_user_conflict_local_users
+        | intersect(linux_freeipa_enroll_local_user_conflict_ipa_users | default([]))
+        | sort
+        | list
+      }}
+  changed_when: false
+
+- name: Warn when local passwd users collide with IPA-backed Linux admin users
+  ansible.builtin.debug:
+    msg: >-
+      Linux guest {{ inventory_hostname }} already contains these local /etc/passwd users that
+      match IPA-backed Linux admin users from groups
+      {{ linux_freeipa_enroll_local_user_conflict_groups_effective | join(', ') }}:
+      {{ linux_freeipa_enroll_local_user_conflicts | join(', ') }}.
+      This does not block enrollment in the current warn-only mode, but those local accounts can
+      shadow or confuse IPA-backed SSH and sudo access on the guest.
+  changed_when: false
+  when:
+    - linux_freeipa_enroll_local_user_conflicts | default([]) | length > 0
+    - not (linux_freeipa_enroll_fail_on_local_user_conflicts | bool)
+
+- name: Fail when local passwd users collide with IPA-backed Linux admin users
+  ansible.builtin.fail:
+    msg: >-
+      Linux guest {{ inventory_hostname }} already contains these local /etc/passwd users that
+      match IPA-backed Linux admin users from groups
+      {{ linux_freeipa_enroll_local_user_conflict_groups_effective | join(', ') }}:
+      {{ linux_freeipa_enroll_local_user_conflicts | join(', ') }}.
+      Remove or rename the local accounts, or switch
+      linux_freeipa_enroll_fail_on_local_user_conflicts to false if you intentionally want
+      warn-only behavior.
+  when:
+    - linux_freeipa_enroll_local_user_conflicts | default([]) | length > 0
+    - linux_freeipa_enroll_fail_on_local_user_conflicts | bool

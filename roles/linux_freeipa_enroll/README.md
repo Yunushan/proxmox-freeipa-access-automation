@@ -45,6 +45,9 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - `linux_freeipa_enroll_local_sudo_groups`
 - `linux_freeipa_enroll_local_sudo_group_domain_variants`
 - `linux_freeipa_enroll_local_sudo_sync_ipa_group_members`
+- `linux_freeipa_enroll_check_local_user_conflicts`
+- `linux_freeipa_enroll_fail_on_local_user_conflicts`
+- `linux_freeipa_enroll_local_user_conflict_groups`
 - `linux_freeipa_enroll_local_sudo_nopasswd`
 - `linux_freeipa_enroll_sssd_access_update_mode`
 - `linux_freeipa_enroll_sssd_fast_memcache_timeout`
@@ -99,6 +102,9 @@ Enrolls Linux guests into FreeIPA by calling the upstream `freeipa.ansible_freei
 - `linux_freeipa_enroll_local_sudo_groups` defaults to `['linux-ssh-admins']`.
 - `linux_freeipa_enroll_local_sudo_group_domain_variants` defaults to `true`, so that local sudoers drop-in also writes IPA-qualified variants such as `linux-ssh-admins@example.com` and `linux-ssh-admins@EXAMPLE.COM` for guests where SSSD exposes group names in qualified form.
 - `linux_freeipa_enroll_local_sudo_sync_ipa_group_members` defaults to `true`, so the guest also queries FreeIPA for the direct members of those configured admin groups and writes explicit sudoers user entries for them. This makes `sudo` work even on guests where local group-name matching still differs from the IPA-side group naming.
+- `linux_freeipa_enroll_check_local_user_conflicts` defaults to `true`, so successful Linux enrollments also compare local `/etc/passwd` usernames against the effective IPA members of the configured admin groups and surface any collisions before the repository writes local SSH and sudo access policy.
+- `linux_freeipa_enroll_fail_on_local_user_conflicts` defaults to `false`, so those local-user collisions are warn-only by default. Set it to `true` once your fleet is clean if you want future runs to fail fast on conflicting local accounts.
+- `linux_freeipa_enroll_local_user_conflict_groups` defaults to the same group list as `linux_freeipa_enroll_local_sudo_groups`, so the repository checks the IPA-backed Linux admin groups it is about to trust for guest SSH and sudo access.
 - `linux_freeipa_enroll_local_sudo_nopasswd` defaults to `false`, so group members still authenticate with their own password for commands such as `sudo su` unless you explicitly opt into passwordless sudo.
 - `linux_freeipa_enroll_sssd_access_update_mode` defaults to `stable`, which leaves SSSD cache timings at the upstream client defaults for the most conservative behavior. Set it to `fast` if you want the role to install an SSSD drop-in that reduces identity and group-membership cache delays for IPA GUI access changes.
 - `linux_freeipa_enroll_sssd_fast_memcache_timeout` defaults to `30`, `linux_freeipa_enroll_sssd_fast_entry_cache_timeout` defaults to `30`, `linux_freeipa_enroll_sssd_fast_negative_cache_timeout` defaults to `15`, and `linux_freeipa_enroll_sssd_fast_refresh_expired_interval` defaults to `15`. Those values are only applied when the access-update mode is `fast`.

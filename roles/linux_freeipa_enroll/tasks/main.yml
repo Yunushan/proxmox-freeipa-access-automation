@@ -2138,6 +2138,15 @@
     - linux_freeipa_enroll_join_succeeded | bool
     - (ansible_facts.get('service_mgr', '') | string) == 'systemd'
 
+- name: Check for local-user collisions with IPA-backed Linux admin users after a successful join
+  ansible.builtin.include_tasks: check-local-user-conflicts.yml
+  when:
+    - not ansible_check_mode
+    - linux_freeipa_enroll_join_succeeded | bool
+    - linux_freeipa_enroll_check_local_user_conflicts | bool
+    - linux_freeipa_enroll_local_user_conflict_groups is defined
+    - linux_freeipa_enroll_local_user_conflict_groups | default([]) | length > 0
+
 - name: Configure local sudoers access for Linux IPA admin groups after a successful join
   ansible.builtin.include_tasks: configure-local-sudoers.yml
   when:

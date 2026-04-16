@@ -12,6 +12,7 @@ and this project follows semantic versioning when tagged releases are introduced
 - Split inventory variable files for features, FreeIPA, Linux clients, Proxmox LDAP, sync, and RBAC.
 - Shared Linux inventory-preparation and hostname-resolution playbook includes.
 - Linux guest source modes for static inventory, IP-only/manual definitions, and Proxmox VM discovery.
+- Optional Linux local-user conflict detection so IPA-backed admin users can be checked against existing local `/etc/passwd` usernames in warn-only or fail-fast mode during enrollment.
 - Proxmox discovery blacklist controls so infrastructure VMs can be excluded by VMID, IP, or name even on discovery-enabled nodes.
 - A dedicated `linux-readiness-report.yml` playbook and `linux_readiness_report` role for read-only Linux runtime audits covering SSH readiness and Proxmox QEMU Guest Agent status.
 - Proxmox LDAP realm automation no longer passes unsupported `--autocreate` or `--groups-autocreate` flags for LDAP realms, relying on sync defaults and realm sync behavior instead.

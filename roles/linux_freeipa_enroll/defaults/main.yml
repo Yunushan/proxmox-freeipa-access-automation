@@ -43,6 +43,9 @@ linux_freeipa_enroll_local_sudo_groups:
   - linux-ssh-admins
 linux_freeipa_enroll_local_sudo_group_domain_variants: true
 linux_freeipa_enroll_local_sudo_sync_ipa_group_members: true
+linux_freeipa_enroll_check_local_user_conflicts: true
+linux_freeipa_enroll_fail_on_local_user_conflicts: false
+linux_freeipa_enroll_local_user_conflict_groups: "{{ linux_freeipa_enroll_local_sudo_groups }}"
 linux_freeipa_enroll_local_sudo_nopasswd: false
 linux_freeipa_enroll_sssd_access_update_mode: stable
 linux_freeipa_enroll_sssd_fast_memcache_timeout: 30
