@@ -1,63 +1,187 @@
 # Project Title
 
-This page provides a full translated README. The complete and canonical documentation remains the English [README.md](../../README.md).
+This page must be a full translated README with the same section coverage as the English [README.md](../../README.md). The English file remains canonical.
 
 Translation scope: full
 Canonical source: ../../README.md
 Last synced: YYYY-MM-DD
 
-## Overview
+Follow [TERMINOLOGY.md](TERMINOLOGY.md) for shared technical terms and keep your terminology choices consistent across the whole file.
 
-Explain what the repository does and what problem it solves.
+## Languages
 
-## Core capabilities
+State that the English README is canonical and link back to [docs/i18n/README.md](README.md).
 
-- capability one
-- capability two
-- capability three
+## Why This Exists
 
-## Quick start
+Explain:
 
-1. Copy the example inventory and vault files.
-2. Edit the environment-specific files.
-3. Encrypt the vault files.
-4. Install the required Ansible collection.
-5. Run validation and then the full site playbook.
+- the expected starting environment
+- the operational problem the repository solves
+- the design principle that FreeIPA is the source of truth for identity and access
 
-## Common commands
+## What You Get
 
-```bash
-ansible-playbook playbooks/validate.yml --ask-vault-pass
-ansible-playbook playbooks/site.yml --ask-vault-pass
-```
+Translate the complete feature list from the English README. Do not shorten this section.
 
-## Key documents
+## Scope
 
-- [English README](../../README.md)
-- [Variables](../VARIABLES.md)
-- [Event-Driven VM Onboarding](../EVENT_DRIVEN_VM_ONBOARDING.md)
+Recreate the same include/exclude table from the English README.
 
-## Continue With The Remaining Sections
+## Windows Workflow
 
-Replicate the remaining section structure from the English README:
+Explain:
 
-- Scope
-- Architecture
-- Requirements
-- Network Ports
-- Compatibility
-- Quick Start
-- Rollout Order
-- Tag Model
-- Event-Driven VM Onboarding
-- Inventory Model
-- Linux Guest Source Modes
-- Configuration Surface
-- Example Group Strategy
-- Security
-- Idempotency and Caveats
-- Verification
-- Repository Layout
-- Development
-- Next Extensions
-- License
+- that Windows support is a separate workflow
+- the purpose of `windows_qemu_guest_agent_clients`
+- the purpose of `windows_management_clients`
+- the requirement for AD or FreeIPA-AD trust for real Windows logon
+- the limited scope of `windows_freeipa_helper_clients`
+
+## Architecture
+
+Keep the architecture diagram and translate the supporting explanation.
+
+## Requirements
+
+### Controller
+
+Translate the complete controller requirements list.
+
+### Targets
+
+Translate the complete target requirements list.
+
+## Network Ports
+
+Keep the full network-port table and the notes that follow it.
+
+## Compatibility
+
+Translate the full Proxmox compatibility explanation, including the version example override.
+
+## Quick Start
+
+Keep the shell and PowerShell examples and translate the surrounding explanation.
+
+### 1. Copy the example inventory and vault templates
+
+Translate the explanatory text and keep the command blocks intact.
+
+### 2. Edit the environment-specific files
+
+Translate the file list explanation, Linux source mode notes, and the non-root Proxmox SSH example.
+
+### 3. Encrypt the vault files
+
+Translate the vault guidance, helper wrapper explanation, and vault ID notes.
+
+### 4. Install the required collection
+
+Translate the bootstrap explanation and keep the commands intact.
+
+### 5. Run validation first
+
+Translate:
+
+- the validation commands
+- the Windows validation notes
+- the Linux readiness report explanation
+- the readiness field interpretation list
+- the quick `jq` examples
+
+### 6. Optional: preview planned changes
+
+Translate the check-mode caveats and keep the note block structure.
+
+### 7. Apply the full configuration
+
+Translate the explanation for the final site run and the Windows vault-ID note.
+
+## Rollout Order
+
+Translate the rollout order explanation, the limited PowerShell example, and the default rollout controls.
+
+## Tag Model
+
+Translate the tag model and keep the example commands.
+
+## Event-Driven VM Onboarding
+
+Translate the full event-driven onboarding explanation.
+
+## Inventory Model
+
+Translate:
+
+- the inventory-group explanation
+- the important hostname note
+- the template warning
+
+### Linux Guest Source Modes
+
+Translate the introductory explanation for the three Linux guest source modes.
+
+#### 1. Static inventory hosts
+
+Translate the explanation and keep the YAML example.
+
+#### 2. Manual host definitions in variables
+
+Translate the explanation, notes, and keep the YAML example.
+
+#### 3. Proxmox VM auto-discovery
+
+Translate:
+
+- the YAML example
+- the full discovery notes list
+- all allowlist, blacklist, QGA, bootstrap, hostname, DNS, and retry explanations
+
+## Configuration Surface
+
+Translate the file list and the main variable-family table.
+
+## Example Group Strategy
+
+Translate the example group strategy and keep the suffix examples.
+
+## Security
+
+Translate the full security guidance and keep the shell/PowerShell examples.
+
+## Idempotency and Caveats
+
+Translate the full caveats list without shortening it.
+
+## Verification
+
+Translate the introduction and all three verification subsections.
+
+### In FreeIPA
+
+Translate the full checklist.
+
+### In Proxmox
+
+Translate the full checklist.
+
+### On a Linux Guest
+
+Translate the full checklist.
+
+## Repository Layout
+
+Keep the `<details>` block and the repository tree, translating only the surrounding helper text.
+
+## Development
+
+Translate the complete helper-file list and keep the command blocks.
+
+## Next Extensions
+
+Translate the full suggested extensions list.
+
+## License
+
+Point to the same MIT license file.

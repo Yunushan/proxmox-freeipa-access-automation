@@ -6,6 +6,7 @@ This repository currently keeps a lightweight smoke-test layer instead of a full
 
 - `scripts/lint.py` runs repository lint checks
 - `scripts/smoke-test.py` prepares a temporary inventory from the public example files
+- `scripts/check_translations.py` audits translated README files for metadata, section-structure parity, and minimum content coverage with the canonical English README
 - smoke checks validate example inventory loading with `ansible-inventory --list`
 - smoke checks run `ansible-playbook --syntax-check` for every supported playbook
 

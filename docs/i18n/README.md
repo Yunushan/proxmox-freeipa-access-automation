@@ -5,9 +5,11 @@ This directory provides full translated README files for common world languages.
 
 Support model:
 
-- translated files here mirror the full README structure as closely as practical
+- translated files here should mirror the full README structure and section hierarchy
+- translated files here should stay close in content coverage and should not collapse into a short summary
 - the English root README remains authoritative for exact behavior, commands, and variable semantics
 - translation maintenance guidance lives in [TRANSLATION_GUIDE.md](TRANSLATION_GUIDE.md)
+- shared terminology guidance lives in [TERMINOLOGY.md](TERMINOLOGY.md)
 - new translation files should start from [README.template.md](README.template.md)
 
 - [العربية](README.ar.md)

@@ -833,12 +833,13 @@ Repository helper files included here:
 - `.pre-commit-config.yaml` runs the fast lint hook before commits when `pre-commit` is installed
 - `CHANGELOG.md` tracks notable repository changes in a single place
 - `docs/VARIABLES.md` explains the split inventory variable layout
-- `docs/i18n/` holds short translated README overviews while `README.md` remains the canonical full document
-- `docs/i18n/TRANSLATION_GUIDE.md` explains how translated README overview pages should be kept in sync
+- `docs/i18n/` holds translated README files that should mirror the full English section structure while `README.md` remains the canonical source
+- `docs/i18n/TRANSLATION_GUIDE.md` explains how translated README files should be kept in sync
 - `scripts/bootstrap.ps1` and `scripts/bootstrap.sh` install the required collection into the repo-local `collections/` path and patch it for ansible-core 2.24+ compatibility
 - `scripts/patch_freeipa_collection.py` rewrites deprecated imports in the pinned FreeIPA collection so it stays compatible with future ansible-core releases
 - `scripts/lint.py` provides the cross-platform lint entrypoint for local use, CI, and pre-commit
 - `scripts/smoke-test.py` validates the example inventory and runs syntax checks without touching real infrastructure, including the separate Windows playbook
+- `scripts/check_translations.py` audits translated README files for metadata, section-structure parity, and minimum content coverage against the canonical English README
 - `scripts/lint.ps1` and `scripts/lint.sh` run the combined local lint and smoke workflow
 - `scripts/proxmox_event_webhook.py` runs the optional controller-side webhook for Proxmox VM events
 - `scripts/proxmox-vm-hook.pl` is the optional Proxmox VM hookscript that notifies the controller webhook on `post-start` and `post-migrate`
@@ -858,10 +859,14 @@ To run the repository smoke checks directly:
 
 ```bash
 python scripts/smoke-test.py
+python scripts/check_translations.py
+python scripts/check_translations.py --strict
 ```
 
 ```powershell
 python .\scripts\smoke-test.py
+python .\scripts\check_translations.py
+python .\scripts\check_translations.py --strict
 ```
 
 For the full local lint pass:
