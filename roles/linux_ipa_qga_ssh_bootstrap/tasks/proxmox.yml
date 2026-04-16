@@ -186,6 +186,8 @@
       bootstrap_sudoers_file={{ ('/etc/sudoers.d/zz-' ~ linux_ipa_qga_ssh_bootstrap_user) | quote }}
       bootstrap_exec_uid="$(id -u)"
       bootstrap_exec_user="$(id -un 2>/dev/null || printf '%s' unknown)"
+      bootstrap_ssh_dir=''
+      bootstrap_authorized_keys=''
 
       if [ "$bootstrap_exec_uid" -ne 0 ]; then
         echo "guest exec is running as $bootstrap_exec_user (uid=$bootstrap_exec_uid); Linux QGA SSH bootstrap requires root privileges inside the guest" >&2
@@ -223,21 +225,38 @@
         bootstrap_group="$(id -gn "$bootstrap_user")"
       fi
 
-      if [ "$bootstrap_user" = 'root' ]; then
-        if [ ! -d "$bootstrap_home/.ssh" ]; then
-          ( umask 077 && mkdir -p "$bootstrap_home/.ssh" )
-        fi
-        if [ ! -f "$bootstrap_home/.ssh/authorized_keys" ]; then
-          ( umask 077 && : >> "$bootstrap_home/.ssh/authorized_keys" )
-        fi
-      else
-        install -d -m 0700 -o "$bootstrap_user" -g "$bootstrap_group" "$bootstrap_home/.ssh"
-        touch "$bootstrap_home/.ssh/authorized_keys"
-        chown "$bootstrap_user:$bootstrap_group" "$bootstrap_home/.ssh/authorized_keys"
-        chmod 0600 "$bootstrap_home/.ssh/authorized_keys"
+      bootstrap_ssh_dir="$bootstrap_home/.ssh"
+      bootstrap_authorized_keys="$bootstrap_ssh_dir/authorized_keys"
+
+      if [ -e "$bootstrap_ssh_dir" ] && [ ! -d "$bootstrap_ssh_dir" ]; then
+        echo "$bootstrap_ssh_dir exists but is not a directory" >&2
+        exit 1
       fi
 
-      grep -qxF "$bootstrap_pubkey" "$bootstrap_home/.ssh/authorized_keys" || printf '%s\n' "$bootstrap_pubkey" >> "$bootstrap_home/.ssh/authorized_keys"
+      if [ ! -d "$bootstrap_ssh_dir" ]; then
+        if [ "$bootstrap_user" = 'root' ]; then
+          ( umask 077 && mkdir -p "$bootstrap_ssh_dir" )
+        else
+          install -d -m 0700 -o "$bootstrap_user" -g "$bootstrap_group" "$bootstrap_ssh_dir"
+        fi
+      fi
+
+      if [ -e "$bootstrap_authorized_keys" ] && [ ! -f "$bootstrap_authorized_keys" ]; then
+        echo "$bootstrap_authorized_keys exists but is not a regular file" >&2
+        exit 1
+      fi
+
+      if [ "$bootstrap_user" = 'root' ]; then
+        if [ ! -f "$bootstrap_authorized_keys" ]; then
+          ( umask 077 && : >> "$bootstrap_authorized_keys" )
+        fi
+      else
+        touch "$bootstrap_authorized_keys"
+        chown "$bootstrap_user:$bootstrap_group" "$bootstrap_authorized_keys"
+        chmod 0600 "$bootstrap_authorized_keys"
+      fi
+
+      grep -qxF "$bootstrap_pubkey" "$bootstrap_authorized_keys" || printf '%s\n' "$bootstrap_pubkey" >> "$bootstrap_authorized_keys"
 
       if [ "$bootstrap_user" != 'root' ]; then
         install -d -m 0750 /etc/sudoers.d
