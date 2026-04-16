@@ -93,7 +93,7 @@
                 linux_freeipa_enroll_local_sudo_group_show.results
                 | default([])
                 | map(attribute='stdout')
-                | map('regex_findall', '(?im)^\\s*(?:member_user|memberindirect_user)\\s*:\\s*(.+?)\\s*$')
+                | map('regex_findall', '(?im)^\\s*member(?:indirect)?[_ ]user\\s*:\\s*(.+?)\\s*$')
                 | list
                 | flatten
                 | map('split', ',')
@@ -106,7 +106,7 @@
                   linux_freeipa_enroll_local_sudo_group_show.results
                   | default([])
                   | map(attribute='stdout')
-                  | map('regex_findall', '(?im)^\\s*(?:member_user|memberindirect_user)\\s*:\\s*(.+?)\\s*$')
+                  | map('regex_findall', '(?im)^\\s*member(?:indirect)?[_ ]user\\s*:\\s*(.+?)\\s*$')
                   | list
                   | flatten
                   | map('split', ',')
@@ -124,7 +124,7 @@
                   linux_freeipa_enroll_local_sudo_group_show.results
                   | default([])
                   | map(attribute='stdout')
-                  | map('regex_findall', '(?im)^\\s*(?:member_user|memberindirect_user)\\s*:\\s*(.+?)\\s*$')
+                  | map('regex_findall', '(?im)^\\s*member(?:indirect)?[_ ]user\\s*:\\s*(.+?)\\s*$')
                   | list
                   | flatten
                   | map('split', ',')

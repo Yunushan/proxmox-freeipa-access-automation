@@ -31,7 +31,7 @@ and this project follows semantic versioning when tagged releases are introduced
 ### Changed
 
 - Standalone playbooks now honor the same feature flags as the full-site rollout.
-- FreeIPA login-shell reconciliation now parses both direct and indirect group members, and also normalizes comma-separated `ipa group-show --raw` member output before enforcing `/bin/bash` on Linux admin users.
+- FreeIPA login-shell reconciliation now parses both direct and indirect group members, accepts underscore or space-separated FreeIPA member field names, and normalizes comma-separated `ipa group-show --raw` member output before enforcing `/bin/bash` on Linux admin users.
 - Linux execution targets now use the generated `linux_ipa_clients_runtime` group.
 - Windows support now runs as a separate AD-based workflow instead of being mixed into the Linux IPA enrollment path.
 - Windows documentation now also distinguishes helper-only FreeIPA-aware Windows tasks from real AD-backed Windows domain membership.
