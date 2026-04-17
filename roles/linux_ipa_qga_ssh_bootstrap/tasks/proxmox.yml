@@ -195,7 +195,10 @@
       fi
 
       if [ "$bootstrap_user" = 'root' ]; then
-        bootstrap_home='/root'
+        bootstrap_home="$(getent passwd root | cut -d: -f6)"
+        if [ -z "$bootstrap_home" ]; then
+          bootstrap_home='/root'
+        fi
         bootstrap_group="$(id -gn root)"
       else
         if ! id -u "$bootstrap_user" >/dev/null 2>&1; then
@@ -233,23 +236,10 @@
         exit 1
       fi
 
-      if [ ! -d "$bootstrap_ssh_dir" ]; then
-        if [ "$bootstrap_user" = 'root' ]; then
-          # Some guests still report EEXIST here; re-check the path before failing.
-          if ! ( umask 077 && mkdir "$bootstrap_ssh_dir" 2>/dev/null ); then
-            if [ -d "$bootstrap_ssh_dir" ]; then
-              :
-            elif [ -e "$bootstrap_ssh_dir" ]; then
-              echo "$bootstrap_ssh_dir exists but is not a directory" >&2
-              exit 1
-            else
-              echo "failed to create $bootstrap_ssh_dir" >&2
-              exit 1
-            fi
-          fi
-        else
-          install -d -m 0700 -o "$bootstrap_user" -g "$bootstrap_group" "$bootstrap_ssh_dir"
-        fi
+      if [ "$bootstrap_user" = 'root' ]; then
+        install -d -m 0700 "$bootstrap_ssh_dir"
+      else
+        install -d -m 0700 -o "$bootstrap_user" -g "$bootstrap_group" "$bootstrap_ssh_dir"
       fi
 
       if [ -e "$bootstrap_authorized_keys" ] && [ ! -f "$bootstrap_authorized_keys" ]; then
@@ -258,8 +248,10 @@
       fi
 
       if [ "$bootstrap_user" = 'root' ]; then
-        if [ ! -f "$bootstrap_authorized_keys" ]; then
-          ( umask 077 && : >> "$bootstrap_authorized_keys" )
+        if [ ! -e "$bootstrap_authorized_keys" ]; then
+          install -m 0600 /dev/null "$bootstrap_authorized_keys"
+        else
+          chmod 0600 "$bootstrap_authorized_keys"
         fi
       else
         touch "$bootstrap_authorized_keys"
@@ -290,7 +282,7 @@
       - "{{ linux_ipa_qga_ssh_bootstrap_timeout | int | string }}"
       - --
       - "{{ linux_ipa_qga_ssh_bootstrap_exec_shell }}"
-      - -lc
+      - -c
       - "{{ linux_ipa_qga_ssh_bootstrap_guest_script }}"
   become: true
   register: linux_ipa_qga_ssh_bootstrap_exec_results
