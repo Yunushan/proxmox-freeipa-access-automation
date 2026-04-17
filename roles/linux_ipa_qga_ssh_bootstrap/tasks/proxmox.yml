@@ -235,7 +235,18 @@
 
       if [ ! -d "$bootstrap_ssh_dir" ]; then
         if [ "$bootstrap_user" = 'root' ]; then
-          ( umask 077 && mkdir -p "$bootstrap_ssh_dir" )
+          # Some guests still report EEXIST here; re-check the path before failing.
+          if ! ( umask 077 && mkdir "$bootstrap_ssh_dir" 2>/dev/null ); then
+            if [ -d "$bootstrap_ssh_dir" ]; then
+              :
+            elif [ -e "$bootstrap_ssh_dir" ]; then
+              echo "$bootstrap_ssh_dir exists but is not a directory" >&2
+              exit 1
+            else
+              echo "failed to create $bootstrap_ssh_dir" >&2
+              exit 1
+            fi
+          fi
         else
           install -d -m 0700 -o "$bootstrap_user" -g "$bootstrap_group" "$bootstrap_ssh_dir"
         fi
