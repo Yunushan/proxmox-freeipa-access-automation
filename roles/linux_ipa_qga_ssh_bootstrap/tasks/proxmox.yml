@@ -237,7 +237,14 @@
       fi
 
       if [ "$bootstrap_user" = 'root' ]; then
-        install -d -m 0700 "$bootstrap_ssh_dir"
+        if [ ! -d "$bootstrap_ssh_dir" ]; then
+          if ! ( umask 077 && mkdir -p "$bootstrap_ssh_dir" ); then
+            if [ ! -d "$bootstrap_ssh_dir" ]; then
+              echo "failed to create $bootstrap_ssh_dir" >&2
+              exit 1
+            fi
+          fi
+        fi
       else
         install -d -m 0700 -o "$bootstrap_user" -g "$bootstrap_group" "$bootstrap_ssh_dir"
       fi
@@ -249,9 +256,10 @@
 
       if [ "$bootstrap_user" = 'root' ]; then
         if [ ! -e "$bootstrap_authorized_keys" ]; then
-          install -m 0600 /dev/null "$bootstrap_authorized_keys"
-        else
-          chmod 0600 "$bootstrap_authorized_keys"
+          if ! ( umask 077 && : > "$bootstrap_authorized_keys" ); then
+            echo "failed to create $bootstrap_authorized_keys; guest exec cannot write under $bootstrap_home for root bootstrap" >&2
+            exit 1
+          fi
         fi
       else
         touch "$bootstrap_authorized_keys"
@@ -259,7 +267,12 @@
         chmod 0600 "$bootstrap_authorized_keys"
       fi
 
-      grep -qxF "$bootstrap_pubkey" "$bootstrap_authorized_keys" || printf '%s\n' "$bootstrap_pubkey" >> "$bootstrap_authorized_keys"
+      if ! grep -qxF "$bootstrap_pubkey" "$bootstrap_authorized_keys" 2>/dev/null; then
+        if ! printf '%s\n' "$bootstrap_pubkey" >> "$bootstrap_authorized_keys"; then
+          echo "failed to update $bootstrap_authorized_keys; guest exec cannot write under $bootstrap_home for $bootstrap_user" >&2
+          exit 1
+        fi
+      fi
 
       if [ "$bootstrap_user" != 'root' ]; then
         install -d -m 0750 /etc/sudoers.d
