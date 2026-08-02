@@ -836,4 +836,4 @@ Le wrapper PowerShell des playbooks prend aussi en charge des options operateur 
 
 ## Licence
 
-Publie sous la [MIT License](../../LICENSE).
+Publie sous la [0BSD License](../../LICENSE).
