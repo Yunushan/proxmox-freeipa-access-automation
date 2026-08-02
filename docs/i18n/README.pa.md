@@ -860,4 +860,4 @@ PowerShell wrapper examples:
 
 ## ਲਾਇਸੈਂਸ
 
-ਇਹ ਪ੍ਰੋਜੈਕਟ [MIT License](../../LICENSE) ਦੇ ਅਧੀਨ ਜਾਰੀ ਕੀਤਾ ਗਿਆ ਹੈ।
+ਇਹ ਪ੍ਰੋਜੈਕਟ [0BSD License](../../LICENSE) ਦੇ ਅਧੀਨ ਜਾਰੀ ਕੀਤਾ ਗਿਆ ਹੈ।
