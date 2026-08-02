@@ -184,4 +184,4 @@ Translate the full suggested extensions list.
 
 ## License
 
-Point to the same MIT license file.
+Point to the same 0BSD license file.
