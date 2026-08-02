@@ -892,4 +892,4 @@ PowerShell playbook wrapper は一般的な operator option も直接サポー�
 
 ## ライセンス
 
-[MIT License](../../LICENSE) の下で公開されています。
+[0BSD License](../../LICENSE) の下で公開されています。
