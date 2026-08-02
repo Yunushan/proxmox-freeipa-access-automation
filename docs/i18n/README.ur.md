@@ -888,4 +888,4 @@ PowerShell playbook wrapper اب common operator options کو براہِ راس�
 
 ## لائسنس
 
-یہ project [MIT License](../../LICENSE) کے تحت جاری کیا گیا ہے۔
+یہ project [0BSD License](../../LICENSE) کے تحت جاری کیا گیا ہے۔
