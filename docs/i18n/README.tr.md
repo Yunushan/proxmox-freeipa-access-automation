@@ -866,4 +866,4 @@ PowerShell playbook wrapper artık yaygın operatör seçeneklerini doğrudan de
 
 ## Lisans
 
-[MIT License](../../LICENSE) altında yayımlanır.
+[0BSD License](../../LICENSE) altında yayımlanır.
