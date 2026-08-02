@@ -892,4 +892,4 @@ PowerShell playbook wrapper अब common operator options को भी सी�
 
 ## लाइसेंस
 
-यह repository [MIT License](../../LICENSE) के अंतर्गत जारी की जाती है।
+यह repository [0BSD License](../../LICENSE) के अंतर्गत जारी की जाती है।
