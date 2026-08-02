@@ -892,4 +892,4 @@ Ekstensi yang umum masuk akal berikutnya:
 
 ## Lisensi
 
-Dirilis di bawah [MIT License](../../LICENSE).
+Dirilis di bawah [0BSD License](../../LICENSE).
