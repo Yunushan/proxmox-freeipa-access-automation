@@ -912,4 +912,4 @@ Common follow-up improvements you may want later:
 
 ## License
 
-Released under the [MIT License](LICENSE).
+Released under the [0BSD License](LICENSE).
