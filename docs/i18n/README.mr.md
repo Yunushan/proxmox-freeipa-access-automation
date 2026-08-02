@@ -892,4 +892,4 @@ PowerShell playbook wrapper आता common operator options सुद्धा
 
 ## परवाना
 
-ही repository [MIT License](../../LICENSE) अंतर्गत प्रकाशित केली जाते.
+ही repository [0BSD License](../../LICENSE) अंतर्गत प्रकाशित केली जाते.
