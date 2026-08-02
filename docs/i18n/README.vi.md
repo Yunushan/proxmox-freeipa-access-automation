@@ -892,4 +892,4 @@ Nhung phan mo rong hop ly tiep theo thuong la:
 
 ## Giay phep
 
-Phat hanh theo [MIT License](../../LICENSE).
+Phat hanh theo [0BSD License](../../LICENSE).
