@@ -892,4 +892,4 @@ PowerShell playbook wrapper теперь напрямую поддерживае
 
 ## Лицензия
 
-Проект распространяется по [MIT License](../../LICENSE).
+Проект распространяется по [0BSD License](../../LICENSE).
