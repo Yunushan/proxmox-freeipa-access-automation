@@ -883,4 +883,4 @@ PowerShell playbook wrapper 现在也直接支持常见运维参数：
 
 ## 许可证
 
-本项目基于 [MIT License](../../LICENSE) 发布。
+本项目基于 [0BSD License](../../LICENSE) 发布。
