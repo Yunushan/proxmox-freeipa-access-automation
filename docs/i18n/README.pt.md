@@ -833,4 +833,4 @@ Extensoes comuns que fazem sentido depois:
 
 ## Licenca
 
-Publicado sob a [MIT License](../../LICENSE).
+Publicado sob a [0BSD License](../../LICENSE).
