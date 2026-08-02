@@ -837,4 +837,4 @@ Typische spaetere Folgeverbesserungen:
 
 ## Lizenz
 
-Freigegeben unter der [MIT License](../../LICENSE).
+Freigegeben unter der [0BSD License](../../LICENSE).
