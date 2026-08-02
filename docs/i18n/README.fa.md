@@ -881,4 +881,4 @@ wrapper مربوط به playbook در PowerShell اکنون این گزینه‌
 
 ## مجوز
 
-این پروژه تحت [MIT License](../../LICENSE) منتشر شده است.
+این پروژه تحت [0BSD License](../../LICENSE) منتشر شده است.
