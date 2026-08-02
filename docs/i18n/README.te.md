@@ -858,4 +858,4 @@ PowerShell wrapper ఉదాహరణలు:
 
 ## లైసెన్స్
 
-ఈ ప్రాజెక్ట్ [MIT License](../../LICENSE) కింద విడుదలైంది.
+ఈ ప్రాజెక్ట్ [0BSD License](../../LICENSE) కింద విడుదలైంది.
